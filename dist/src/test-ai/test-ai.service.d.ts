@@ -45,16 +45,16 @@ export declare class TestAIService {
         }[];
         debugLogs: {
             id: string;
-            createdAt: Date;
-            organizationId: string | null;
             phone: string;
-            agentId: string | null;
-            currentState: string | null;
-            leadId: string | null;
             conversationId: string | null;
             clientMessage: string;
             aiResponse: string;
+            currentState: string | null;
             aiThinking: string | null;
+            organizationId: string | null;
+            agentId: string | null;
+            leadId: string | null;
+            createdAt: Date;
         }[];
         extractedData: import("@prisma/client/runtime/library").JsonValue | undefined;
     }>;

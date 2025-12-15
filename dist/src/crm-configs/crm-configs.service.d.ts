@@ -4,126 +4,126 @@ export declare class CrmConfigsService {
     constructor(prisma: PrismaService);
     findAll(organizationId: string): Promise<({
         automations: {
-            isActive: boolean;
-            name: string;
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            name: string;
             description: string | null;
-            delayMinutes: number | null;
+            isActive: boolean;
             order: number;
             crmStageId: string | null;
-            agentStateId: string | null;
+            delayMinutes: number | null;
             crmConfigId: string;
             actions: import("@prisma/client/runtime/library").JsonValue;
+            agentStateId: string | null;
             triggerType: string;
         }[];
     } & {
-        isActive: boolean;
-        name: string;
         id: string;
         organizationId: string;
         createdAt: Date;
         updatedAt: Date;
+        name: string;
+        isActive: boolean;
         crmType: string;
-        apiKey: string;
         baseUrl: string;
         authType: string;
+        apiKey: string;
     })[]>;
     findOne(id: string, organizationId: string): Promise<{
         automations: {
-            isActive: boolean;
-            name: string;
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            name: string;
             description: string | null;
-            delayMinutes: number | null;
+            isActive: boolean;
             order: number;
             crmStageId: string | null;
-            agentStateId: string | null;
+            delayMinutes: number | null;
             crmConfigId: string;
             actions: import("@prisma/client/runtime/library").JsonValue;
+            agentStateId: string | null;
             triggerType: string;
         }[];
     } & {
-        isActive: boolean;
-        name: string;
         id: string;
         organizationId: string;
         createdAt: Date;
         updatedAt: Date;
+        name: string;
+        isActive: boolean;
         crmType: string;
-        apiKey: string;
         baseUrl: string;
         authType: string;
+        apiKey: string;
     }>;
     create(data: any): Promise<{
         automations: {
-            isActive: boolean;
-            name: string;
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            name: string;
             description: string | null;
-            delayMinutes: number | null;
+            isActive: boolean;
             order: number;
             crmStageId: string | null;
-            agentStateId: string | null;
+            delayMinutes: number | null;
             crmConfigId: string;
             actions: import("@prisma/client/runtime/library").JsonValue;
+            agentStateId: string | null;
             triggerType: string;
         }[];
     } & {
-        isActive: boolean;
-        name: string;
         id: string;
         organizationId: string;
         createdAt: Date;
         updatedAt: Date;
+        name: string;
+        isActive: boolean;
         crmType: string;
-        apiKey: string;
         baseUrl: string;
         authType: string;
+        apiKey: string;
     }>;
     update(id: string, data: any, organizationId: string): Promise<{
         automations: {
-            isActive: boolean;
-            name: string;
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            name: string;
             description: string | null;
-            delayMinutes: number | null;
+            isActive: boolean;
             order: number;
             crmStageId: string | null;
-            agentStateId: string | null;
+            delayMinutes: number | null;
             crmConfigId: string;
             actions: import("@prisma/client/runtime/library").JsonValue;
+            agentStateId: string | null;
             triggerType: string;
         }[];
     } & {
-        isActive: boolean;
-        name: string;
         id: string;
         organizationId: string;
         createdAt: Date;
         updatedAt: Date;
+        name: string;
+        isActive: boolean;
         crmType: string;
-        apiKey: string;
         baseUrl: string;
         authType: string;
+        apiKey: string;
     }>;
     delete(id: string, organizationId: string): Promise<{
-        isActive: boolean;
-        name: string;
         id: string;
         organizationId: string;
         createdAt: Date;
         updatedAt: Date;
+        name: string;
+        isActive: boolean;
         crmType: string;
-        apiKey: string;
         baseUrl: string;
         authType: string;
+        apiKey: string;
     }>;
 }
