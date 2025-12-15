@@ -59,20 +59,14 @@ let DataExtractorService = class DataExtractorService {
             let confidence;
             let reasoning;
             if (parsed.data !== undefined) {
-                const rawData = parsed.data || {};
-                extractedData = {};
-                for (const [key, value] of Object.entries(rawData)) {
-                    if (value !== null && value !== undefined) {
-                        extractedData[key] = value;
-                    }
-                }
+                extractedData = parsed.data || {};
                 confidence = parsed.confidence || 0.8;
                 reasoning = Array.isArray(parsed.reasoning) ? parsed.reasoning : [parsed.reasoning || 'Dados extraídos'];
             }
             else {
                 extractedData = {};
                 for (const [key, value] of Object.entries(parsed)) {
-                    if (key !== 'confidence' && key !== 'reasoning' && value !== null && value !== undefined) {
+                    if (key !== 'confidence' && key !== 'reasoning') {
                         extractedData[key] = value;
                     }
                 }
@@ -182,7 +176,7 @@ FORMATO DE SAÍDA (JSON):
             const filteredConfidence = {};
             for (const [key, value] of Object.entries(extractedData)) {
                 const conf = confidence[key] || 0;
-                if (conf >= 0.7 && value !== null && value !== undefined) {
+                if (conf >= 0.7) {
                     filteredData[key] = value;
                     filteredConfidence[key] = conf;
                 }

@@ -138,22 +138,57 @@ export class TestAIService {
             content: processedMessage,
         });
 
-        // Build system prompt with FSM context
+        // Use FSM Engine to decide next state
+        const fsmDecision = await this.fsmEngine.decideNextState({
+            agentId: agent.id,
+            currentState: lead.currentState || 'INICIO',
+            lastMessage: processedMessage,
+            extractedData: (lead.extractedData as unknown as Record<string, any>) || {},
+            conversationHistory: history,
+            leadId: lead.id,
+            organizationId,
+        });
+
+        // Update lead with new state and extracted data
+        await this.prisma.lead.update({
+            where: { id: lead.id },
+            data: {
+                currentState: fsmDecision.nextState,
+                extractedData: fsmDecision.extractedData,
+            },
+        });
+
+        // Get updated state details for response generation
+        const nextStateInfo = agent.states?.find(s => s.name === fsmDecision.nextState) || agent.states?.[0];
+
+        // Build system prompt with FSM context for response generation
         const knowledgeContext = agent.knowledge.map(k => `${k.title}: ${k.content}`).join('\n');
+
+        // Include Data To Extract requirement if present
+        const dataRequirement = fsmDecision.dataToExtract
+            ? `\n\n[DADO OBRIGATÓRIO PARA COLETAR]: ${fsmDecision.dataToExtract}`
+            : '';
+
+        // Add explicit directive from FSM reasoning
+        const fsmDirectives = fsmDecision.reasoning.join('\n');
+
         const systemPrompt = `${agent.systemPrompt || 'Você é um assistente virtual inteligente.'}
 
-ESTADO ATUAL: ${currentState.name}
-MISSÃO NESTE ESTADO: ${currentState.missionPrompt}
+ESTADO ATUAL: ${nextStateInfo?.name}
+MISSÃO NESTE ESTADO: ${nextStateInfo?.missionPrompt}${dataRequirement}
+
+DIRETRIZES DO MOTOR DE DECISÃO:
+${fsmDirectives}
 
 BASE DE CONHECIMENTO:
 ${knowledgeContext}
 
 DADOS EXTRAÍDOS DO LEAD:
-${JSON.stringify(lead.extractedData || {}, null, 2)}
+${JSON.stringify(fsmDecision.extractedData || {}, null, 2)}
 
 Responda de forma natural e ajude o usuário conforme a missão do estado atual.`;
 
-        // Get AI response
+        // Get AI response using the Logic-Driven context
         const apiKey = organization.openaiApiKey || process.env.OPENAI_API_KEY;
         if (!apiKey) {
             throw new Error('OpenAI API Key not configured');
@@ -168,26 +203,6 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
             ],
             { maxTokens: 500 }
         );
-
-        // Use FSM Engine to decide next state
-        const fsmDecision = await this.fsmEngine.decideNextState({
-            agentId: agent.id,
-            currentState: lead.currentState || 'INICIO',
-            lastMessage: processedMessage,
-            extractedData: lead.extractedData || {},
-            conversationHistory: history,
-            leadId: lead.id,
-            organizationId,
-        });
-
-        // Update lead with new state and extracted data
-        await this.prisma.lead.update({
-            where: { id: lead.id },
-            data: {
-                currentState: fsmDecision.nextState,
-                extractedData: fsmDecision.extractedData,
-            },
-        });
 
         // Save AI message with thinking
         const aiMessage = await this.prisma.message.create({

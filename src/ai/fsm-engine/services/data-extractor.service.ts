@@ -114,20 +114,15 @@ export class DataExtractorService {
             let reasoning: string[];
 
             if (parsed.data !== undefined) {
-                // Filter out null values - if IA returns {nome_cliente: null}, don't include it
-                const rawData = parsed.data || {};
-                extractedData = {};
-                for (const [key, value] of Object.entries(rawData)) {
-                    if (value !== null && value !== undefined) {
-                        extractedData[key] = value;
-                    }
-                }
+                // Formato com wrapper - EXACTLY like legacy
+                extractedData = parsed.data || {};
                 confidence = parsed.confidence || 0.8;
                 reasoning = Array.isArray(parsed.reasoning) ? parsed.reasoning : [parsed.reasoning || 'Dados extraídos'];
             } else {
+                // Formato simples - EXACTLY like legacy
                 extractedData = {};
                 for (const [key, value] of Object.entries(parsed)) {
-                    if (key !== 'confidence' && key !== 'reasoning' && value !== null && value !== undefined) {
+                    if (key !== 'confidence' && key !== 'reasoning') {
                         extractedData[key] = value;
                     }
                 }
@@ -148,7 +143,7 @@ export class DataExtractorService {
                     extractedAt: new Date(),
                     dataKey: input.dataKey,
                     dataType: input.dataType,
-                    extractedFields: Object.keys(extractedData), // Now only includes non-null fields
+                    extractedFields: Object.keys(extractedData),
                 },
                 reasoning,
             };
@@ -253,14 +248,13 @@ FORMATO DE SAÍDA (JSON):
             const confidence = parsed.confidence || {};
             const reasoning = parsed.reasoning || [];
 
-            // Filter out low confidence extractions AND null values
+            // Filter out low confidence extractions - EXACTLY like legacy
             const filteredData: Record<string, any> = {};
             const filteredConfidence: Record<string, number> = {};
 
             for (const [key, value] of Object.entries(extractedData)) {
                 const conf = confidence[key] || 0;
-                // Only include if confidence >= 0.7 AND value is not null/undefined
-                if (conf >= 0.7 && value !== null && value !== undefined) {
+                if (conf >= 0.7) {
                     filteredData[key] = value;
                     filteredConfidence[key] = conf;
                 }

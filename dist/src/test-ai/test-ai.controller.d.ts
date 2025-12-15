@@ -7,7 +7,7 @@ export declare class TestAIController {
         audioBase64: string | null;
         thinking: string;
         state: string;
-        extractedData: any;
+        extractedData: Record<string, any>;
         newDebugLog: {
             id: string;
             clientMessage: any;
@@ -15,7 +15,7 @@ export declare class TestAIController {
             currentState: string;
             aiThinking: string;
             createdAt: string;
-            extractedData: any;
+            extractedData: Record<string, any>;
         };
         sentMessages: {
             id: string;

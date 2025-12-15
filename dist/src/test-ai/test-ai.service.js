@@ -129,27 +129,6 @@ let TestAIService = class TestAIService {
             role: 'user',
             content: processedMessage,
         });
-        const knowledgeContext = agent.knowledge.map(k => `${k.title}: ${k.content}`).join('\n');
-        const systemPrompt = `${agent.systemPrompt || 'Você é um assistente virtual inteligente.'}
-
-ESTADO ATUAL: ${currentState.name}
-MISSÃO NESTE ESTADO: ${currentState.missionPrompt}
-
-BASE DE CONHECIMENTO:
-${knowledgeContext}
-
-DADOS EXTRAÍDOS DO LEAD:
-${JSON.stringify(lead.extractedData || {}, null, 2)}
-
-Responda de forma natural e ajude o usuário conforme a missão do estado atual.`;
-        const apiKey = organization.openaiApiKey || process.env.OPENAI_API_KEY;
-        if (!apiKey) {
-            throw new Error('OpenAI API Key not configured');
-        }
-        const aiResponse = await this.openaiService.createChatCompletion(apiKey, organization.openaiModel || 'gpt-4o-mini', [
-            { role: 'system', content: systemPrompt },
-            ...history,
-        ], { maxTokens: 500 });
         const fsmDecision = await this.fsmEngine.decideNextState({
             agentId: agent.id,
             currentState: lead.currentState || 'INICIO',
@@ -166,6 +145,35 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
                 extractedData: fsmDecision.extractedData,
             },
         });
+        const nextStateInfo = agent.states?.find(s => s.name === fsmDecision.nextState) || agent.states?.[0];
+        const knowledgeContext = agent.knowledge.map(k => `${k.title}: ${k.content}`).join('\n');
+        const dataRequirement = fsmDecision.dataToExtract
+            ? `\n\n[DADO OBRIGATÓRIO PARA COLETAR]: ${fsmDecision.dataToExtract}`
+            : '';
+        const fsmDirectives = fsmDecision.reasoning.join('\n');
+        const systemPrompt = `${agent.systemPrompt || 'Você é um assistente virtual inteligente.'}
+
+ESTADO ATUAL: ${nextStateInfo?.name}
+MISSÃO NESTE ESTADO: ${nextStateInfo?.missionPrompt}${dataRequirement}
+
+DIRETRIZES DO MOTOR DE DECISÃO:
+${fsmDirectives}
+
+BASE DE CONHECIMENTO:
+${knowledgeContext}
+
+DADOS EXTRAÍDOS DO LEAD:
+${JSON.stringify(fsmDecision.extractedData || {}, null, 2)}
+
+Responda de forma natural e ajude o usuário conforme a missão do estado atual.`;
+        const apiKey = organization.openaiApiKey || process.env.OPENAI_API_KEY;
+        if (!apiKey) {
+            throw new Error('OpenAI API Key not configured');
+        }
+        const aiResponse = await this.openaiService.createChatCompletion(apiKey, organization.openaiModel || 'gpt-4o-mini', [
+            { role: 'system', content: systemPrompt },
+            ...history,
+        ], { maxTokens: 500 });
         const aiMessage = await this.prisma.message.create({
             data: {
                 conversationId: conversation.id,
