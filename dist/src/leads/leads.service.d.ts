@@ -65,7 +65,6 @@ export declare class LeadsService {
             organizationId: string;
             createdAt: Date;
             updatedAt: Date;
-            prohibitions: string | null;
             googleAccessToken: string | null;
             googleCalendarEnabled: boolean;
             googleCalendarId: string | null;
@@ -104,6 +103,7 @@ export declare class LeadsService {
             messageBufferEnabled: boolean;
             messageBufferMaxSize: number;
             notificationPhones: string[];
+            prohibitions: string | null;
             responseDelay: number;
             writingStyle: string | null;
             dataExtractionPrompt: string | null;
@@ -139,8 +139,8 @@ export declare class LeadsService {
                 timestamp: Date;
                 type: import(".prisma/client").$Enums.MessageType;
                 conversationId: string;
-                content: string;
                 messageId: string;
+                content: string;
                 fromMe: boolean;
                 thought: string | null;
             }[];
@@ -151,8 +151,8 @@ export declare class LeadsService {
             leadId: string | null;
             createdAt: Date;
             updatedAt: Date;
-            whatsapp: string;
             aiEnabled: boolean;
+            whatsapp: string;
         })[];
     } & {
         log: string | null;
@@ -190,7 +190,6 @@ export declare class LeadsService {
             organizationId: string;
             createdAt: Date;
             updatedAt: Date;
-            prohibitions: string | null;
             googleAccessToken: string | null;
             googleCalendarEnabled: boolean;
             googleCalendarId: string | null;
@@ -229,6 +228,7 @@ export declare class LeadsService {
             messageBufferEnabled: boolean;
             messageBufferMaxSize: number;
             notificationPhones: string[];
+            prohibitions: string | null;
             responseDelay: number;
             writingStyle: string | null;
             dataExtractionPrompt: string | null;

@@ -9,6 +9,7 @@ export declare class StatesController {
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
+        prohibitions: string | null;
         missionPrompt: string;
         availableRoutes: import("@prisma/client/runtime/library").JsonValue;
         dataKey: string | null;
@@ -20,7 +21,6 @@ export declare class StatesController {
         order: number;
         dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
         mediaTiming: string | null;
-        prohibitions: string | null;
         responseType: string | null;
         crmStageId: string | null;
     }[]>;
@@ -31,6 +31,7 @@ export declare class StatesController {
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
+        prohibitions: string | null;
         missionPrompt: string;
         availableRoutes: import("@prisma/client/runtime/library").JsonValue;
         dataKey: string | null;
@@ -42,7 +43,6 @@ export declare class StatesController {
         order: number;
         dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
         mediaTiming: string | null;
-        prohibitions: string | null;
         responseType: string | null;
         crmStageId: string | null;
     }>;
@@ -53,6 +53,7 @@ export declare class StatesController {
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
+        prohibitions: string | null;
         missionPrompt: string;
         availableRoutes: import("@prisma/client/runtime/library").JsonValue;
         dataKey: string | null;
@@ -64,7 +65,6 @@ export declare class StatesController {
         order: number;
         dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
         mediaTiming: string | null;
-        prohibitions: string | null;
         responseType: string | null;
         crmStageId: string | null;
     }>;

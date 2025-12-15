@@ -20,6 +20,7 @@ exports.FollowupsModule = FollowupsModule = __decorate([
         imports: [prisma_module_1.PrismaModule, integrations_module_1.IntegrationsModule],
         controllers: [followups_controller_1.FollowupsController],
         providers: [followups_service_1.FollowupsService],
+        exports: [followups_service_1.FollowupsService],
     })
 ], FollowupsModule);
 //# sourceMappingURL=followups.module.js.map

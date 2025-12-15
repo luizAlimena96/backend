@@ -13,12 +13,20 @@ const crm_controller_1 = require("./crm.controller");
 const crm_service_1 = require("./crm.service");
 const crm_proxy_controller_1 = require("./crm-proxy.controller");
 const crm_templates_controller_1 = require("./crm-templates.controller");
+const crm_configs_module_1 = require("../crm-configs/crm-configs.module");
+const crm_templates_module_1 = require("../crm-templates/crm-templates.module");
+const crm_automations_module_1 = require("../crm-automations/crm-automations.module");
 let CRMModule = class CRMModule {
 };
 exports.CRMModule = CRMModule;
 exports.CRMModule = CRMModule = __decorate([
     (0, common_1.Module)({
-        imports: [axios_1.HttpModule],
+        imports: [
+            axios_1.HttpModule,
+            crm_configs_module_1.CrmConfigsModule,
+            crm_templates_module_1.CrmTemplatesModule,
+            crm_automations_module_1.CrmAutomationsModule,
+        ],
         controllers: [crm_controller_1.CRMController, crm_proxy_controller_1.CRMProxyController, crm_templates_controller_1.CRMTemplatesController],
         providers: [crm_service_1.CRMService],
         exports: [crm_service_1.CRMService],

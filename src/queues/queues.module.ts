@@ -11,13 +11,16 @@ import { NotificationProcessor } from './processors/notification.processor';
 import { AutomationProcessor } from './processors/automation.processor';
 import { CRMSyncProcessor } from './processors/crm-sync.processor';
 import { CRMSyncScheduler } from './schedulers/crm-sync.scheduler';
+import { FollowupScheduler } from './schedulers/followup.scheduler';
 import { PrismaModule } from '../database/prisma.module';
+import { FollowupsModule } from '../followups/followups.module';
 
 @Module({
     imports: [
         ConfigModule,
         PrismaModule,
         HttpModule,
+        FollowupsModule,
         BullModule.forRootAsync({
             imports: [ConfigModule],
             useFactory: async (configService: ConfigService) => {
@@ -100,6 +103,7 @@ import { PrismaModule } from '../database/prisma.module';
 
         // Schedulers
         CRMSyncScheduler,
+        FollowupScheduler,
     ],
     exports: [
         FollowupJobService,

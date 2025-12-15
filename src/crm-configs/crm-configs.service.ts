@@ -9,7 +9,6 @@ export class CrmConfigsService {
         return this.prisma.cRMConfig.findMany({
             where: { organizationId },
             include: {
-                templates: true,
                 automations: true,
             },
             orderBy: { createdAt: 'desc' },
@@ -20,7 +19,6 @@ export class CrmConfigsService {
         const config = await this.prisma.cRMConfig.findUnique({
             where: { id },
             include: {
-                templates: true,
                 automations: true,
             },
         });
@@ -48,7 +46,6 @@ export class CrmConfigsService {
                 isActive: data.isActive ?? true,
             },
             include: {
-                templates: true,
                 automations: true,
             },
         });
@@ -69,7 +66,6 @@ export class CrmConfigsService {
                 isActive: data.isActive,
             },
             include: {
-                templates: true,
                 automations: true,
             },
         });

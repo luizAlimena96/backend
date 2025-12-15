@@ -52,7 +52,11 @@ let FollowupsService = class FollowupsService {
                 include: {
                     agent: {
                         include: {
-                            organization: true,
+                            organization: {
+                                select: {
+                                    workingHours: true,
+                                },
+                            },
                         },
                     },
                 },
@@ -61,50 +65,18 @@ let FollowupsService = class FollowupsService {
             let processedCount = 0;
             for (const followup of activeFollowups) {
                 try {
-                    const conversations = await this.prisma.conversation.findMany({
-                        where: {
-                            agentId: followup.agentId,
-                            aiEnabled: true,
-                        },
-                        include: {
-                            messages: {
-                                orderBy: { timestamp: 'desc' },
-                                take: 1,
-                            },
-                            lead: true,
-                        },
-                    });
-                    for (const conversation of conversations) {
-                        const lastMessage = conversation.messages[0];
-                        if (!lastMessage)
-                            continue;
-                        const hoursSinceLastMessage = (Date.now() - lastMessage.timestamp.getTime()) / (1000 * 60 * 60);
-                        if (hoursSinceLastMessage >= followup.delayHours) {
-                            console.log(`[Followups Service] Follow-up due for conversation ${conversation.id}`);
-                            try {
-                                const instanceName = followup.agent.instance;
-                                const recipient = conversation.whatsapp;
-                                if (followup.mediaType === 'text') {
-                                    await this.whatsappService.sendMessage(instanceName, recipient, followup.message);
-                                }
-                                else if (followup.mediaType === 'media' && followup.mediaUrl) {
-                                    await this.whatsappService.sendMedia(instanceName, recipient, followup.mediaUrl, followup.message);
-                                }
-                                if (conversation.leadId) {
-                                    await this.prisma.followupLog.create({
-                                        data: {
-                                            leadId: conversation.leadId,
-                                            followupId: followup.id,
-                                            message: followup.message,
-                                        },
-                                    });
-                                }
-                                console.log(`[Followups Service] ✅ Sent follow-up to ${recipient}`);
+                    const eligibleConversations = await this.getFollowupEligibleConversations(followup);
+                    console.log(`[Followups Service] Found ${eligibleConversations.length} eligible conversations for followup ${followup.id}`);
+                    for (const conversation of eligibleConversations) {
+                        try {
+                            const shouldSend = await this.checkFollowupConditions(conversation, followup);
+                            if (shouldSend) {
+                                await this.sendFollowup(conversation, followup);
                                 processedCount++;
                             }
-                            catch (sendError) {
-                                console.error(`[Followups Service] ❌ Error sending follow-up:`, sendError);
-                            }
+                        }
+                        catch (error) {
+                            console.error(`[Followups Service] Error processing conversation ${conversation.id}:`, error);
                         }
                     }
                 }
@@ -122,6 +94,125 @@ let FollowupsService = class FollowupsService {
             console.error('[Followups Service] Error in checkAgentFollowUps:', error);
             throw error;
         }
+    }
+    async getFollowupEligibleConversations(followup) {
+        const conversations = await this.prisma.conversation.findMany({
+            where: {
+                agentId: followup.agentId,
+                aiEnabled: true,
+            },
+            include: {
+                messages: {
+                    orderBy: { timestamp: 'desc' },
+                    take: 1,
+                },
+                lead: {
+                    select: {
+                        id: true,
+                        status: true,
+                        currentState: true,
+                        extractedData: true,
+                    },
+                },
+            },
+        });
+        return conversations.filter(conv => conv.messages.length > 0);
+    }
+    async checkFollowupConditions(conversation, followup) {
+        const lastMessage = conversation.messages[0];
+        if (!lastMessage)
+            return false;
+        const hoursSinceLastMessage = (Date.now() - lastMessage.timestamp.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceLastMessage < followup.delayHours) {
+            return false;
+        }
+        if (conversation.lead?.status === 'inactive' || conversation.lead?.status === 'converted') {
+            console.log(`[Followups Service] Lead ${conversation.leadId} is ${conversation.lead.status}, skipping`);
+            return false;
+        }
+        if (conversation.leadId) {
+            const recentFollowup = await this.prisma.followupLog.findFirst({
+                where: {
+                    leadId: conversation.leadId,
+                    followupId: followup.id,
+                    sentAt: {
+                        gte: new Date(Date.now() - followup.delayHours * 60 * 60 * 1000),
+                    },
+                },
+            });
+            if (recentFollowup) {
+                console.log(`[Followups Service] Followup already sent recently to lead ${conversation.leadId}`);
+                return false;
+            }
+            const followupCount = await this.prisma.followupLog.count({
+                where: {
+                    leadId: conversation.leadId,
+                    followupId: followup.id,
+                },
+            });
+            const maxFollowups = 3;
+            if (followupCount >= maxFollowups) {
+                console.log(`[Followups Service] Max followups (${maxFollowups}) reached for lead ${conversation.leadId}`);
+                return false;
+            }
+        }
+        if (followup.agent?.organization?.workingHours) {
+            const isWithinWorkingHours = this.checkWorkingHours(followup.agent.organization.workingHours);
+            if (!isWithinWorkingHours) {
+                console.log(`[Followups Service] Outside working hours, skipping`);
+                return false;
+            }
+        }
+        return true;
+    }
+    async sendFollowup(conversation, followup) {
+        try {
+            const instanceName = followup.agent.instance;
+            const recipient = conversation.whatsapp;
+            if (followup.mediaType === 'text' || !followup.mediaType) {
+                await this.whatsappService.sendMessage(instanceName, recipient, followup.message);
+            }
+            else if (followup.mediaType === 'media' && followup.mediaUrl) {
+                await this.whatsappService.sendMedia(instanceName, recipient, followup.mediaUrl, followup.message);
+            }
+            if (conversation.leadId) {
+                await this.prisma.followupLog.create({
+                    data: {
+                        leadId: conversation.leadId,
+                        followupId: followup.id,
+                        message: followup.message,
+                    },
+                });
+            }
+            console.log(`[Followups Service] ✅ Sent follow-up to ${recipient}`);
+        }
+        catch (error) {
+            console.error(`[Followups Service] ❌ Error sending follow-up:`, error);
+            throw error;
+        }
+    }
+    checkWorkingHours(workingHours) {
+        if (!workingHours)
+            return true;
+        const now = new Date();
+        const currentDay = now.getDay();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        const currentTime = currentHour * 60 + currentMinute;
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const dayName = dayNames[currentDay];
+        if (!workingHours[dayName]?.enabled) {
+            return false;
+        }
+        const startTime = this.parseTime(workingHours[dayName].start);
+        const endTime = this.parseTime(workingHours[dayName].end);
+        return currentTime >= startTime && currentTime <= endTime;
+    }
+    parseTime(timeStr) {
+        if (!timeStr)
+            return 0;
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return hours * 60 + minutes;
     }
 };
 exports.FollowupsService = FollowupsService;

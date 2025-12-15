@@ -12,16 +12,6 @@ export declare class ConversationsController {
             id: string;
             phone: string;
         } | null;
-        messages: {
-            id: string;
-            timestamp: Date;
-            type: import(".prisma/client").$Enums.MessageType;
-            conversationId: string;
-            content: string;
-            messageId: string;
-            fromMe: boolean;
-            thought: string | null;
-        }[];
         tags: {
             name: string;
             id: string;
@@ -30,6 +20,16 @@ export declare class ConversationsController {
             updatedAt: Date;
             color: string;
         }[];
+        messages: {
+            id: string;
+            timestamp: Date;
+            type: import(".prisma/client").$Enums.MessageType;
+            conversationId: string;
+            messageId: string;
+            content: string;
+            fromMe: boolean;
+            thought: string | null;
+        }[];
     } & {
         id: string;
         organizationId: string;
@@ -37,8 +37,8 @@ export declare class ConversationsController {
         leadId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        whatsapp: string;
         aiEnabled: boolean;
+        whatsapp: string;
     })[]>;
     findOne(id: string): Promise<({
         agent: {
@@ -48,7 +48,6 @@ export declare class ConversationsController {
             organizationId: string;
             createdAt: Date;
             updatedAt: Date;
-            prohibitions: string | null;
             googleAccessToken: string | null;
             googleCalendarEnabled: boolean;
             googleCalendarId: string | null;
@@ -87,6 +86,7 @@ export declare class ConversationsController {
             messageBufferEnabled: boolean;
             messageBufferMaxSize: number;
             notificationPhones: string[];
+            prohibitions: string | null;
             responseDelay: number;
             writingStyle: string | null;
             dataExtractionPrompt: string | null;
@@ -125,16 +125,6 @@ export declare class ConversationsController {
             birthDate: Date | null;
             rg: string | null;
         } | null;
-        messages: {
-            id: string;
-            timestamp: Date;
-            type: import(".prisma/client").$Enums.MessageType;
-            conversationId: string;
-            content: string;
-            messageId: string;
-            fromMe: boolean;
-            thought: string | null;
-        }[];
         tags: {
             name: string;
             id: string;
@@ -143,6 +133,16 @@ export declare class ConversationsController {
             updatedAt: Date;
             color: string;
         }[];
+        messages: {
+            id: string;
+            timestamp: Date;
+            type: import(".prisma/client").$Enums.MessageType;
+            conversationId: string;
+            messageId: string;
+            content: string;
+            fromMe: boolean;
+            thought: string | null;
+        }[];
     } & {
         id: string;
         organizationId: string;
@@ -150,8 +150,8 @@ export declare class ConversationsController {
         leadId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        whatsapp: string;
         aiEnabled: boolean;
+        whatsapp: string;
     }) | null>;
     create(data: any): Promise<{
         id: string;
@@ -160,8 +160,8 @@ export declare class ConversationsController {
         leadId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        whatsapp: string;
         aiEnabled: boolean;
+        whatsapp: string;
     }>;
     update(id: string, data: any): Promise<{
         id: string;
@@ -170,8 +170,8 @@ export declare class ConversationsController {
         leadId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        whatsapp: string;
         aiEnabled: boolean;
+        whatsapp: string;
     }>;
     toggleAI(id: string, enabled: boolean): Promise<{
         id: string;
@@ -180,16 +180,16 @@ export declare class ConversationsController {
         leadId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        whatsapp: string;
         aiEnabled: boolean;
+        whatsapp: string;
     }>;
     getMessages(id: string): Promise<{
         id: string;
         timestamp: Date;
         type: import(".prisma/client").$Enums.MessageType;
         conversationId: string;
-        content: string;
         messageId: string;
+        content: string;
         fromMe: boolean;
         thought: string | null;
     }[]>;
@@ -198,8 +198,8 @@ export declare class ConversationsController {
         timestamp: Date;
         type: import(".prisma/client").$Enums.MessageType;
         conversationId: string;
-        content: string;
         messageId: string;
+        content: string;
         fromMe: boolean;
         thought: string | null;
     }>;
@@ -219,8 +219,8 @@ export declare class ConversationsController {
         leadId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        whatsapp: string;
         aiEnabled: boolean;
+        whatsapp: string;
     }>;
     removeTag(id: string, tagId: string): Promise<{
         tags: {
@@ -238,7 +238,7 @@ export declare class ConversationsController {
         leadId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        whatsapp: string;
         aiEnabled: boolean;
+        whatsapp: string;
     }>;
 }

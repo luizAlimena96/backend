@@ -1,13 +1,37 @@
 import { PrismaService } from '../database/prisma.service';
+import { FSMEngineService } from '../ai/fsm-engine/fsm-engine.service';
+import { OpenAIService } from '../ai/services/openai.service';
+import { ElevenLabsService } from '../integrations/elevenlabs/elevenlabs.service';
+import { AgentFollowupService } from '../common/services/agent-followup.service';
 export declare class TestAIService {
     private prisma;
-    constructor(prisma: PrismaService);
+    private fsmEngine;
+    private openaiService;
+    private elevenLabsService;
+    private agentFollowup;
+    constructor(prisma: PrismaService, fsmEngine: FSMEngineService, openaiService: OpenAIService, elevenLabsService: ElevenLabsService, agentFollowup: AgentFollowupService);
     processMessage(data: any, userId: string, userRole: string): Promise<{
         response: string;
-        audioBase64: null;
+        audioBase64: string | null;
         thinking: string;
         state: string;
-        sentMessages: never[];
+        extractedData: any;
+        newDebugLog: {
+            id: string;
+            clientMessage: any;
+            aiResponse: string;
+            currentState: string;
+            aiThinking: string;
+            createdAt: string;
+            extractedData: any;
+        };
+        sentMessages: {
+            id: string;
+            content: string;
+            timestamp: Date;
+            thought: string;
+            type: string;
+        }[];
     }>;
     getHistory(organizationId: string, userRole: string): Promise<{
         messages: {
@@ -17,19 +41,20 @@ export declare class TestAIService {
             timestamp: Date;
             thinking: string | null;
             state: string | null | undefined;
+            type: import(".prisma/client").$Enums.MessageType;
         }[];
         debugLogs: {
             id: string;
+            createdAt: Date;
+            organizationId: string | null;
             phone: string;
+            agentId: string | null;
+            currentState: string | null;
+            leadId: string | null;
             conversationId: string | null;
             clientMessage: string;
             aiResponse: string;
-            currentState: string | null;
             aiThinking: string | null;
-            organizationId: string | null;
-            agentId: string | null;
-            leadId: string | null;
-            createdAt: Date;
         }[];
         extractedData: import("@prisma/client/runtime/library").JsonValue | undefined;
     }>;
@@ -39,5 +64,14 @@ export declare class TestAIService {
     triggerFollowup(organizationId: string, agentId: string, userRole: string): Promise<{
         success: boolean;
         message: string;
+        stats?: undefined;
+    } | {
+        success: boolean;
+        message: string;
+        stats: {
+            totalSent: number;
+            lastSentAt: Date | null;
+            followupRules: number;
+        };
     }>;
 }

@@ -13,13 +13,13 @@ export declare class FollowupsService {
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
+        mediaUrl: string | null;
         condition: string;
         delayHours: number;
         aiDecisionEnabled: boolean;
         aiDecisionPrompt: string | null;
         audioVoiceId: string | null;
         mediaType: string;
-        mediaUrl: string | null;
         respectBusinessHours: boolean;
         specificHour: number | null;
         specificMinute: number | null;
@@ -32,8 +32,8 @@ export declare class FollowupsService {
             id: string;
             message: string;
             leadId: string;
-            sentAt: Date;
             followupId: string;
+            sentAt: Date;
         }[];
     } & {
         isActive: boolean;
@@ -44,13 +44,13 @@ export declare class FollowupsService {
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
+        mediaUrl: string | null;
         condition: string;
         delayHours: number;
         aiDecisionEnabled: boolean;
         aiDecisionPrompt: string | null;
         audioVoiceId: string | null;
         mediaType: string;
-        mediaUrl: string | null;
         respectBusinessHours: boolean;
         specificHour: number | null;
         specificMinute: number | null;
@@ -67,13 +67,13 @@ export declare class FollowupsService {
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
+        mediaUrl: string | null;
         condition: string;
         delayHours: number;
         aiDecisionEnabled: boolean;
         aiDecisionPrompt: string | null;
         audioVoiceId: string | null;
         mediaType: string;
-        mediaUrl: string | null;
         respectBusinessHours: boolean;
         specificHour: number | null;
         specificMinute: number | null;
@@ -90,13 +90,13 @@ export declare class FollowupsService {
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
+        mediaUrl: string | null;
         condition: string;
         delayHours: number;
         aiDecisionEnabled: boolean;
         aiDecisionPrompt: string | null;
         audioVoiceId: string | null;
         mediaType: string;
-        mediaUrl: string | null;
         respectBusinessHours: boolean;
         specificHour: number | null;
         specificMinute: number | null;
@@ -111,4 +111,9 @@ export declare class FollowupsService {
         processed: number;
         rulesChecked: number;
     }>;
+    private getFollowupEligibleConversations;
+    private checkFollowupConditions;
+    private sendFollowup;
+    private checkWorkingHours;
+    private parseTime;
 }

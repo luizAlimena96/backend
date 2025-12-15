@@ -44,8 +44,8 @@ export declare class CRMTemplatesController {
         organizationId: string;
         createdAt: Date;
         updatedAt: Date;
-        apiKey: string;
         crmType: string;
+        apiKey: string;
         baseUrl: string;
         authType: string;
     }>;

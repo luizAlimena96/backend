@@ -12,16 +12,28 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TestAIService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../database/prisma.service");
+const fsm_engine_service_1 = require("../ai/fsm-engine/fsm-engine.service");
+const openai_service_1 = require("../ai/services/openai.service");
+const elevenlabs_service_1 = require("../integrations/elevenlabs/elevenlabs.service");
+const agent_followup_service_1 = require("../common/services/agent-followup.service");
 let TestAIService = class TestAIService {
     prisma;
-    constructor(prisma) {
+    fsmEngine;
+    openaiService;
+    elevenLabsService;
+    agentFollowup;
+    constructor(prisma, fsmEngine, openaiService, elevenLabsService, agentFollowup) {
         this.prisma = prisma;
+        this.fsmEngine = fsmEngine;
+        this.openaiService = openaiService;
+        this.elevenLabsService = elevenLabsService;
+        this.agentFollowup = agentFollowup;
     }
     async processMessage(data, userId, userRole) {
         if (userRole !== 'SUPER_ADMIN') {
             throw new common_1.ForbiddenException('Only SUPER_ADMIN can access this endpoint');
         }
-        const { message, organizationId, agentId, conversationHistory, file, customPrompts } = data;
+        const { message, organizationId, agentId, conversationHistory, file } = data;
         if ((!message && !file) || !organizationId || !agentId) {
             throw new common_1.ForbiddenException('Message (or File), organizationId, and agentId are required');
         }
@@ -37,6 +49,7 @@ let TestAIService = class TestAIService {
                 states: {
                     orderBy: { order: 'asc' },
                 },
+                knowledge: true,
             },
         });
         if (!agent) {
@@ -58,6 +71,7 @@ let TestAIService = class TestAIService {
                     currentState: agent.states?.[0]?.name || 'INICIO',
                     agentId: agent.id,
                     organizationId,
+                    extractedData: {},
                 },
             });
         }
@@ -77,24 +91,137 @@ let TestAIService = class TestAIService {
                 },
             });
         }
-        const userMsgContent = message || (file ? `[Arquivo Enviado]: ${file.name}` : '[Mensagem Vazia]');
+        let processedMessage = message || '';
+        if (file) {
+            const apiKey = organization.openaiApiKey || process.env.OPENAI_API_KEY;
+            if (file.type.startsWith('audio/') && apiKey) {
+                try {
+                    const transcription = await this.openaiService.transcribeAudio(apiKey, file.base64);
+                    processedMessage = `[ÁUDIO TRANSCRITO]: ${transcription}${message ? `\n[COMENTÁRIO]: ${message}` : ''}`;
+                }
+                catch (error) {
+                    console.error('[Test AI] Error transcribing audio:', error);
+                    processedMessage = `[Arquivo de áudio enviado]${message ? `\n${message}` : ''}`;
+                }
+            }
+            else {
+                processedMessage = `[Arquivo]: ${file.name}${message ? `\n${message}` : ''}`;
+            }
+        }
         await this.prisma.message.create({
             data: {
                 conversationId: conversation.id,
-                content: userMsgContent,
+                content: processedMessage,
                 fromMe: false,
                 type: file ? (file.type.startsWith('audio') ? 'AUDIO' : 'DOCUMENT') : 'TEXT',
                 messageId: crypto.randomUUID(),
             },
         });
-        const mockResponse = {
-            response: 'Mock AI response - AI service integration pending',
-            audioBase64: null,
-            thinking: 'Mock thinking process',
-            state: agent.states?.[0]?.name || 'INICIO',
-            sentMessages: [],
+        const currentState = agent.states?.find(s => s.name === lead.currentState) || agent.states?.[0];
+        if (!currentState) {
+            throw new common_1.NotFoundException('No states configured for this agent');
+        }
+        const history = conversationHistory?.map((msg) => ({
+            role: msg.fromMe ? 'assistant' : 'user',
+            content: msg.content,
+        })) || [];
+        history.push({
+            role: 'user',
+            content: processedMessage,
+        });
+        const knowledgeContext = agent.knowledge.map(k => `${k.title}: ${k.content}`).join('\n');
+        const systemPrompt = `${agent.systemPrompt || 'Você é um assistente virtual inteligente.'}
+
+ESTADO ATUAL: ${currentState.name}
+MISSÃO NESTE ESTADO: ${currentState.missionPrompt}
+
+BASE DE CONHECIMENTO:
+${knowledgeContext}
+
+DADOS EXTRAÍDOS DO LEAD:
+${JSON.stringify(lead.extractedData || {}, null, 2)}
+
+Responda de forma natural e ajude o usuário conforme a missão do estado atual.`;
+        const apiKey = organization.openaiApiKey || process.env.OPENAI_API_KEY;
+        if (!apiKey) {
+            throw new Error('OpenAI API Key not configured');
+        }
+        const aiResponse = await this.openaiService.createChatCompletion(apiKey, organization.openaiModel || 'gpt-4o-mini', [
+            { role: 'system', content: systemPrompt },
+            ...history,
+        ], { maxTokens: 500 });
+        const fsmDecision = await this.fsmEngine.decideNextState({
+            agentId: agent.id,
+            currentState: lead.currentState || 'INICIO',
+            lastMessage: processedMessage,
+            extractedData: lead.extractedData || {},
+            conversationHistory: history,
+            leadId: lead.id,
+            organizationId,
+        });
+        await this.prisma.lead.update({
+            where: { id: lead.id },
+            data: {
+                currentState: fsmDecision.nextState,
+                extractedData: fsmDecision.extractedData,
+            },
+        });
+        const aiMessage = await this.prisma.message.create({
+            data: {
+                conversationId: conversation.id,
+                content: aiResponse,
+                fromMe: true,
+                type: 'TEXT',
+                messageId: crypto.randomUUID(),
+                thought: fsmDecision.reasoning.join('\n'),
+            },
+        });
+        const debugLog = await this.prisma.debugLog.create({
+            data: {
+                phone: testPhone,
+                conversationId: conversation.id,
+                clientMessage: processedMessage,
+                aiResponse: aiResponse,
+                currentState: fsmDecision.nextState,
+                aiThinking: fsmDecision.reasoning.join('\n'),
+                organizationId,
+                agentId: agent.id,
+                leadId: lead.id,
+            },
+        });
+        let audioBase64 = null;
+        if (agent.audioResponseEnabled && organization.elevenLabsApiKey) {
+            try {
+                const audioBuffer = await this.elevenLabsService.textToSpeech(aiResponse, organization.elevenLabsVoiceId || '21m00Tcm4TlvDq8ikWAM', organization.elevenLabsApiKey);
+                audioBase64 = audioBuffer.toString('base64');
+            }
+            catch (error) {
+                console.error('[Test AI] Error generating audio:', error);
+            }
+        }
+        return {
+            response: aiResponse,
+            audioBase64,
+            thinking: fsmDecision.reasoning.join('\n'),
+            state: fsmDecision.nextState,
+            extractedData: fsmDecision.extractedData,
+            newDebugLog: {
+                id: debugLog.id,
+                clientMessage: processedMessage,
+                aiResponse: aiResponse,
+                currentState: fsmDecision.nextState,
+                aiThinking: fsmDecision.reasoning.join('\n'),
+                createdAt: debugLog.createdAt.toISOString(),
+                extractedData: fsmDecision.extractedData,
+            },
+            sentMessages: [{
+                    id: aiMessage.id,
+                    content: aiResponse,
+                    timestamp: aiMessage.timestamp,
+                    thought: fsmDecision.reasoning.join('\n'),
+                    type: 'TEXT',
+                }],
         };
-        return mockResponse;
     }
     async getHistory(organizationId, userRole) {
         if (userRole !== 'SUPER_ADMIN') {
@@ -124,7 +251,7 @@ let TestAIService = class TestAIService {
             where: {
                 conversationId: conversation.id,
             },
-            orderBy: { createdAt: 'asc' },
+            orderBy: { createdAt: 'desc' },
         });
         const messagesWithThoughts = conversation.messages.map((msg) => ({
             id: msg.id,
@@ -133,6 +260,7 @@ let TestAIService = class TestAIService {
             timestamp: msg.timestamp,
             thinking: msg.thought,
             state: msg.fromMe ? lead?.currentState : undefined,
+            type: msg.type,
         }));
         return {
             messages: messagesWithThoughts,
@@ -176,15 +304,46 @@ let TestAIService = class TestAIService {
         if (userRole !== 'SUPER_ADMIN') {
             throw new common_1.ForbiddenException('Only SUPER_ADMIN can access this endpoint');
         }
-        return {
-            success: true,
-            message: 'Follow-up simulation not yet implemented',
-        };
+        try {
+            const testConversation = await this.prisma.conversation.findFirst({
+                where: {
+                    agentId,
+                    whatsapp: { contains: 'test-ai' },
+                },
+                include: {
+                    lead: true,
+                },
+            });
+            if (!testConversation || !testConversation.leadId) {
+                return {
+                    success: false,
+                    message: 'Nenhuma conversa de teste encontrada. Envie uma mensagem primeiro.',
+                };
+            }
+            await this.agentFollowup.checkAndCreateFollowups(testConversation.leadId);
+            const stats = await this.agentFollowup.getFollowupStats(testConversation.leadId);
+            return {
+                success: true,
+                message: `Follow-up verificado! Total enviados: ${stats.totalSent}`,
+                stats,
+            };
+        }
+        catch (error) {
+            console.error('[Test AI] Error triggering followup:', error);
+            return {
+                success: false,
+                message: 'Erro ao verificar follow-ups: ' + error.message,
+            };
+        }
     }
 };
 exports.TestAIService = TestAIService;
 exports.TestAIService = TestAIService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        fsm_engine_service_1.FSMEngineService,
+        openai_service_1.OpenAIService,
+        elevenlabs_service_1.ElevenLabsService,
+        agent_followup_service_1.AgentFollowupService])
 ], TestAIService);
 //# sourceMappingURL=test-ai.service.js.map

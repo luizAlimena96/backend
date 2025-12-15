@@ -12,6 +12,49 @@ export declare class AdminController {
         message: string;
     }>;
     getData(orgId: string, type: string): Promise<{
+        isActive: boolean;
+        name: string;
+        id: string;
+        message: string;
+        organizationId: string;
+        agentId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        mediaUrl: string | null;
+        condition: string;
+        delayHours: number;
+        aiDecisionEnabled: boolean;
+        aiDecisionPrompt: string | null;
+        audioVoiceId: string | null;
+        mediaType: string;
+        respectBusinessHours: boolean;
+        specificHour: number | null;
+        specificMinute: number | null;
+        specificTimeEnabled: boolean;
+        delayMinutes: number | null;
+        matrixStageId: string | null;
+    }[] | {
+        name: string;
+        id: string;
+        organizationId: string;
+        agentId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        prohibitions: string | null;
+        missionPrompt: string;
+        availableRoutes: import("@prisma/client/runtime/library").JsonValue;
+        dataKey: string | null;
+        dataDescription: string | null;
+        dataType: string | null;
+        mediaId: string | null;
+        tools: string | null;
+        crmStatus: string | null;
+        order: number;
+        dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
+        mediaTiming: string | null;
+        responseType: string | null;
+        crmStageId: string | null;
+    }[] | {
         log: string | null;
         name: string | null;
         id: string;
@@ -38,49 +81,6 @@ export declare class AdminController {
         zapSignStatus: string | null;
         birthDate: Date | null;
         rg: string | null;
-    }[] | {
-        name: string;
-        id: string;
-        organizationId: string;
-        agentId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        missionPrompt: string;
-        availableRoutes: import("@prisma/client/runtime/library").JsonValue;
-        dataKey: string | null;
-        dataDescription: string | null;
-        dataType: string | null;
-        mediaId: string | null;
-        tools: string | null;
-        crmStatus: string | null;
-        order: number;
-        dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
-        mediaTiming: string | null;
-        prohibitions: string | null;
-        responseType: string | null;
-        crmStageId: string | null;
-    }[] | {
-        isActive: boolean;
-        name: string;
-        id: string;
-        message: string;
-        organizationId: string;
-        agentId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        condition: string;
-        delayHours: number;
-        aiDecisionEnabled: boolean;
-        aiDecisionPrompt: string | null;
-        audioVoiceId: string | null;
-        mediaType: string;
-        mediaUrl: string | null;
-        respectBusinessHours: boolean;
-        specificHour: number | null;
-        specificMinute: number | null;
-        specificTimeEnabled: boolean;
-        delayMinutes: number | null;
-        matrixStageId: string | null;
     }[] | {
         id: string;
         type: import(".prisma/client").$Enums.KnowledgeType;
@@ -179,7 +179,7 @@ export declare class AdminController {
         leadId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        whatsapp: string;
         aiEnabled: boolean;
+        whatsapp: string;
     })[]>;
 }

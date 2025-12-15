@@ -18,8 +18,8 @@ export declare class FeedbackController {
             leadId: string | null;
             createdAt: Date;
             updatedAt: Date;
-            whatsapp: string;
             aiEnabled: boolean;
+            whatsapp: string;
         }) | null;
         responses: {
             id: string;
@@ -85,8 +85,8 @@ export declare class FeedbackController {
                 timestamp: Date;
                 type: import(".prisma/client").$Enums.MessageType;
                 conversationId: string;
-                content: string;
                 messageId: string;
+                content: string;
                 fromMe: boolean;
                 thought: string | null;
             }[];
@@ -97,8 +97,8 @@ export declare class FeedbackController {
             leadId: string | null;
             createdAt: Date;
             updatedAt: Date;
-            whatsapp: string;
             aiEnabled: boolean;
+            whatsapp: string;
         }) | null;
         responses: {
             id: string;
@@ -138,8 +138,8 @@ export declare class FeedbackController {
             leadId: string | null;
             createdAt: Date;
             updatedAt: Date;
-            whatsapp: string;
             aiEnabled: boolean;
+            whatsapp: string;
         } | null;
     } & {
         id: string;

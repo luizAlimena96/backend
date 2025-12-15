@@ -60,8 +60,8 @@ export declare class AppointmentsController {
             message: string;
             createdAt: Date;
             status: string;
-            scheduledFor: Date;
             sentAt: Date | null;
+            scheduledFor: Date;
             appointmentId: string;
         }[];
     } & {

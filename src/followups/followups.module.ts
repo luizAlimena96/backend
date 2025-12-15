@@ -8,6 +8,6 @@ import { IntegrationsModule } from "../integrations/integrations.module";
   imports: [PrismaModule, IntegrationsModule],
   controllers: [FollowupsController],
   providers: [FollowupsService],
+  exports: [FollowupsService],
 })
 export class FollowupsModule { }
-

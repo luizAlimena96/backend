@@ -70,11 +70,11 @@ export class CrmTemplatesService {
                 await this.prisma.cRMAutomation.create({
                     data: {
                         name: automation.name,
-                        trigger: automation.trigger,
                         crmConfigId: newConfig.id,
                         crmStageId: automation.crmStageId,
                         actions: automation.actions,
                         isActive: true,
+                        triggerType: automation.triggerType || 'STATE_CHANGE',
                     },
                 });
             }

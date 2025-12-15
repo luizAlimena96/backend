@@ -9,8 +9,8 @@ export declare class CRMController {
         organizationId: string;
         createdAt: Date;
         updatedAt: Date;
-        apiKey: string;
         crmType: string;
+        apiKey: string;
         baseUrl: string;
         authType: string;
     }[]>;
@@ -21,8 +21,8 @@ export declare class CRMController {
         organizationId: string;
         createdAt: Date;
         updatedAt: Date;
-        apiKey: string;
         crmType: string;
+        apiKey: string;
         baseUrl: string;
         authType: string;
     }>;
@@ -33,8 +33,8 @@ export declare class CRMController {
         organizationId: string;
         createdAt: Date;
         updatedAt: Date;
-        apiKey: string;
         crmType: string;
+        apiKey: string;
         baseUrl: string;
         authType: string;
     }>;
@@ -48,8 +48,8 @@ export declare class CRMController {
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
-        order: number;
         description: string | null;
+        order: number;
         color: string;
     }[]>;
     createStage(data: any): Promise<{
@@ -59,8 +59,8 @@ export declare class CRMController {
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
-        order: number;
         description: string | null;
+        order: number;
         color: string;
     }>;
     updateStage(id: string, data: any): Promise<{
@@ -70,8 +70,8 @@ export declare class CRMController {
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
-        order: number;
         description: string | null;
+        order: number;
         color: string;
     }>;
     deleteStage(id: string): Promise<{
@@ -86,10 +86,10 @@ export declare class CRMController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        order: number;
-        crmStageId: string | null;
         description: string | null;
         delayMinutes: number | null;
+        order: number;
+        crmStageId: string | null;
         agentStateId: string | null;
         crmConfigId: string;
         actions: import("@prisma/client/runtime/library").JsonValue;
@@ -101,10 +101,10 @@ export declare class CRMController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        order: number;
-        crmStageId: string | null;
         description: string | null;
         delayMinutes: number | null;
+        order: number;
+        crmStageId: string | null;
         agentStateId: string | null;
         crmConfigId: string;
         actions: import("@prisma/client/runtime/library").JsonValue;
@@ -116,10 +116,10 @@ export declare class CRMController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        order: number;
-        crmStageId: string | null;
         description: string | null;
         delayMinutes: number | null;
+        order: number;
+        crmStageId: string | null;
         agentStateId: string | null;
         crmConfigId: string;
         actions: import("@prisma/client/runtime/library").JsonValue;

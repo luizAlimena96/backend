@@ -19,13 +19,14 @@ const lead_data_extraction_service_1 = require("./services/lead-data-extraction.
 const email_service_1 = require("./services/email.service");
 const crm_automation_service_1 = require("./services/crm-automation.service");
 const ai_module_1 = require("../ai/ai.module");
+const integrations_module_1 = require("../integrations/integrations.module");
 let CommonModule = class CommonModule {
 };
 exports.CommonModule = CommonModule;
 exports.CommonModule = CommonModule = __decorate([
     (0, common_1.Global)(),
     (0, common_1.Module)({
-        imports: [axios_1.HttpModule, ai_module_1.AIModule],
+        imports: [axios_1.HttpModule, ai_module_1.AIModule, integrations_module_1.IntegrationsModule],
         providers: [
             debug_service_1.DebugService,
             crm_webhook_service_1.CRMWebhookService,

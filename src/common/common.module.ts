@@ -10,10 +10,11 @@ import { LeadDataExtractionService } from './services/lead-data-extraction.servi
 import { EmailService } from './services/email.service';
 import { CRMAutomationService } from './services/crm-automation.service';
 import { AIModule } from '../ai/ai.module';
+import { IntegrationsModule } from '../integrations/integrations.module';
 
 @Global()
 @Module({
-    imports: [HttpModule, AIModule],
+    imports: [HttpModule, AIModule, IntegrationsModule],
     providers: [
         DebugService,
         CRMWebhookService,

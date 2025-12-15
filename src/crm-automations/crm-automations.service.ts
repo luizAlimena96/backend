@@ -6,7 +6,6 @@ export class CrmAutomationsService {
     constructor(private prisma: PrismaService) { }
 
     async findAll(organizationId: string) {
-        // Get all CRM configs for this organization
         const configs = await this.prisma.cRMConfig.findMany({
             where: { organizationId },
             select: { id: true },
@@ -60,7 +59,6 @@ export class CrmAutomationsService {
         return this.prisma.cRMAutomation.create({
             data: {
                 name: data.name,
-                trigger: data.trigger,
                 crmConfigId: data.crmConfigId,
                 crmStageId: data.crmStageId,
                 agentStateId: data.agentStateId,
@@ -86,7 +84,6 @@ export class CrmAutomationsService {
             where: { id },
             data: {
                 name: data.name,
-                trigger: data.trigger,
                 crmStageId: data.crmStageId,
                 agentStateId: data.agentStateId,
                 actions: data.actions,

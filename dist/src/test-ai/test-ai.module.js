@@ -10,13 +10,17 @@ exports.TestAIModule = void 0;
 const common_1 = require("@nestjs/common");
 const test_ai_controller_1 = require("./test-ai.controller");
 const test_ai_service_1 = require("./test-ai.service");
+const ai_module_1 = require("../ai/ai.module");
+const prisma_service_1 = require("../database/prisma.service");
+const integrations_module_1 = require("../integrations/integrations.module");
 let TestAIModule = class TestAIModule {
 };
 exports.TestAIModule = TestAIModule;
 exports.TestAIModule = TestAIModule = __decorate([
     (0, common_1.Module)({
+        imports: [ai_module_1.AIModule, integrations_module_1.IntegrationsModule],
         controllers: [test_ai_controller_1.TestAIController],
-        providers: [test_ai_service_1.TestAIService],
+        providers: [test_ai_service_1.TestAIService, prisma_service_1.PrismaService],
         exports: [test_ai_service_1.TestAIService],
     })
 ], TestAIModule);

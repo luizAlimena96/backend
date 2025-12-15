@@ -28,7 +28,6 @@ export declare class AgentsController {
         organizationId: string;
         createdAt: Date;
         updatedAt: Date;
-        prohibitions: string | null;
         googleAccessToken: string | null;
         googleCalendarEnabled: boolean;
         googleCalendarId: string | null;
@@ -67,6 +66,7 @@ export declare class AgentsController {
         messageBufferEnabled: boolean;
         messageBufferMaxSize: number;
         notificationPhones: string[];
+        prohibitions: string | null;
         responseDelay: number;
         writingStyle: string | null;
         dataExtractionPrompt: string | null;
@@ -78,7 +78,50 @@ export declare class AgentsController {
         zapSignTriggerCrmStageId: string | null;
     })[]>;
     findOne(id: string, include?: string): Promise<{
-        [x: string]: ({
+        [x: string]: {
+            isActive: boolean;
+            name: string;
+            id: string;
+            message: string;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            mediaUrl: string | null;
+            condition: string;
+            delayHours: number;
+            aiDecisionEnabled: boolean;
+            aiDecisionPrompt: string | null;
+            audioVoiceId: string | null;
+            mediaType: string;
+            respectBusinessHours: boolean;
+            specificHour: number | null;
+            specificMinute: number | null;
+            specificTimeEnabled: boolean;
+            delayMinutes: number | null;
+            matrixStageId: string | null;
+        }[] | {
+            name: string;
+            id: string;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            prohibitions: string | null;
+            missionPrompt: string;
+            availableRoutes: import("@prisma/client/runtime/library").JsonValue;
+            dataKey: string | null;
+            dataDescription: string | null;
+            dataType: string | null;
+            mediaId: string | null;
+            tools: string | null;
+            crmStatus: string | null;
+            order: number;
+            dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
+            mediaTiming: string | null;
+            responseType: string | null;
+            crmStageId: string | null;
+        }[] | ({
             log: string | null;
             name: string | null;
             id: string;
@@ -133,56 +176,14 @@ export declare class AgentsController {
             birthDate: Date | null;
             rg: string | null;
         })[] | ({
-            name: string;
-            id: string;
-            organizationId: string;
-            agentId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            missionPrompt: string;
-            availableRoutes: import("@prisma/client/runtime/library").JsonValue;
-            dataKey: string | null;
-            dataDescription: string | null;
-            dataType: string | null;
-            mediaId: string | null;
-            tools: string | null;
-            crmStatus: string | null;
-            order: number;
-            dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
-            mediaTiming: string | null;
-            prohibitions: string | null;
-            responseType: string | null;
-            crmStageId: string | null;
-        } | {
-            name: string;
-            id: string;
-            organizationId: string;
-            agentId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            missionPrompt: string;
-            availableRoutes: import("@prisma/client/runtime/library").JsonValue;
-            dataKey: string | null;
-            dataDescription: string | null;
-            dataType: string | null;
-            mediaId: string | null;
-            tools: string | null;
-            crmStatus: string | null;
-            order: number;
-            dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
-            mediaTiming: string | null;
-            prohibitions: string | null;
-            responseType: string | null;
-            crmStageId: string | null;
-        })[] | ({
             id: string;
             organizationId: string;
             agentId: string;
             leadId: string | null;
             createdAt: Date;
             updatedAt: Date;
-            whatsapp: string;
             aiEnabled: boolean;
+            whatsapp: string;
         } | {
             id: string;
             organizationId: string;
@@ -190,131 +191,17 @@ export declare class AgentsController {
             leadId: string | null;
             createdAt: Date;
             updatedAt: Date;
-            whatsapp: string;
             aiEnabled: boolean;
-        })[] | ({
-            name: string;
-            id: string;
-            organizationId: string;
-            agentId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            order: number;
-            description: string | null;
-            color: string;
-        } | {
-            name: string;
-            id: string;
-            organizationId: string;
-            agentId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            order: number;
-            description: string | null;
-            color: string;
+            whatsapp: string;
         })[] | ({
             isActive: boolean;
             name: string;
             id: string;
-            message: string;
-            organizationId: string;
             agentId: string;
             createdAt: Date;
             updatedAt: Date;
-            condition: string;
-            delayHours: number;
-            aiDecisionEnabled: boolean;
-            aiDecisionPrompt: string | null;
-            audioVoiceId: string | null;
-            mediaType: string;
-            mediaUrl: string | null;
-            respectBusinessHours: boolean;
-            specificHour: number | null;
-            specificMinute: number | null;
-            specificTimeEnabled: boolean;
             delayMinutes: number | null;
-            matrixStageId: string | null;
-        } | {
-            isActive: boolean;
-            name: string;
-            id: string;
-            message: string;
-            organizationId: string;
-            agentId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            condition: string;
-            delayHours: number;
-            aiDecisionEnabled: boolean;
-            aiDecisionPrompt: string | null;
-            audioVoiceId: string | null;
-            mediaType: string;
-            mediaUrl: string | null;
-            respectBusinessHours: boolean;
-            specificHour: number | null;
-            specificMinute: number | null;
-            specificTimeEnabled: boolean;
-            delayMinutes: number | null;
-            matrixStageId: string | null;
-        })[] | ({
-            id: string;
-            type: import(".prisma/client").$Enums.KnowledgeType;
-            organizationId: string;
-            agentId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            title: string;
-            content: string;
-            fileUrl: string | null;
-            fileName: string | null;
-            fileSize: number | null;
-        } | {
-            id: string;
-            type: import(".prisma/client").$Enums.KnowledgeType;
-            organizationId: string;
-            agentId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            title: string;
-            content: string;
-            fileUrl: string | null;
-            fileName: string | null;
-            fileSize: number | null;
-        })[] | ({
-            isActive: boolean;
-            id: string;
-            message: string;
-            organizationId: string;
-            agentId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            title: string;
-            mediaType: string;
-            scheduledFor: Date;
-            recipients: string[];
-            advanceTime: number | null;
-        } | {
-            isActive: boolean;
-            id: string;
-            message: string;
-            organizationId: string;
-            agentId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            title: string;
-            mediaType: string;
-            scheduledFor: Date;
-            recipients: string[];
-            advanceTime: number | null;
-        })[] | ({
-            isActive: boolean;
-            name: string;
-            id: string;
-            agentId: string;
-            createdAt: Date;
-            updatedAt: Date;
             crmStageId: string | null;
-            delayMinutes: number | null;
             agentStateId: string | null;
             triggerMode: string;
             scheduledTime: string | null;
@@ -331,8 +218,8 @@ export declare class AgentsController {
             agentId: string;
             createdAt: Date;
             updatedAt: Date;
-            crmStageId: string | null;
             delayMinutes: number | null;
+            crmStageId: string | null;
             agentStateId: string | null;
             triggerMode: string;
             scheduledTime: string | null;
@@ -369,8 +256,8 @@ export declare class AgentsController {
             createdAt: Date;
             updatedAt: Date;
             duration: number;
-            crmStageId: string;
             minAdvanceHours: number;
+            crmStageId: string;
             messageTemplate: string;
             teamPhones: string[];
             preferredTime: string | null;
@@ -389,8 +276,8 @@ export declare class AgentsController {
             createdAt: Date;
             updatedAt: Date;
             duration: number;
-            crmStageId: string;
             minAdvanceHours: number;
+            crmStageId: string;
             messageTemplate: string;
             teamPhones: string[];
             preferredTime: string | null;
@@ -403,6 +290,26 @@ export declare class AgentsController {
             reschedulingTemplate: string | null;
             sendConfirmation: boolean;
         })[] | ({
+            name: string;
+            id: string;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            description: string | null;
+            order: number;
+            color: string;
+        } | {
+            name: string;
+            id: string;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            description: string | null;
+            order: number;
+            color: string;
+        })[] | ({
             isActive: boolean;
             name: string;
             id: string;
@@ -423,6 +330,74 @@ export declare class AgentsController {
             condition: string;
             action: string;
         })[] | ({
+            isActive: boolean;
+            name: string;
+            id: string;
+            message: string;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            mediaUrl: string | null;
+            condition: string;
+            delayHours: number;
+            aiDecisionEnabled: boolean;
+            aiDecisionPrompt: string | null;
+            audioVoiceId: string | null;
+            mediaType: string;
+            respectBusinessHours: boolean;
+            specificHour: number | null;
+            specificMinute: number | null;
+            specificTimeEnabled: boolean;
+            delayMinutes: number | null;
+            matrixStageId: string | null;
+        } | {
+            isActive: boolean;
+            name: string;
+            id: string;
+            message: string;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            mediaUrl: string | null;
+            condition: string;
+            delayHours: number;
+            aiDecisionEnabled: boolean;
+            aiDecisionPrompt: string | null;
+            audioVoiceId: string | null;
+            mediaType: string;
+            respectBusinessHours: boolean;
+            specificHour: number | null;
+            specificMinute: number | null;
+            specificTimeEnabled: boolean;
+            delayMinutes: number | null;
+            matrixStageId: string | null;
+        })[] | ({
+            id: string;
+            type: import(".prisma/client").$Enums.KnowledgeType;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            title: string;
+            content: string;
+            fileUrl: string | null;
+            fileName: string | null;
+            fileSize: number | null;
+        } | {
+            id: string;
+            type: import(".prisma/client").$Enums.KnowledgeType;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            title: string;
+            content: string;
+            fileUrl: string | null;
+            fileName: string | null;
+            fileSize: number | null;
+        })[] | ({
             id: string;
             timestamp: Date;
             agentId: string;
@@ -436,6 +411,74 @@ export declare class AgentsController {
             content: string;
             role: string;
             sessionId: string;
+        })[] | ({
+            isActive: boolean;
+            id: string;
+            message: string;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            title: string;
+            mediaType: string;
+            scheduledFor: Date;
+            recipients: string[];
+            advanceTime: number | null;
+        } | {
+            isActive: boolean;
+            id: string;
+            message: string;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            title: string;
+            mediaType: string;
+            scheduledFor: Date;
+            recipients: string[];
+            advanceTime: number | null;
+        })[] | ({
+            name: string;
+            id: string;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            prohibitions: string | null;
+            missionPrompt: string;
+            availableRoutes: import("@prisma/client/runtime/library").JsonValue;
+            dataKey: string | null;
+            dataDescription: string | null;
+            dataType: string | null;
+            mediaId: string | null;
+            tools: string | null;
+            crmStatus: string | null;
+            order: number;
+            dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
+            mediaTiming: string | null;
+            responseType: string | null;
+            crmStageId: string | null;
+        } | {
+            name: string;
+            id: string;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            prohibitions: string | null;
+            missionPrompt: string;
+            availableRoutes: import("@prisma/client/runtime/library").JsonValue;
+            dataKey: string | null;
+            dataDescription: string | null;
+            dataType: string | null;
+            mediaId: string | null;
+            tools: string | null;
+            crmStatus: string | null;
+            order: number;
+            dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
+            mediaTiming: string | null;
+            responseType: string | null;
+            crmStageId: string | null;
         })[] | {
             log: string | null;
             name: string | null;
@@ -464,101 +507,23 @@ export declare class AgentsController {
             birthDate: Date | null;
             rg: string | null;
         }[] | {
-            name: string;
-            id: string;
-            organizationId: string;
-            agentId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            missionPrompt: string;
-            availableRoutes: import("@prisma/client/runtime/library").JsonValue;
-            dataKey: string | null;
-            dataDescription: string | null;
-            dataType: string | null;
-            mediaId: string | null;
-            tools: string | null;
-            crmStatus: string | null;
-            order: number;
-            dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
-            mediaTiming: string | null;
-            prohibitions: string | null;
-            responseType: string | null;
-            crmStageId: string | null;
-        }[] | {
             id: string;
             organizationId: string;
             agentId: string;
             leadId: string | null;
             createdAt: Date;
             updatedAt: Date;
-            whatsapp: string;
             aiEnabled: boolean;
-        }[] | {
-            name: string;
-            id: string;
-            organizationId: string;
-            agentId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            order: number;
-            description: string | null;
-            color: string;
+            whatsapp: string;
         }[] | {
             isActive: boolean;
             name: string;
             id: string;
-            message: string;
-            organizationId: string;
             agentId: string;
             createdAt: Date;
             updatedAt: Date;
-            condition: string;
-            delayHours: number;
-            aiDecisionEnabled: boolean;
-            aiDecisionPrompt: string | null;
-            audioVoiceId: string | null;
-            mediaType: string;
-            mediaUrl: string | null;
-            respectBusinessHours: boolean;
-            specificHour: number | null;
-            specificMinute: number | null;
-            specificTimeEnabled: boolean;
             delayMinutes: number | null;
-            matrixStageId: string | null;
-        }[] | {
-            id: string;
-            type: import(".prisma/client").$Enums.KnowledgeType;
-            organizationId: string;
-            agentId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            title: string;
-            content: string;
-            fileUrl: string | null;
-            fileName: string | null;
-            fileSize: number | null;
-        }[] | {
-            isActive: boolean;
-            id: string;
-            message: string;
-            organizationId: string;
-            agentId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            title: string;
-            mediaType: string;
-            scheduledFor: Date;
-            recipients: string[];
-            advanceTime: number | null;
-        }[] | {
-            isActive: boolean;
-            name: string;
-            id: string;
-            agentId: string;
-            createdAt: Date;
-            updatedAt: Date;
             crmStageId: string | null;
-            delayMinutes: number | null;
             agentStateId: string | null;
             triggerMode: string;
             scheduledTime: string | null;
@@ -585,8 +550,8 @@ export declare class AgentsController {
             createdAt: Date;
             updatedAt: Date;
             duration: number;
-            crmStageId: string;
             minAdvanceHours: number;
+            crmStageId: string;
             messageTemplate: string;
             teamPhones: string[];
             preferredTime: string | null;
@@ -599,6 +564,16 @@ export declare class AgentsController {
             reschedulingTemplate: string | null;
             sendConfirmation: boolean;
         }[] | {
+            name: string;
+            id: string;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            description: string | null;
+            order: number;
+            color: string;
+        }[] | {
             isActive: boolean;
             name: string;
             id: string;
@@ -610,11 +585,36 @@ export declare class AgentsController {
             action: string;
         }[] | {
             id: string;
+            type: import(".prisma/client").$Enums.KnowledgeType;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            title: string;
+            content: string;
+            fileUrl: string | null;
+            fileName: string | null;
+            fileSize: number | null;
+        }[] | {
+            id: string;
             timestamp: Date;
             agentId: string;
             content: string;
             role: string;
             sessionId: string;
+        }[] | {
+            isActive: boolean;
+            id: string;
+            message: string;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            title: string;
+            mediaType: string;
+            scheduledFor: Date;
+            recipients: string[];
+            advanceTime: number | null;
         }[];
         [x: number]: never;
         [x: symbol]: never;
@@ -625,7 +625,6 @@ export declare class AgentsController {
         organizationId: string;
         createdAt: Date;
         updatedAt: Date;
-        prohibitions: string | null;
         googleAccessToken: string | null;
         googleCalendarEnabled: boolean;
         googleCalendarId: string | null;
@@ -664,6 +663,7 @@ export declare class AgentsController {
         messageBufferEnabled: boolean;
         messageBufferMaxSize: number;
         notificationPhones: string[];
+        prohibitions: string | null;
         responseDelay: number;
         writingStyle: string | null;
         dataExtractionPrompt: string | null;
@@ -746,7 +746,6 @@ export declare class AgentsController {
         organizationId: string;
         createdAt: Date;
         updatedAt: Date;
-        prohibitions: string | null;
         googleAccessToken: string | null;
         googleCalendarEnabled: boolean;
         googleCalendarId: string | null;
@@ -785,6 +784,7 @@ export declare class AgentsController {
         messageBufferEnabled: boolean;
         messageBufferMaxSize: number;
         notificationPhones: string[];
+        prohibitions: string | null;
         responseDelay: number;
         writingStyle: string | null;
         dataExtractionPrompt: string | null;
@@ -802,7 +802,6 @@ export declare class AgentsController {
         organizationId: string;
         createdAt: Date;
         updatedAt: Date;
-        prohibitions: string | null;
         googleAccessToken: string | null;
         googleCalendarEnabled: boolean;
         googleCalendarId: string | null;
@@ -841,6 +840,7 @@ export declare class AgentsController {
         messageBufferEnabled: boolean;
         messageBufferMaxSize: number;
         notificationPhones: string[];
+        prohibitions: string | null;
         responseDelay: number;
         writingStyle: string | null;
         dataExtractionPrompt: string | null;
@@ -868,7 +868,6 @@ export declare class AgentsController {
         organizationId: string;
         createdAt: Date;
         updatedAt: Date;
-        prohibitions: string | null;
         googleAccessToken: string | null;
         googleCalendarEnabled: boolean;
         googleCalendarId: string | null;
@@ -907,6 +906,7 @@ export declare class AgentsController {
         messageBufferEnabled: boolean;
         messageBufferMaxSize: number;
         notificationPhones: string[];
+        prohibitions: string | null;
         responseDelay: number;
         writingStyle: string | null;
         dataExtractionPrompt: string | null;
@@ -933,7 +933,6 @@ export declare class AgentsController {
         organizationId: string;
         createdAt: Date;
         updatedAt: Date;
-        prohibitions: string | null;
         googleAccessToken: string | null;
         googleCalendarEnabled: boolean;
         googleCalendarId: string | null;
@@ -972,6 +971,7 @@ export declare class AgentsController {
         messageBufferEnabled: boolean;
         messageBufferMaxSize: number;
         notificationPhones: string[];
+        prohibitions: string | null;
         responseDelay: number;
         writingStyle: string | null;
         dataExtractionPrompt: string | null;
@@ -995,8 +995,8 @@ export declare class AgentsController {
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
-        order: number;
         description: string | null;
+        order: number;
         color: string;
     })[]>;
     createCrmStage(id: string, data: any, req: any): Promise<{
@@ -1006,8 +1006,8 @@ export declare class AgentsController {
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
-        order: number;
         description: string | null;
+        order: number;
         color: string;
     }>;
     updateCrmStage(agentId: string, stageId: string, data: any): Promise<{
@@ -1017,8 +1017,8 @@ export declare class AgentsController {
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
-        order: number;
         description: string | null;
+        order: number;
         color: string;
     }>;
     deleteCrmStage(agentId: string, stageId: string): Promise<{
@@ -1028,8 +1028,8 @@ export declare class AgentsController {
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
-        order: number;
         description: string | null;
+        order: number;
         color: string;
     }>;
     reorderCrmStages(id: string, data: {
@@ -1058,8 +1058,8 @@ export declare class AgentsController {
         createdAt: Date;
         updatedAt: Date;
         duration: number;
-        crmStageId: string;
         minAdvanceHours: number;
+        crmStageId: string;
         messageTemplate: string;
         teamPhones: string[];
         preferredTime: string | null;
@@ -1079,8 +1079,8 @@ export declare class AgentsController {
         createdAt: Date;
         updatedAt: Date;
         duration: number;
-        crmStageId: string;
         minAdvanceHours: number;
+        crmStageId: string;
         messageTemplate: string;
         teamPhones: string[];
         preferredTime: string | null;
@@ -1100,8 +1100,8 @@ export declare class AgentsController {
         createdAt: Date;
         updatedAt: Date;
         duration: number;
-        crmStageId: string;
         minAdvanceHours: number;
+        crmStageId: string;
         messageTemplate: string;
         teamPhones: string[];
         preferredTime: string | null;
@@ -1121,8 +1121,8 @@ export declare class AgentsController {
         createdAt: Date;
         updatedAt: Date;
         duration: number;
-        crmStageId: string;
         minAdvanceHours: number;
+        crmStageId: string;
         messageTemplate: string;
         teamPhones: string[];
         preferredTime: string | null;

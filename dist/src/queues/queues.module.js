@@ -20,7 +20,9 @@ const notification_processor_1 = require("./processors/notification.processor");
 const automation_processor_1 = require("./processors/automation.processor");
 const crm_sync_processor_1 = require("./processors/crm-sync.processor");
 const crm_sync_scheduler_1 = require("./schedulers/crm-sync.scheduler");
+const followup_scheduler_1 = require("./schedulers/followup.scheduler");
 const prisma_module_1 = require("../database/prisma.module");
+const followups_module_1 = require("../followups/followups.module");
 let QueuesModule = class QueuesModule {
 };
 exports.QueuesModule = QueuesModule;
@@ -30,6 +32,7 @@ exports.QueuesModule = QueuesModule = __decorate([
             config_1.ConfigModule,
             prisma_module_1.PrismaModule,
             axios_1.HttpModule,
+            followups_module_1.FollowupsModule,
             bullmq_1.BullModule.forRootAsync({
                 imports: [config_1.ConfigModule],
                 useFactory: async (configService) => {
@@ -74,6 +77,7 @@ exports.QueuesModule = QueuesModule = __decorate([
             automation_processor_1.AutomationProcessor,
             crm_sync_processor_1.CRMSyncProcessor,
             crm_sync_scheduler_1.CRMSyncScheduler,
+            followup_scheduler_1.FollowupScheduler,
         ],
         exports: [
             followup_job_1.FollowupJobService,

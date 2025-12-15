@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { GetUser } from '../auth/decorators/get-user.decorator';
 import { CrmTemplatesController } from './crm-templates.controller';
 import { CrmTemplatesService } from './crm-templates.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
