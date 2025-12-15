@@ -1,0 +1,156 @@
+import { PrismaService } from "../database/prisma.service";
+export declare class AppointmentsService {
+    private prisma;
+    constructor(prisma: PrismaService);
+    findAll(organizationId: string, leadId?: string): Promise<({
+        lead: {
+            name: string | null;
+            phone: string;
+        } | null;
+    } & {
+        id: string;
+        type: string;
+        organizationId: string;
+        leadId: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        title: string;
+        duration: number;
+        location: string | null;
+        meetingLink: string | null;
+        notes: string | null;
+        status: import(".prisma/client").$Enums.AppointmentStatus;
+        crmEventId: string | null;
+        crmSynced: boolean;
+        googleEventId: string | null;
+        scheduledAt: Date;
+        source: string;
+    })[]>;
+    findOne(id: string): Promise<({
+        lead: {
+            log: string | null;
+            name: string | null;
+            id: string;
+            phone: string;
+            currentState: string | null;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            notes: string | null;
+            status: import(".prisma/client").$Enums.LeadStatus;
+            source: string | null;
+            cpf: string | null;
+            email: string | null;
+            phoneWith9: string | null;
+            phoneNo9: string | null;
+            address: string | null;
+            contractDate: Date | null;
+            extractedData: import("@prisma/client/runtime/library").JsonValue | null;
+            maritalStatus: string | null;
+            profession: string | null;
+            zapSignDocumentId: string | null;
+            zapSignSignedAt: Date | null;
+            zapSignStatus: string | null;
+            birthDate: Date | null;
+            rg: string | null;
+        } | null;
+        reminders: {
+            id: string;
+            message: string;
+            createdAt: Date;
+            status: string;
+            scheduledFor: Date;
+            sentAt: Date | null;
+            appointmentId: string;
+        }[];
+    } & {
+        id: string;
+        type: string;
+        organizationId: string;
+        leadId: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        title: string;
+        duration: number;
+        location: string | null;
+        meetingLink: string | null;
+        notes: string | null;
+        status: import(".prisma/client").$Enums.AppointmentStatus;
+        crmEventId: string | null;
+        crmSynced: boolean;
+        googleEventId: string | null;
+        scheduledAt: Date;
+        source: string;
+    }) | null>;
+    create(data: any): Promise<{
+        lead: {
+            log: string | null;
+            name: string | null;
+            id: string;
+            phone: string;
+            currentState: string | null;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            notes: string | null;
+            status: import(".prisma/client").$Enums.LeadStatus;
+            source: string | null;
+            cpf: string | null;
+            email: string | null;
+            phoneWith9: string | null;
+            phoneNo9: string | null;
+            address: string | null;
+            contractDate: Date | null;
+            extractedData: import("@prisma/client/runtime/library").JsonValue | null;
+            maritalStatus: string | null;
+            profession: string | null;
+            zapSignDocumentId: string | null;
+            zapSignSignedAt: Date | null;
+            zapSignStatus: string | null;
+            birthDate: Date | null;
+            rg: string | null;
+        } | null;
+    } & {
+        id: string;
+        type: string;
+        organizationId: string;
+        leadId: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        title: string;
+        duration: number;
+        location: string | null;
+        meetingLink: string | null;
+        notes: string | null;
+        status: import(".prisma/client").$Enums.AppointmentStatus;
+        crmEventId: string | null;
+        crmSynced: boolean;
+        googleEventId: string | null;
+        scheduledAt: Date;
+        source: string;
+    }>;
+    update(id: string, data: any): Promise<{
+        id: string;
+        type: string;
+        organizationId: string;
+        leadId: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        title: string;
+        duration: number;
+        location: string | null;
+        meetingLink: string | null;
+        notes: string | null;
+        status: import(".prisma/client").$Enums.AppointmentStatus;
+        crmEventId: string | null;
+        crmSynced: boolean;
+        googleEventId: string | null;
+        scheduledAt: Date;
+        source: string;
+    }>;
+    delete(id: string): Promise<{
+        success: boolean;
+    }>;
+}

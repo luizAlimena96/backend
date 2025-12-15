@@ -1,0 +1,9 @@
+{
+    "name": "bullmq-tests",
+    "version": "1.0.0",
+    "scripts": {
+        "test:bullmq": "ts-node test-bullmq.ts",
+        "test:bullmq:simple": "ts-node test-bullmq-simple.ts",
+        "test:redis": "ts-node test-redis-connection.ts"
+    }
+}

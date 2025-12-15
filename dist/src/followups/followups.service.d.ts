@@ -1,0 +1,114 @@
+import { PrismaService } from "../database/prisma.service";
+import { WhatsAppIntegrationService } from "../integrations/whatsapp/whatsapp-integration.service";
+export declare class FollowupsService {
+    private prisma;
+    private whatsappService;
+    constructor(prisma: PrismaService, whatsappService: WhatsAppIntegrationService);
+    findAll(agentId: string): Promise<{
+        isActive: boolean;
+        name: string;
+        id: string;
+        message: string;
+        organizationId: string;
+        agentId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        condition: string;
+        delayHours: number;
+        aiDecisionEnabled: boolean;
+        aiDecisionPrompt: string | null;
+        audioVoiceId: string | null;
+        mediaType: string;
+        mediaUrl: string | null;
+        respectBusinessHours: boolean;
+        specificHour: number | null;
+        specificMinute: number | null;
+        specificTimeEnabled: boolean;
+        delayMinutes: number | null;
+        matrixStageId: string | null;
+    }[]>;
+    findOne(id: string): Promise<({
+        logs: {
+            id: string;
+            message: string;
+            leadId: string;
+            sentAt: Date;
+            followupId: string;
+        }[];
+    } & {
+        isActive: boolean;
+        name: string;
+        id: string;
+        message: string;
+        organizationId: string;
+        agentId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        condition: string;
+        delayHours: number;
+        aiDecisionEnabled: boolean;
+        aiDecisionPrompt: string | null;
+        audioVoiceId: string | null;
+        mediaType: string;
+        mediaUrl: string | null;
+        respectBusinessHours: boolean;
+        specificHour: number | null;
+        specificMinute: number | null;
+        specificTimeEnabled: boolean;
+        delayMinutes: number | null;
+        matrixStageId: string | null;
+    }) | null>;
+    create(data: any): Promise<{
+        isActive: boolean;
+        name: string;
+        id: string;
+        message: string;
+        organizationId: string;
+        agentId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        condition: string;
+        delayHours: number;
+        aiDecisionEnabled: boolean;
+        aiDecisionPrompt: string | null;
+        audioVoiceId: string | null;
+        mediaType: string;
+        mediaUrl: string | null;
+        respectBusinessHours: boolean;
+        specificHour: number | null;
+        specificMinute: number | null;
+        specificTimeEnabled: boolean;
+        delayMinutes: number | null;
+        matrixStageId: string | null;
+    }>;
+    update(id: string, data: any): Promise<{
+        isActive: boolean;
+        name: string;
+        id: string;
+        message: string;
+        organizationId: string;
+        agentId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        condition: string;
+        delayHours: number;
+        aiDecisionEnabled: boolean;
+        aiDecisionPrompt: string | null;
+        audioVoiceId: string | null;
+        mediaType: string;
+        mediaUrl: string | null;
+        respectBusinessHours: boolean;
+        specificHour: number | null;
+        specificMinute: number | null;
+        specificTimeEnabled: boolean;
+        delayMinutes: number | null;
+        matrixStageId: string | null;
+    }>;
+    delete(id: string): Promise<{
+        success: boolean;
+    }>;
+    checkAgentFollowUps(): Promise<{
+        processed: number;
+        rulesChecked: number;
+    }>;
+}

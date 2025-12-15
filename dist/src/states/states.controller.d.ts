@@ -1,0 +1,74 @@
+import { StatesService } from "./states.service";
+export declare class StatesController {
+    private statesService;
+    constructor(statesService: StatesService);
+    findAll(agentId: string): Promise<{
+        name: string;
+        id: string;
+        organizationId: string;
+        agentId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        missionPrompt: string;
+        availableRoutes: import("@prisma/client/runtime/library").JsonValue;
+        dataKey: string | null;
+        dataDescription: string | null;
+        dataType: string | null;
+        mediaId: string | null;
+        tools: string | null;
+        crmStatus: string | null;
+        order: number;
+        dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
+        mediaTiming: string | null;
+        prohibitions: string | null;
+        responseType: string | null;
+        crmStageId: string | null;
+    }[]>;
+    create(data: any): Promise<{
+        name: string;
+        id: string;
+        organizationId: string;
+        agentId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        missionPrompt: string;
+        availableRoutes: import("@prisma/client/runtime/library").JsonValue;
+        dataKey: string | null;
+        dataDescription: string | null;
+        dataType: string | null;
+        mediaId: string | null;
+        tools: string | null;
+        crmStatus: string | null;
+        order: number;
+        dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
+        mediaTiming: string | null;
+        prohibitions: string | null;
+        responseType: string | null;
+        crmStageId: string | null;
+    }>;
+    update(id: string, data: any): Promise<{
+        name: string;
+        id: string;
+        organizationId: string;
+        agentId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        missionPrompt: string;
+        availableRoutes: import("@prisma/client/runtime/library").JsonValue;
+        dataKey: string | null;
+        dataDescription: string | null;
+        dataType: string | null;
+        mediaId: string | null;
+        tools: string | null;
+        crmStatus: string | null;
+        order: number;
+        dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
+        mediaTiming: string | null;
+        prohibitions: string | null;
+        responseType: string | null;
+        crmStageId: string | null;
+    }>;
+    delete(id: string): Promise<{
+        success: boolean;
+    }>;
+}

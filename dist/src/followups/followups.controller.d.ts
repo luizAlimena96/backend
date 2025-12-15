@@ -1,0 +1,112 @@
+import { FollowupsService } from "./followups.service";
+export declare class FollowupsController {
+    private followupsService;
+    constructor(followupsService: FollowupsService);
+    findAll(agentId: string): Promise<{
+        isActive: boolean;
+        name: string;
+        id: string;
+        message: string;
+        organizationId: string;
+        agentId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        condition: string;
+        delayHours: number;
+        aiDecisionEnabled: boolean;
+        aiDecisionPrompt: string | null;
+        audioVoiceId: string | null;
+        mediaType: string;
+        mediaUrl: string | null;
+        respectBusinessHours: boolean;
+        specificHour: number | null;
+        specificMinute: number | null;
+        specificTimeEnabled: boolean;
+        delayMinutes: number | null;
+        matrixStageId: string | null;
+    }[]>;
+    findOne(id: string): Promise<({
+        logs: {
+            id: string;
+            message: string;
+            leadId: string;
+            sentAt: Date;
+            followupId: string;
+        }[];
+    } & {
+        isActive: boolean;
+        name: string;
+        id: string;
+        message: string;
+        organizationId: string;
+        agentId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        condition: string;
+        delayHours: number;
+        aiDecisionEnabled: boolean;
+        aiDecisionPrompt: string | null;
+        audioVoiceId: string | null;
+        mediaType: string;
+        mediaUrl: string | null;
+        respectBusinessHours: boolean;
+        specificHour: number | null;
+        specificMinute: number | null;
+        specificTimeEnabled: boolean;
+        delayMinutes: number | null;
+        matrixStageId: string | null;
+    }) | null>;
+    create(data: any): Promise<{
+        isActive: boolean;
+        name: string;
+        id: string;
+        message: string;
+        organizationId: string;
+        agentId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        condition: string;
+        delayHours: number;
+        aiDecisionEnabled: boolean;
+        aiDecisionPrompt: string | null;
+        audioVoiceId: string | null;
+        mediaType: string;
+        mediaUrl: string | null;
+        respectBusinessHours: boolean;
+        specificHour: number | null;
+        specificMinute: number | null;
+        specificTimeEnabled: boolean;
+        delayMinutes: number | null;
+        matrixStageId: string | null;
+    }>;
+    update(id: string, data: any): Promise<{
+        isActive: boolean;
+        name: string;
+        id: string;
+        message: string;
+        organizationId: string;
+        agentId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        condition: string;
+        delayHours: number;
+        aiDecisionEnabled: boolean;
+        aiDecisionPrompt: string | null;
+        audioVoiceId: string | null;
+        mediaType: string;
+        mediaUrl: string | null;
+        respectBusinessHours: boolean;
+        specificHour: number | null;
+        specificMinute: number | null;
+        specificTimeEnabled: boolean;
+        delayMinutes: number | null;
+        matrixStageId: string | null;
+    }>;
+    delete(id: string): Promise<{
+        success: boolean;
+    }>;
+    checkFollowUps(): Promise<{
+        processed: number;
+        rulesChecked: number;
+    }>;
+}
