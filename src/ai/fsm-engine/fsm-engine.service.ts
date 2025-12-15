@@ -307,7 +307,8 @@ export class FSMEngineService {
                         nextState: state.name,
                         reasoning: [
                             'Saudação inicial detectada',
-                            'Iniciando conversa com mensagem de boas-vindas',
+                            'Apresente-se cordialmente conforme a personalidade',
+                            'IMPORTANTE: Execute a missão do estado atual (ex: perguntar nome)',
                         ],
                         extractedData: input.extractedData,
                         validation: {

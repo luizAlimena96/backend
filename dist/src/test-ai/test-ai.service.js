@@ -151,7 +151,23 @@ let TestAIService = class TestAIService {
             ? `\n\n[DADO OBRIGATÓRIO PARA COLETAR]: ${fsmDecision.dataToExtract}`
             : '';
         const fsmDirectives = fsmDecision.reasoning.join('\n');
+        const agentContext = {
+            name: agent.name,
+            personality: agent.personality,
+            tone: agent.tone,
+            instructions: agent.instructions,
+            writingStyle: agent.writingStyle,
+            prohibitions: agent.prohibitions,
+        };
         const systemPrompt = `${agent.systemPrompt || 'Você é um assistente virtual inteligente.'}
+
+# CONTEXTO DO AGENTE
+**Nome**: ${agentContext.name}
+${agentContext.personality ? `**Personalidade/Traços**: ${agentContext.personality}` : ''}
+${agentContext.tone ? `**Tom de Voz**: ${agentContext.tone}` : ''}
+${agentContext.instructions ? `**Instruções Específicas**: ${agentContext.instructions}` : ''}
+${agentContext.writingStyle ? `**Estilo de Escrita**: ${agentContext.writingStyle}` : ''}
+${agentContext.prohibitions ? `**PROIBIÇÕES GLOBAIS**: ${agentContext.prohibitions}` : ''}
 
 ESTADO ATUAL: ${nextStateInfo?.name}
 MISSÃO NESTE ESTADO: ${nextStateInfo?.missionPrompt}${dataRequirement}
@@ -174,16 +190,24 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
             { role: 'system', content: systemPrompt },
             ...history,
         ], { maxTokens: 500 });
-        const aiMessage = await this.prisma.message.create({
-            data: {
-                conversationId: conversation.id,
-                content: aiResponse,
-                fromMe: true,
-                type: 'TEXT',
-                messageId: crypto.randomUUID(),
-                thought: fsmDecision.reasoning.join('\n'),
-            },
-        });
+        const responseParts = aiResponse.split(/\n|\\n|\/n/).filter(part => part.trim().length > 0);
+        const sentMessages = [];
+        if (responseParts.length === 0) {
+            responseParts.push(aiResponse);
+        }
+        for (const part of responseParts) {
+            const aiMessage = await this.prisma.message.create({
+                data: {
+                    conversationId: conversation.id,
+                    content: part.trim(),
+                    fromMe: true,
+                    type: 'TEXT',
+                    messageId: crypto.randomUUID(),
+                    thought: fsmDecision.reasoning.join('\n'),
+                },
+            });
+            sentMessages.push(aiMessage);
+        }
         const debugLog = await this.prisma.debugLog.create({
             data: {
                 phone: testPhone,
@@ -200,7 +224,7 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
         let audioBase64 = null;
         if (agent.audioResponseEnabled && organization.elevenLabsApiKey) {
             try {
-                const audioBuffer = await this.elevenLabsService.textToSpeech(aiResponse, organization.elevenLabsVoiceId || '21m00Tcm4TlvDq8ikWAM', organization.elevenLabsApiKey);
+                const audioBuffer = await this.elevenLabsService.textToSpeech(aiResponse.replace(/\n/g, '. '), organization.elevenLabsVoiceId || '21m00Tcm4TlvDq8ikWAM', organization.elevenLabsApiKey);
                 audioBase64 = audioBuffer.toString('base64');
             }
             catch (error) {
@@ -222,13 +246,13 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
                 createdAt: debugLog.createdAt.toISOString(),
                 extractedData: fsmDecision.extractedData,
             },
-            sentMessages: [{
-                    id: aiMessage.id,
-                    content: aiResponse,
-                    timestamp: aiMessage.timestamp,
-                    thought: fsmDecision.reasoning.join('\n'),
-                    type: 'TEXT',
-                }],
+            sentMessages: sentMessages.map(m => ({
+                id: m.id,
+                content: m.content,
+                timestamp: m.timestamp,
+                thought: fsmDecision.reasoning.join('\n'),
+                type: 'TEXT',
+            })),
         };
     }
     async getHistory(organizationId, userRole) {

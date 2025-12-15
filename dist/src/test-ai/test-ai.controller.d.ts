@@ -18,9 +18,9 @@ export declare class TestAIController {
             extractedData: Record<string, any>;
         };
         sentMessages: {
-            id: string;
-            content: string;
-            timestamp: Date;
+            id: any;
+            content: any;
+            timestamp: any;
             thought: string;
             type: string;
         }[];

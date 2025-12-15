@@ -172,7 +172,25 @@ export class TestAIService {
         // Add explicit directive from FSM reasoning
         const fsmDirectives = fsmDecision.reasoning.join('\n');
 
+        // Construct full agent context
+        const agentContext = {
+            name: agent.name,
+            personality: agent.personality,
+            tone: agent.tone,
+            instructions: agent.instructions,
+            writingStyle: agent.writingStyle,
+            prohibitions: agent.prohibitions,
+        };
+
         const systemPrompt = `${agent.systemPrompt || 'Você é um assistente virtual inteligente.'}
+
+# CONTEXTO DO AGENTE
+**Nome**: ${agentContext.name}
+${agentContext.personality ? `**Personalidade/Traços**: ${agentContext.personality}` : ''}
+${agentContext.tone ? `**Tom de Voz**: ${agentContext.tone}` : ''}
+${agentContext.instructions ? `**Instruções Específicas**: ${agentContext.instructions}` : ''}
+${agentContext.writingStyle ? `**Estilo de Escrita**: ${agentContext.writingStyle}` : ''}
+${agentContext.prohibitions ? `**PROIBIÇÕES GLOBAIS**: ${agentContext.prohibitions}` : ''}
 
 ESTADO ATUAL: ${nextStateInfo?.name}
 MISSÃO NESTE ESTADO: ${nextStateInfo?.missionPrompt}${dataRequirement}
@@ -204,19 +222,27 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
             { maxTokens: 500 }
         );
 
-        // Save AI message with thinking
-        const aiMessage = await this.prisma.message.create({
-            data: {
-                conversationId: conversation.id,
-                content: aiResponse,
-                fromMe: true,
-                type: 'TEXT',
-                messageId: crypto.randomUUID(),
-                thought: fsmDecision.reasoning.join('\n'),
-            },
-        });
+        const responseParts = aiResponse.split(/\n|\\n|\/n/).filter(part => part.trim().length > 0);
+        const sentMessages: any[] = [];
 
-        // Save debug log
+        if (responseParts.length === 0) {
+            responseParts.push(aiResponse);
+        }
+
+        for (const part of responseParts) {
+            const aiMessage = await this.prisma.message.create({
+                data: {
+                    conversationId: conversation.id,
+                    content: part.trim(),
+                    fromMe: true,
+                    type: 'TEXT',
+                    messageId: crypto.randomUUID(),
+                    thought: fsmDecision.reasoning.join('\n'), // Attach thought to all parts or just first? All is fine.
+                },
+            });
+            sentMessages.push(aiMessage);
+        }
+
         const debugLog = await this.prisma.debugLog.create({
             data: {
                 phone: testPhone,
@@ -231,13 +257,12 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
             },
         });
 
-        // Generate audio response if enabled
         let audioBase64: string | null = null;
         if (agent.audioResponseEnabled && organization.elevenLabsApiKey) {
             try {
                 const audioBuffer = await this.elevenLabsService.textToSpeech(
-                    aiResponse,
-                    organization.elevenLabsVoiceId || '21m00Tcm4TlvDq8ikWAM', // Default Rachel voice
+                    aiResponse.replace(/\n/g, '. '),
+                    organization.elevenLabsVoiceId || '21m00Tcm4TlvDq8ikWAM',
                     organization.elevenLabsApiKey
                 );
                 audioBase64 = audioBuffer.toString('base64');
@@ -261,13 +286,13 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
                 createdAt: debugLog.createdAt.toISOString(),
                 extractedData: fsmDecision.extractedData,
             },
-            sentMessages: [{
-                id: aiMessage.id,
-                content: aiResponse,
-                timestamp: aiMessage.timestamp,
+            sentMessages: sentMessages.map(m => ({
+                id: m.id,
+                content: m.content,
+                timestamp: m.timestamp,
                 thought: fsmDecision.reasoning.join('\n'),
                 type: 'TEXT',
-            }],
+            })),
         };
     }
 
@@ -370,7 +395,6 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
         }
 
         try {
-            // Get test conversation for this agent
             const testConversation = await this.prisma.conversation.findFirst({
                 where: {
                     agentId,
@@ -388,10 +412,8 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
                 };
             }
 
-            // Trigger followup check for this lead
             await this.agentFollowup.checkAndCreateFollowups(testConversation.leadId);
 
-            // Get followup stats
             const stats = await this.agentFollowup.getFollowupStats(testConversation.leadId);
 
             return {
