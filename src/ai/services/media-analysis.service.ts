@@ -5,11 +5,25 @@ import { OpenAIService } from './openai.service';
 export class MediaAnalysisService {
     constructor(private openaiService: OpenAIService) { }
 
-    async analyzeImage(base64Image: string, apiKey: string): Promise<{ success: boolean; content: string }> {
+    async analyzeImage(base64Image: string, apiKey: string, customPrompt?: string): Promise<{ success: boolean; content: string }> {
         try {
-            return { success: true, content: 'Imagem recebida e processada.' };
+            console.log('[Media Analysis] Analyzing image with GPT-4o Vision...');
+
+            const prompt = customPrompt || 'Analise esta imagem em detalhes em português. Se houver texto, transcreva-o. Descreva o conteúdo visual de forma clara e objetiva.';
+
+            // Convert base64 to Buffer as required by openaiService.analyzeImage
+            const imageBuffer = Buffer.from(base64Image, 'base64');
+
+            const response = await this.openaiService.analyzeImage(
+                apiKey,
+                imageBuffer,
+                prompt
+            );
+
+            console.log('[Media Analysis] Image analyzed successfully');
+            return { success: true, content: response };
         } catch (error) {
-            console.error('Error analyzing image:', error);
+            console.error('[Media Analysis] Error analyzing image:', error);
             return { success: false, content: 'Erro ao analisar imagem' };
         }
     }

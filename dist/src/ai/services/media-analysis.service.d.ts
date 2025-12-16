@@ -2,7 +2,7 @@ import { OpenAIService } from './openai.service';
 export declare class MediaAnalysisService {
     private openaiService;
     constructor(openaiService: OpenAIService);
-    analyzeImage(base64Image: string, apiKey: string): Promise<{
+    analyzeImage(base64Image: string, apiKey: string, customPrompt?: string): Promise<{
         success: boolean;
         content: string;
     }>;

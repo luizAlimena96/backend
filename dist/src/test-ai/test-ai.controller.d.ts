@@ -56,14 +56,13 @@ export declare class TestAIController {
     triggerFollowup(data: any, req: any): Promise<{
         success: boolean;
         message: string;
-        stats?: undefined;
+        stats: {
+            processed: number;
+            rulesChecked: number;
+        };
     } | {
         success: boolean;
         message: string;
-        stats: {
-            totalSent: number;
-            lastSentAt: Date | null;
-            followupRules: number;
-        };
+        stats?: undefined;
     }>;
 }

@@ -14,11 +14,11 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WhatsAppWebhookController = void 0;
 const common_1 = require("@nestjs/common");
-const prisma_service_1 = require("../../database/prisma.service");
+const whatsapp_message_service_1 = require("./whatsapp-message.service");
 let WhatsAppWebhookController = class WhatsAppWebhookController {
-    prisma;
-    constructor(prisma) {
-        this.prisma = prisma;
+    messageService;
+    constructor(messageService) {
+        this.messageService = messageService;
     }
     async handleWebhook(body) {
         const event = body.event;
@@ -29,10 +29,10 @@ let WhatsAppWebhookController = class WhatsAppWebhookController {
         if (data.key.fromMe) {
             return { success: true };
         }
-        const phone = data.key.remoteJid.replace("@s.whatsapp.net", "");
-        const instanceName = body.instance;
-        const messageId = data.key.id;
-        return { success: true, message: "Webhook received" };
+        this.messageService.processIncomingMessage(body).catch(err => {
+            console.error('[WhatsApp Webhook] Error processing message:', err);
+        });
+        return { success: true, message: "Processing" };
     }
 };
 exports.WhatsAppWebhookController = WhatsAppWebhookController;
@@ -45,6 +45,6 @@ __decorate([
 ], WhatsAppWebhookController.prototype, "handleWebhook", null);
 exports.WhatsAppWebhookController = WhatsAppWebhookController = __decorate([
     (0, common_1.Controller)("webhooks/whatsapp"),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [whatsapp_message_service_1.WhatsAppMessageService])
 ], WhatsAppWebhookController);
 //# sourceMappingURL=whatsapp-webhook.controller.js.map

@@ -11,6 +11,8 @@ import { EmailService } from './services/email.service';
 import { CRMAutomationService } from './services/crm-automation.service';
 import { AIModule } from '../ai/ai.module';
 import { IntegrationsModule } from '../integrations/integrations.module';
+import { StorageService } from './services/storage.service';
+import { PdfService } from './services/pdf.service';
 
 @Global()
 @Module({
@@ -25,6 +27,8 @@ import { IntegrationsModule } from '../integrations/integrations.module';
         LeadDataExtractionService,
         EmailService,
         CRMAutomationService,
+        StorageService,
+        PdfService,
     ],
     exports: [
         DebugService,
@@ -36,6 +40,8 @@ import { IntegrationsModule } from '../integrations/integrations.module';
         LeadDataExtractionService,
         EmailService,
         CRMAutomationService,
+        StorageService,
+        PdfService,
     ],
 })
 export class CommonModule { }

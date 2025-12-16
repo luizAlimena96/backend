@@ -27,6 +27,21 @@ let CalendarController = class CalendarController {
         }
         return this.calendarService.getGoogleEvents(agentId);
     }
+    async getBlockedSlots(organizationId) {
+        return this.calendarService.getBlockedSlots(organizationId);
+    }
+    async createBlockedSlot(data) {
+        return this.calendarService.createBlockedSlot(data);
+    }
+    async deleteBlockedSlot(id) {
+        return this.calendarService.deleteBlockedSlot(id);
+    }
+    async getWorkingHours(organizationId) {
+        return this.calendarService.getWorkingHours(organizationId);
+    }
+    async updateWorkingHours(data) {
+        return this.calendarService.updateWorkingHours(data.organizationId, data.workingHours);
+    }
 };
 exports.CalendarController = CalendarController;
 __decorate([
@@ -36,6 +51,41 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], CalendarController.prototype, "getGoogleEvents", null);
+__decorate([
+    (0, common_1.Get)('blocked-slots'),
+    __param(0, (0, common_1.Query)('organizationId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], CalendarController.prototype, "getBlockedSlots", null);
+__decorate([
+    (0, common_1.Post)('blocked-slots'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], CalendarController.prototype, "createBlockedSlot", null);
+__decorate([
+    (0, common_1.Delete)('blocked-slots/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], CalendarController.prototype, "deleteBlockedSlot", null);
+__decorate([
+    (0, common_1.Get)('working-hours'),
+    __param(0, (0, common_1.Query)('organizationId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], CalendarController.prototype, "getWorkingHours", null);
+__decorate([
+    (0, common_1.Put)('working-hours'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], CalendarController.prototype, "updateWorkingHours", null);
 exports.CalendarController = CalendarController = __decorate([
     (0, common_1.Controller)('calendar'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

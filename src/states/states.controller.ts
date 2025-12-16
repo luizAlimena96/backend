@@ -1,11 +1,11 @@
-﻿import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards } from "@nestjs/common";
+﻿import { Controller, Get, Post, Put, Patch, Delete, Param, Body, Query, UseGuards } from "@nestjs/common";
 import { StatesService } from "./states.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 
 @Controller("states")
 @UseGuards(JwtAuthGuard)
 export class StatesController {
-  constructor(private statesService: StatesService) {}
+  constructor(private statesService: StatesService) { }
 
   @Get()
   async findAll(@Query("agentId") agentId: string) {
@@ -19,6 +19,11 @@ export class StatesController {
 
   @Put(":id")
   async update(@Param("id") id: string, @Body() data: any) {
+    return this.statesService.update(id, data);
+  }
+
+  @Patch(":id")
+  async updatePartial(@Param("id") id: string, @Body() data: any) {
     return this.statesService.update(id, data);
   }
 

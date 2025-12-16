@@ -27,7 +27,7 @@ export declare class ReportsService {
         title: string;
         type: string;
         period: string;
-        organizationId?: string;
+        organizationId: string;
         startDate?: string;
         endDate?: string;
         includeGraphs?: boolean;
@@ -37,5 +37,6 @@ export declare class ReportsService {
         message: string;
         reportId?: string;
     }>;
+    private simulateReportGeneration;
     downloadReport(id: string): Promise<Buffer>;
 }

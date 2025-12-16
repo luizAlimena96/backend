@@ -3,27 +3,31 @@ export declare class UsersController {
     private usersService;
     constructor(usersService: UsersService);
     findAll(organizationId?: string): Promise<{
-        name: string;
         id: string;
         organizationId: string | null;
         createdAt: Date;
+        name: string;
         email: string;
         role: import(".prisma/client").$Enums.UserRole;
         allowedTabs: import("@prisma/client/runtime/library").JsonValue;
     }[]>;
     findOne(id: string): Promise<{
-        name: string;
-        id: string;
         organization: {
             number: string | null;
-            isActive: boolean;
-            name: string;
-            id: string;
             state: string | null;
+            id: string;
             phone: string | null;
             createdAt: Date;
+            name: string;
+            isActive: boolean;
             updatedAt: Date;
             email: string | null;
+            googleAccessToken: string | null;
+            googleCalendarEnabled: boolean;
+            googleCalendarId: string | null;
+            googleRefreshToken: string | null;
+            googleTokenExpiry: Date | null;
+            workingHours: import("@prisma/client/runtime/library").JsonValue | null;
             slug: string;
             settings: import("@prisma/client/runtime/library").JsonValue | null;
             evolutionApiUrl: string | null;
@@ -60,12 +64,6 @@ export declare class UsersController {
             niche: string | null;
             street: string | null;
             zipCode: string | null;
-            googleAccessToken: string | null;
-            googleCalendarEnabled: boolean;
-            googleCalendarId: string | null;
-            googleRefreshToken: string | null;
-            googleTokenExpiry: Date | null;
-            workingHours: import("@prisma/client/runtime/library").JsonValue | null;
             openaiProjectId: string | null;
             whatsappAlertPhone1: string | null;
             whatsappAlertPhone2: string | null;
@@ -73,16 +71,18 @@ export declare class UsersController {
             whatsappLastDisconnected: Date | null;
             whatsappMonitoringEnabled: boolean;
         } | null;
+        id: string;
         organizationId: string | null;
+        name: string;
         email: string;
         role: import(".prisma/client").$Enums.UserRole;
         allowedTabs: import("@prisma/client/runtime/library").JsonValue;
     } | null>;
     update(id: string, data: any): Promise<{
-        name: string;
         id: string;
         organizationId: string | null;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         email: string;
         password: string;

@@ -3,26 +3,26 @@ export declare class TagsService {
     private prisma;
     constructor(prisma: PrismaService);
     findAll(organizationId: string): Promise<{
-        name: string;
         id: string;
         organizationId: string;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         color: string;
     }[]>;
     create(data: any): Promise<{
-        name: string;
         id: string;
         organizationId: string;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         color: string;
     }>;
     update(id: string, data: any): Promise<{
-        name: string;
         id: string;
         organizationId: string;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         color: string;
     }>;

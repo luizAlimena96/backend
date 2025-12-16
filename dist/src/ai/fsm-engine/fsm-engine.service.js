@@ -1,10 +1,43 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
@@ -17,7 +50,7 @@ const knowledge_search_service_1 = require("../services/knowledge-search.service
 const data_extractor_service_1 = require("./services/data-extractor.service");
 const state_decider_service_1 = require("./services/state-decider.service");
 const decision_validator_service_1 = require("./services/decision-validator.service");
-const toolsHandler = require("./tools-handler");
+const toolsHandler = __importStar(require("./tools-handler"));
 const types_1 = require("./types");
 const MAX_RETRIES = 2;
 function delay(ms) {
@@ -202,11 +235,17 @@ let FSMEngineService = class FSMEngineService {
                     extractedCount: globalExtractionResult.metadata.extractedCount,
                     extractedFields: globalExtractionResult.metadata.extractedFields,
                 });
+                const safeNewData = {};
+                for (const [key, value] of Object.entries(globalExtractionResult.extractedData)) {
+                    if (value !== null && value !== undefined && value !== 'null' && value !== 'undefined') {
+                        safeNewData[key] = value;
+                    }
+                }
                 let updatedExtractedData = {
                     ...input.extractedData,
-                    ...globalExtractionResult.extractedData,
+                    ...safeNewData,
                 };
-                if (input.leadId && Object.keys(globalExtractionResult.extractedData).length > 0) {
+                if (input.leadId && Object.keys(safeNewData).length > 0) {
                     await this.prisma.lead.update({
                         where: { id: input.leadId },
                         data: {
@@ -216,34 +255,7 @@ let FSMEngineService = class FSMEngineService {
                     console.log('[FSM Engine] Saved', Object.keys(globalExtractionResult.extractedData).length, 'new data fields to lead');
                 }
                 input.extractedData = updatedExtractedData;
-                const isGreeting = input.lastMessage.trim().length < 20 &&
-                    input.conversationHistory.length <= 2;
-                const greetingKeywords = ['ola', 'olá', 'oi', 'bom dia', 'boa tarde', 'boa noite', 'hey', 'hello'];
-                const containsGreeting = greetingKeywords.some(keyword => input.lastMessage.toLowerCase().includes(keyword));
                 const hasNewData = Object.values(globalExtractionResult.extractedData).some(v => v !== null && v !== undefined);
-                if (isGreeting && containsGreeting && !hasNewData) {
-                    console.log('[FSM Engine] Detected greeting (pre-loop), returning clean welcome message');
-                    metrics.totalTime = Date.now() - startTime;
-                    return {
-                        nextState: state.name,
-                        reasoning: [
-                            'Saudação inicial detectada',
-                            'Apresente-se cordialmente conforme a personalidade',
-                            'IMPORTANTE: Execute a missão do estado atual (ex: perguntar nome)',
-                        ],
-                        extractedData: input.extractedData,
-                        validation: {
-                            approved: true,
-                            confidence: 0.8,
-                            justificativa: 'Saudação inicial - iniciando conversa',
-                            alertas: [],
-                            retryable: false,
-                        },
-                        shouldExtractData: true,
-                        dataToExtract: state.dataKey,
-                        metrics,
-                    };
-                }
                 const extractionStart = Date.now();
                 const extractionInput = {
                     message: input.lastMessage,
@@ -293,6 +305,14 @@ let FSMEngineService = class FSMEngineService {
                     console.error('[FSM Engine] Knowledge search failed:', knowledgeError);
                     knowledgeSearchInfo.errorMessage = knowledgeError?.message || 'Erro desconhecido';
                 }
+                let dynamicProhibitions = state.prohibitions || '';
+                const isDataMissing = state.dataKey &&
+                    (!extractionResult.data[state.dataKey] || extractionResult.data[state.dataKey] === null);
+                if (isDataMissing) {
+                    const forceAskMsg = `\nIMPORTANTE: O dado '${state.dataKey}' ainda não foi coletado. SUA ÚNICA MISSÃO AGORA É PERGUNTAR ISSO AO USUÁRIO. NÃO AVANCE DE ESTADO SEM ISSO.`;
+                    dynamicProhibitions += forceAskMsg;
+                    state.missionPrompt += forceAskMsg;
+                }
                 const decisionInput = {
                     currentState: state.name,
                     missionPrompt: state.missionPrompt,
@@ -301,7 +321,7 @@ let FSMEngineService = class FSMEngineService {
                     lastMessage: input.lastMessage,
                     conversationHistory: input.conversationHistory,
                     availableRoutes: routes,
-                    prohibitions: state.prohibitions,
+                    prohibitions: dynamicProhibitions,
                     agentContext,
                     knowledgeContext,
                 };
@@ -341,33 +361,61 @@ let FSMEngineService = class FSMEngineService {
                         const toolsList = toolsHandler.parseStateTools(state);
                         if (toolsList.length > 0) {
                             console.log(`[FSM Engine] State '${state.name}' has tools:`, toolsList);
-                            for (const toolName of toolsList) {
-                                console.log(`[FSM Engine] Executing tool: ${toolName}`);
-                                const diaHorario = updatedExtractedData.dia_horário || updatedExtractedData.horario_escolhido || '';
-                                let date = '';
-                                let time = '';
-                                if (diaHorario) {
-                                    const timeMatch = diaHorario.match(/(\d{1,2}):?(\d{2})?h?/);
-                                    if (timeMatch) {
-                                        const hours = timeMatch[1];
-                                        const minutes = timeMatch[2] || '00';
-                                        time = `${hours}:${minutes}`;
+                            for (const toolConfig of toolsList) {
+                                const configObj = typeof toolConfig === 'string'
+                                    ? { name: toolConfig, args: {} }
+                                    : toolConfig;
+                                const toolName = configObj.name;
+                                const toolStaticArgs = configObj.args || {};
+                                console.log(`[FSM Engine] Executing tool: ${toolName}`, { staticArgs: toolStaticArgs });
+                                let toolArgs = { ...toolStaticArgs };
+                                if (toolName === 'gerenciar_agenda') {
+                                    if (updatedExtractedData.periodo_dia)
+                                        toolArgs.periodo_dia = updatedExtractedData.periodo_dia;
+                                    const dataExt = updatedExtractedData.data_especifica || updatedExtractedData.dia;
+                                    const horaExt = updatedExtractedData.horario_especifico || updatedExtractedData.horario;
+                                    if (dataExt)
+                                        toolArgs.data_especifica = dataExt;
+                                    if (horaExt)
+                                        toolArgs.horario_especifico = horaExt;
+                                    const diaHorario = updatedExtractedData.dia_horário || updatedExtractedData.horario_escolhido;
+                                    if (diaHorario && !toolArgs.data_especifica) {
+                                        const timeMatch = diaHorario.match(/(\d{1,2}):?(\d{2})?h?/);
+                                        if (timeMatch) {
+                                            const hours = timeMatch[1].padStart(2, '0');
+                                            const minutes = (timeMatch[2] || '00').padStart(2, '0');
+                                            toolArgs.horario_especifico = `${hours}:${minutes}`;
+                                        }
+                                        toolArgs.mensagem_original = diaHorario;
                                     }
-                                    const dateLower = diaHorario.toLowerCase();
-                                    if (dateLower.includes('amanhã') || dateLower.includes('amanha'))
-                                        date = 'amanhã';
-                                    else if (dateLower.includes('segunda'))
-                                        date = 'segunda-feira';
-                                    else if (dateLower.includes('terça') || dateLower.includes('terca'))
-                                        date = 'terça-feira';
-                                    else if (dateLower.includes('quarta'))
-                                        date = 'quarta-feira';
-                                    else if (dateLower.includes('quinta'))
-                                        date = 'quinta-feira';
-                                    else if (dateLower.includes('sexta'))
-                                        date = 'sexta-feira';
                                 }
-                                const toolArgs = { date, time, notes: `Agendamento via IA - ${diaHorario}` };
+                                else {
+                                    const diaHorario = updatedExtractedData.dia_horário || updatedExtractedData.horario_escolhido || '';
+                                    let date = '';
+                                    let time = '';
+                                    if (diaHorario) {
+                                        const timeMatch = diaHorario.match(/(\d{1,2}):?(\d{2})?h?/);
+                                        if (timeMatch) {
+                                            const hours = timeMatch[1];
+                                            const minutes = timeMatch[2] || '00';
+                                            time = `${hours}:${minutes}`;
+                                        }
+                                        const dateLower = diaHorario.toLowerCase();
+                                        if (dateLower.includes('amanhã') || dateLower.includes('amanha'))
+                                            date = 'amanhã';
+                                        else if (dateLower.includes('segunda'))
+                                            date = 'segunda-feira';
+                                        else if (dateLower.includes('terça') || dateLower.includes('terca'))
+                                            date = 'terça-feira';
+                                        else if (dateLower.includes('quarta'))
+                                            date = 'quarta-feira';
+                                        else if (dateLower.includes('quinta'))
+                                            date = 'quinta-feira';
+                                        else if (dateLower.includes('sexta'))
+                                            date = 'sexta-feira';
+                                    }
+                                    toolArgs = { date, time, notes: `Agendamento via IA - ${diaHorario}`, ...toolArgs };
+                                }
                                 const toolResult = await toolsHandler.executeFSMTool(toolName, toolArgs, {
                                     organizationId: input.organizationId,
                                     leadId: input.leadId,
@@ -425,21 +473,20 @@ let FSMEngineService = class FSMEngineService {
                     knowledgeReasoningLines.push(`  ✅ CONHECIMENTO UTILIZADO: ${knowledgeSearchInfo.chunksFound} chunks relevantes`);
                     knowledgeReasoningLines.push(`  Similaridade máxima: ${(knowledgeSearchInfo.topSimilarity * 100).toFixed(1)}%`);
                 }
+                const finalReasoning = [
+                    ...(knowledgeReasoningLines || []),
+                    '---',
+                    ...(extractionResult?.reasoning || []),
+                    '---',
+                    ...(decisionResult?.pensamento || []),
+                    '---',
+                    `Validação: ${validationResult?.approved ? 'APROVADA' : 'REJEITADA'}`,
+                    validationResult?.justificativa || '',
+                    ...(validationResult?.alertas?.map(a => `⚠️ ${a}`) || []),
+                ];
                 const output = {
-                    nextState: validationResult.approved
-                        ? decisionResult.estado_escolhido
-                        : validationResult.suggestedState || state.name,
-                    reasoning: [
-                        ...knowledgeReasoningLines,
-                        '---',
-                        ...extractionResult.reasoning,
-                        '---',
-                        ...decisionResult.pensamento,
-                        '---',
-                        `Validação: ${validationResult.approved ? 'APROVADA' : 'REJEITADA'}`,
-                        validationResult.justificativa,
-                        ...validationResult.alertas.map(a => `⚠️ ${a}`),
-                    ],
+                    nextState: finalNextState,
+                    reasoning: finalReasoning,
                     extractedData: extractionResult.data,
                     validation: validationResult,
                     shouldExtractData: extractionResult.success && extractionResult.metadata.extractedFields.length > 0,
@@ -463,31 +510,6 @@ let FSMEngineService = class FSMEngineService {
             }
         }
         metrics.totalTime = Date.now() - startTime;
-        const isGreeting = input.lastMessage.trim().length < 20 &&
-            input.conversationHistory.length <= 2;
-        const greetingKeywords = ['ola', 'olá', 'oi', 'bom dia', 'boa tarde', 'boa noite', 'hey', 'hello'];
-        const containsGreeting = greetingKeywords.some(keyword => input.lastMessage.toLowerCase().includes(keyword));
-        if (isGreeting && containsGreeting) {
-            console.log('[FSM Engine] Detected greeting (fallback), returning clean welcome message');
-            return {
-                nextState: state.name,
-                reasoning: [
-                    'Saudação inicial detectada',
-                    'Iniciando conversa com mensagem de boas-vindas',
-                ],
-                extractedData: input.extractedData,
-                validation: {
-                    approved: true,
-                    confidence: 0.8,
-                    justificativa: 'Saudação inicial - iniciando conversa',
-                    alertas: [],
-                    retryable: false,
-                },
-                shouldExtractData: true,
-                dataToExtract: state.dataKey,
-                metrics,
-            };
-        }
         return {
             nextState: state.name,
             reasoning: [

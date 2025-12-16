@@ -1,7 +1,7 @@
-import { PrismaService } from "../../database/prisma.service";
+import { WhatsAppMessageService } from "./whatsapp-message.service";
 export declare class WhatsAppWebhookController {
-    private prisma;
-    constructor(prisma: PrismaService);
+    private messageService;
+    constructor(messageService: WhatsAppMessageService);
     handleWebhook(body: any): Promise<{
         success: boolean;
         message?: undefined;

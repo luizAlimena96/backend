@@ -3,13 +3,13 @@ export declare class CRMTemplatesController {
     private prisma;
     constructor(prisma: PrismaService);
     findAll(organizationId: string): Promise<{
-        name: string;
         id: string;
         organizationId: string | null;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
-        crmType: string;
         description: string | null;
+        crmType: string;
         baseUrl: string;
         authType: string;
         automations: import("@prisma/client/runtime/library").JsonValue;
@@ -21,13 +21,13 @@ export declare class CRMTemplatesController {
         crmConfigId: string;
         organizationId: string;
     }): Promise<{
-        name: string;
         id: string;
         organizationId: string | null;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
-        crmType: string;
         description: string | null;
+        crmType: string;
         baseUrl: string;
         authType: string;
         automations: import("@prisma/client/runtime/library").JsonValue;
@@ -38,11 +38,11 @@ export declare class CRMTemplatesController {
         name: string;
         apiKey: string;
     }): Promise<{
-        isActive: boolean;
-        name: string;
         id: string;
         organizationId: string;
         createdAt: Date;
+        name: string;
+        isActive: boolean;
         updatedAt: Date;
         crmType: string;
         apiKey: string;
@@ -50,13 +50,13 @@ export declare class CRMTemplatesController {
         authType: string;
     }>;
     delete(id: string): Promise<{
-        name: string;
         id: string;
         organizationId: string | null;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
-        crmType: string;
         description: string | null;
+        crmType: string;
         baseUrl: string;
         authType: string;
         automations: import("@prisma/client/runtime/library").JsonValue;

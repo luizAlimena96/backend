@@ -11,8 +11,10 @@ import { StateDeciderService } from './fsm-engine/services/state-decider.service
 import { DecisionValidatorService } from './fsm-engine/services/decision-validator.service';
 import { MessageBufferService } from './fsm-engine/services/message-buffer.service';
 import { ToolsHandlerService } from './fsm-engine/services/tools-handler.service';
+import { ToolsModule } from './tools/tools.module';
 
 @Module({
+    imports: [ToolsModule],
     controllers: [AIController],
     providers: [
         AIService,
@@ -30,15 +32,9 @@ import { ToolsHandlerService } from './fsm-engine/services/tools-handler.service
     exports: [
         AIService,
         OpenAIService,
-        MediaAnalysisService,
-        KnowledgeSearchService,
-        MessageEventEmitter,
         FSMEngineService,
-        DataExtractorService,
-        StateDeciderService,
-        DecisionValidatorService,
-        MessageBufferService,
-        ToolsHandlerService,
+        KnowledgeSearchService,
+        MediaAnalysisService,
     ],
 })
 export class AIModule { }

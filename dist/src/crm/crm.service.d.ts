@@ -3,11 +3,11 @@ export declare class CRMService {
     private prisma;
     constructor(prisma: PrismaService);
     findAllConfigs(organizationId: string): Promise<{
-        isActive: boolean;
-        name: string;
         id: string;
         organizationId: string;
         createdAt: Date;
+        name: string;
+        isActive: boolean;
         updatedAt: Date;
         crmType: string;
         apiKey: string;
@@ -15,11 +15,11 @@ export declare class CRMService {
         authType: string;
     }[]>;
     createConfig(data: any): Promise<{
-        isActive: boolean;
-        name: string;
         id: string;
         organizationId: string;
         createdAt: Date;
+        name: string;
+        isActive: boolean;
         updatedAt: Date;
         crmType: string;
         apiKey: string;
@@ -27,11 +27,11 @@ export declare class CRMService {
         authType: string;
     }>;
     updateConfig(id: string, data: any): Promise<{
-        isActive: boolean;
-        name: string;
         id: string;
         organizationId: string;
         createdAt: Date;
+        name: string;
+        isActive: boolean;
         updatedAt: Date;
         crmType: string;
         apiKey: string;
@@ -42,33 +42,33 @@ export declare class CRMService {
         success: boolean;
     }>;
     findAllStages(agentId: string): Promise<{
-        name: string;
         id: string;
         organizationId: string;
         agentId: string;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         description: string | null;
         order: number;
         color: string;
     }[]>;
     createStage(data: any): Promise<{
-        name: string;
         id: string;
         organizationId: string;
         agentId: string;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         description: string | null;
         order: number;
         color: string;
     }>;
     updateStage(id: string, data: any): Promise<{
-        name: string;
         id: string;
         organizationId: string;
         agentId: string;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         description: string | null;
         order: number;
@@ -81,45 +81,45 @@ export declare class CRMService {
         success: boolean;
     }>;
     findAllAutomations(crmConfigId: string): Promise<{
-        isActive: boolean;
-        name: string;
         id: string;
         createdAt: Date;
+        name: string;
+        isActive: boolean;
         updatedAt: Date;
+        crmStageId: string | null;
         description: string | null;
         delayMinutes: number | null;
         order: number;
-        crmStageId: string | null;
         agentStateId: string | null;
         crmConfigId: string;
         actions: import("@prisma/client/runtime/library").JsonValue;
         triggerType: string;
     }[]>;
     createAutomation(data: any): Promise<{
-        isActive: boolean;
-        name: string;
         id: string;
         createdAt: Date;
+        name: string;
+        isActive: boolean;
         updatedAt: Date;
+        crmStageId: string | null;
         description: string | null;
         delayMinutes: number | null;
         order: number;
-        crmStageId: string | null;
         agentStateId: string | null;
         crmConfigId: string;
         actions: import("@prisma/client/runtime/library").JsonValue;
         triggerType: string;
     }>;
     updateAutomation(id: string, data: any): Promise<{
-        isActive: boolean;
-        name: string;
         id: string;
         createdAt: Date;
+        name: string;
+        isActive: boolean;
         updatedAt: Date;
+        crmStageId: string | null;
         description: string | null;
         delayMinutes: number | null;
         order: number;
-        crmStageId: string | null;
         agentStateId: string | null;
         crmConfigId: string;
         actions: import("@prisma/client/runtime/library").JsonValue;

@@ -11,6 +11,8 @@ async function bootstrap() {
         origin: configService.get('FRONTEND_URL', 'http://localhost:3001'),
         credentials: true,
     });
+    app.use(require('body-parser').json({ limit: '10mb' }));
+    app.use(require('body-parser').urlencoded({ limit: '10mb', extended: true }));
     app.useGlobalPipes(new common_1.ValidationPipe({
         whitelist: true,
         transform: true,

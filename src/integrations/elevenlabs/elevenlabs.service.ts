@@ -1,38 +1,49 @@
 import { Injectable } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
+import axios from 'axios';
 
 @Injectable()
 export class ElevenLabsService {
-    constructor(private httpService: HttpService) { }
+    private readonly baseUrl = 'https://api.elevenlabs.io/v1';
 
-    async textToSpeech(text: string, voiceId: string, apiKey: string): Promise<Buffer> {
+    async textToSpeech(
+        apiKey: string,
+        text: string,
+        voiceId: string = '21m00Tcm4TlvDq8ikWAM' // Default voice (Rachel)
+    ): Promise<Buffer> {
         try {
-            const response = await firstValueFrom(
-                this.httpService.post(
-                    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
-                    {
-                        text,
-                        model_id: 'eleven_multilingual_v2',
-                        voice_settings: {
-                            stability: 0.5,
-                            similarity_boost: 0.75,
-                        },
+            // Trim API key to remove any whitespace/newlines that might cause header issues
+            const cleanApiKey = apiKey.trim();
+
+            console.log('[ElevenLabs] Generating TTS...', {
+                textLength: text.length,
+                voiceId,
+                apiKeyLength: cleanApiKey.length
+            });
+
+            const response = await axios.post(
+                `${this.baseUrl}/text-to-speech/${voiceId}`,
+                {
+                    text,
+                    model_id: 'eleven_multilingual_v2',
+                    voice_settings: {
+                        stability: 0.5,
+                        similarity_boost: 0.75,
                     },
-                    {
-                        headers: {
-                            'xi-api-key': apiKey,
-                            'Content-Type': 'application/json',
-                        },
-                        responseType: 'arraybuffer',
-                    }
-                )
+                },
+                {
+                    headers: {
+                        'xi-api-key': cleanApiKey,
+                        'Content-Type': 'application/json',
+                    },
+                    responseType: 'arraybuffer',
+                }
             );
 
+            console.log('[ElevenLabs] TTS generated successfully, size:', response.data.length);
             return Buffer.from(response.data);
         } catch (error) {
-            console.error('ElevenLabs TTS error:', error);
-            throw new Error('Failed to generate speech');
+            console.error('[ElevenLabs] TTS Error:', error?.response?.data || error.message);
+            throw new Error('Failed to generate audio from text');
         }
     }
 }

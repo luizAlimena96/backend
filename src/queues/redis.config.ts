@@ -59,8 +59,8 @@ export const redisConnection: ConnectionOptions = {
     connectTimeout: parseInt(process.env.BULLMQ_CONNECTION_TIMEOUT || '10000', 10),
     // 10s para conectar ou falha (alinhado com lexa)
 
-    commandTimeout: parseInt(process.env.BULLMQ_COMMAND_TIMEOUT || '30000', 10),
-    // 30s para comandos ou falha (alinhado com lexa)
+    commandTimeout: parseInt(process.env.BULLMQ_COMMAND_TIMEOUT || '120000', 10),
+    // 120s para comandos (aumentado para processar PDFs grandes com muitos chunks)
 
     // ============================================
     // LIMITES DE CONEXÃO (para VM)
@@ -77,9 +77,10 @@ export const redisConnection: ConnectionOptions = {
     enableReadyCheck: true,
     // Verifica se Redis está pronto antes de usar
 
-    enableOfflineQueue: false,
-    // CRÍTICO: Não enfileirar comandos offline
-    // Evita acúmulo de comandos durante desconexão
+    enableOfflineQueue: true,
+    // ALTERADO: Permitir fila offline para evitar crashes
+    // Quando Redis está indisponível, comandos são enfileirados
+    // Isso evita o erro "Stream isn't writeable" em produção
 
     lazyConnect: false,
     // Conectar imediatamente (não lazy)

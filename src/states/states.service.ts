@@ -3,7 +3,7 @@ import { PrismaService } from "../database/prisma.service";
 
 @Injectable()
 export class StatesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findAll(agentId: string) {
     return this.prisma.state.findMany({
@@ -17,7 +17,28 @@ export class StatesService {
   }
 
   async update(id: string, data: any) {
-    return this.prisma.state.update({ where: { id }, data });
+    try {
+      console.log(`[StatesService] Updating state ${id} with data:`, data);
+
+      // Extract only updateable fields to prevent Prisma errors
+      const {
+        name, missionPrompt, availableRoutes, dataKey, dataDescription,
+        dataType, mediaId, tools, prohibitions, responseType, crmStatus, order,
+        crmStageId, mediaTiming, dataCollections
+      } = data;
+
+      return await this.prisma.state.update({
+        where: { id },
+        data: {
+          name, missionPrompt, availableRoutes, dataKey, dataDescription,
+          dataType, mediaId, tools, prohibitions, responseType, crmStatus, order: order ? parseInt(order.toString()) : undefined,
+          crmStageId, mediaTiming, dataCollections
+        }
+      });
+    } catch (error) {
+      console.error(`[StatesService] Error updating state ${id}:`, error);
+      throw error;
+    }
   }
 
   async delete(id: string) {

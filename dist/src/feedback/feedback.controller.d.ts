@@ -8,8 +8,8 @@ export declare class FeedbackController {
         date: string;
         conversation: ({
             lead: {
-                name: string | null;
                 phone: string;
+                name: string | null;
             } | null;
         } & {
             id: string;
@@ -22,15 +22,15 @@ export declare class FeedbackController {
             whatsapp: string;
         }) | null;
         responses: {
-            id: string;
             message: string;
+            id: string;
             createdAt: Date;
             userId: string;
             feedbackId: string;
             userName: string;
         }[];
-        id: string;
         message: string;
+        id: string;
         phone: string | null;
         conversationId: string | null;
         currentState: string | null;
@@ -54,13 +54,13 @@ export declare class FeedbackController {
         conversation: ({
             lead: {
                 log: string | null;
-                name: string | null;
                 id: string;
                 phone: string;
                 currentState: string | null;
                 organizationId: string;
                 agentId: string;
                 createdAt: Date;
+                name: string | null;
                 updatedAt: Date;
                 notes: string | null;
                 status: import(".prisma/client").$Enums.LeadStatus;
@@ -79,16 +79,21 @@ export declare class FeedbackController {
                 zapSignStatus: string | null;
                 birthDate: Date | null;
                 rg: string | null;
+                crmStageId: string | null;
+                conversationSummary: string | null;
             } | null;
             messages: {
                 id: string;
-                timestamp: Date;
-                type: import(".prisma/client").$Enums.MessageType;
                 conversationId: string;
+                type: import(".prisma/client").$Enums.MessageType;
+                mediaUrl: string | null;
+                caption: string | null;
+                timestamp: Date;
                 messageId: string;
                 content: string;
                 fromMe: boolean;
                 thought: string | null;
+                mediaType: string | null;
             }[];
         } & {
             id: string;
@@ -101,16 +106,16 @@ export declare class FeedbackController {
             whatsapp: string;
         }) | null;
         responses: {
-            id: string;
             message: string;
+            id: string;
             createdAt: Date;
             userId: string;
             feedbackId: string;
             userName: string;
         }[];
     } & {
-        id: string;
         message: string;
+        id: string;
         phone: string | null;
         conversationId: string | null;
         currentState: string | null;
@@ -142,8 +147,8 @@ export declare class FeedbackController {
             whatsapp: string;
         } | null;
     } & {
-        id: string;
         message: string;
+        id: string;
         phone: string | null;
         conversationId: string | null;
         currentState: string | null;
@@ -164,8 +169,8 @@ export declare class FeedbackController {
         rating: number | null;
     }>;
     resolve(id: string, response: string): Promise<{
-        id: string;
         message: string;
+        id: string;
         phone: string | null;
         conversationId: string | null;
         currentState: string | null;
@@ -186,8 +191,8 @@ export declare class FeedbackController {
         rating: number | null;
     }>;
     reopen(id: string): Promise<{
-        id: string;
         message: string;
+        id: string;
         phone: string | null;
         conversationId: string | null;
         currentState: string | null;

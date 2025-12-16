@@ -1,3 +1,4 @@
+import { SchedulingToolsService } from '../tools/scheduling-tools.service';
 export interface ToolExecutionResult {
     success: boolean;
     data?: any;
@@ -8,6 +9,8 @@ export declare function executeFSMTool(toolName: string, args: Record<string, an
     organizationId: string;
     leadId?: string;
     conversationId: string;
+}, services?: {
+    schedulingTools?: SchedulingToolsService;
 }): Promise<ToolExecutionResult>;
 export declare function hasTools(state: any): boolean;
 export declare function parseStateTools(state: any): string[];

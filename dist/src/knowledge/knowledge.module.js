@@ -8,15 +8,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.KnowledgeModule = void 0;
 const common_1 = require("@nestjs/common");
-const knowledge_controller_1 = require("./knowledge.controller");
 const knowledge_service_1 = require("./knowledge.service");
+const knowledge_controller_1 = require("./knowledge.controller");
+const prisma_module_1 = require("../database/prisma.module");
+const ai_module_1 = require("../ai/ai.module");
+const axios_1 = require("@nestjs/axios");
+const document_service_1 = require("./document.service");
 let KnowledgeModule = class KnowledgeModule {
 };
 exports.KnowledgeModule = KnowledgeModule;
 exports.KnowledgeModule = KnowledgeModule = __decorate([
     (0, common_1.Module)({
+        imports: [prisma_module_1.PrismaModule, ai_module_1.AIModule, axios_1.HttpModule],
         controllers: [knowledge_controller_1.KnowledgeController],
-        providers: [knowledge_service_1.KnowledgeService],
+        providers: [knowledge_service_1.KnowledgeService, document_service_1.DocumentService],
         exports: [knowledge_service_1.KnowledgeService],
     })
 ], KnowledgeModule);

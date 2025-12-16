@@ -196,6 +196,7 @@ export class AgentsController {
       include: {
         crmStage: { select: { id: true, name: true, color: true } },
         moveToStage: { select: { id: true, name: true, color: true } },
+        reminders: { orderBy: { minutesBefore: "desc" } },
       },
     });
   }
@@ -223,6 +224,19 @@ export class AgentsController {
         cancellationTemplate: data.cancellationTemplate,
         reschedulingTemplate: data.reschedulingTemplate,
         isActive: data.isActive,
+        reminderWindowStart: data.reminderWindowStart,
+        reminderWindowEnd: data.reminderWindowEnd,
+        reminders: {
+          create: data.reminders?.map((r: any) => ({
+            minutesBefore: r.minutesBefore,
+            sendToLead: r.sendToLead,
+            sendToTeam: r.sendToTeam,
+            additionalPhones: r.additionalPhones,
+            leadMessageTemplate: r.leadMessageTemplate,
+            teamMessageTemplate: r.teamMessageTemplate,
+            isActive: r.isActive
+          }))
+        }
       },
     });
   }
@@ -233,24 +247,54 @@ export class AgentsController {
     @Param("configId") configId: string,
     @Body() data: any
   ) {
-    return this.prisma.autoSchedulingConfig.update({
-      where: { id: configId },
-      data: {
-        duration: data.duration,
-        minAdvanceHours: data.minAdvanceHours,
-        preferredTime: data.preferredTime,
-        daysOfWeek: data.daysOfWeek,
-        messageTemplate: data.messageTemplate,
-        autoConfirm: data.autoConfirm,
-        moveToStageId: data.moveToStageId,
-        sendConfirmation: data.sendConfirmation,
-        confirmationTemplate: data.confirmationTemplate,
-        notifyTeam: data.notifyTeam,
-        teamPhones: data.teamPhones,
-        cancellationTemplate: data.cancellationTemplate,
-        reschedulingTemplate: data.reschedulingTemplate,
-        isActive: data.isActive,
-      },
+    // Transaction to handle reminders replacement
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Update main config
+      const updated = await tx.autoSchedulingConfig.update({
+        where: { id: configId },
+        data: {
+          duration: data.duration,
+          minAdvanceHours: data.minAdvanceHours,
+          preferredTime: data.preferredTime,
+          daysOfWeek: data.daysOfWeek,
+          messageTemplate: data.messageTemplate,
+          autoConfirm: data.autoConfirm,
+          moveToStageId: data.moveToStageId,
+          sendConfirmation: data.sendConfirmation,
+          confirmationTemplate: data.confirmationTemplate,
+          notifyTeam: data.notifyTeam,
+          teamPhones: data.teamPhones,
+          cancellationTemplate: data.cancellationTemplate,
+          reschedulingTemplate: data.reschedulingTemplate,
+          isActive: data.isActive,
+          reminderWindowStart: data.reminderWindowStart,
+          reminderWindowEnd: data.reminderWindowEnd,
+        },
+      });
+
+      // 2. Handle reminders update (Replace All strategy for simplicity)
+      if (data.reminders) {
+        await tx.appointmentReminderConfig.deleteMany({
+          where: { autoSchedulingConfigId: configId }
+        });
+
+        if (data.reminders.length > 0) {
+          await tx.appointmentReminderConfig.createMany({
+            data: data.reminders.map((r: any) => ({
+              autoSchedulingConfigId: configId,
+              minutesBefore: r.minutesBefore,
+              sendToLead: r.sendToLead,
+              sendToTeam: r.sendToTeam,
+              additionalPhones: r.additionalPhones || [],
+              leadMessageTemplate: r.leadMessageTemplate,
+              teamMessageTemplate: r.teamMessageTemplate,
+              isActive: r.isActive
+            }))
+          });
+        }
+      }
+
+      return updated;
     });
   }
 

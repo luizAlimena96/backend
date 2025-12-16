@@ -20,7 +20,7 @@ import {
 
 const MAX_RETRIES = 2;
 
-// Helper functions for retry logic (inline implementation)
+
 function delay(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -61,7 +61,6 @@ export class FSMEngineService {
                 lastMessage: input.lastMessage.substring(0, 100),
             });
 
-            // Buscar configuração do agente
             const agent = await this.prisma.agent.findUnique({
                 where: { id: input.agentId },
                 select: {
@@ -99,7 +98,6 @@ export class FSMEngineService {
             const openaiApiKey = agent.organization.openaiApiKey;
             const openaiModel = agent.organization.openaiModel || 'gpt-4o-mini';
 
-            // Create agent context for prompts
             const agentContext: AgentContext = {
                 name: agent.name,
                 personality: agent.personality,
@@ -111,7 +109,6 @@ export class FSMEngineService {
                 workingHours: agent.organization.workingHours,
             };
 
-            // Buscar estado atual
             const state = await this.prisma.state.findFirst({
                 where: {
                     agentId: input.agentId,
@@ -122,7 +119,6 @@ export class FSMEngineService {
             if (!state) {
                 console.warn(`[FSM Engine] State '${input.currentState}' not found, using INICIO`);
 
-                // Tentar buscar estado INICIO
                 const inicioState = await this.prisma.state.findFirst({
                     where: {
                         agentId: input.agentId,
@@ -156,7 +152,6 @@ export class FSMEngineService {
 
             metrics.totalTime = Date.now() - startTime;
 
-            // Retornar estado atual em caso de erro
             return {
                 nextState: input.currentState,
                 reasoning: [
@@ -211,7 +206,6 @@ export class FSMEngineService {
         let retryCount = 0;
         let lastError: Error | null = null;
 
-        // Variáveis de conhecimento - declaradas FORA do loop para estarem disponíveis no bloco de erro
         let knowledgeContext = '';
         let knowledgeSearchInfo = {
             searched: false,
@@ -225,10 +219,8 @@ export class FSMEngineService {
         while (retryCount <= MAX_RETRIES) {
             try {
                 // ==================== GLOBAL DATA EXTRACTION ====================
-                // Extract ALL possible dataKeys from the message
                 const globalExtractionStart = Date.now();
 
-                // Get all states for this agent to collect all dataKeys
                 const allStates = await this.prisma.state.findMany({
                     where: { agentId: input.agentId },
                     select: {
@@ -238,7 +230,6 @@ export class FSMEngineService {
                     },
                 });
 
-                // Build list of all dataKeys
                 const allDataKeys = allStates
                     .filter((s: { dataKey: string | null; dataDescription: string | null; dataType: string | null }) => s.dataKey && s.dataKey !== 'vazio')
                     .map((s: { dataKey: string | null; dataDescription: string | null; dataType: string | null }) => ({
@@ -249,7 +240,6 @@ export class FSMEngineService {
 
                 console.log('[FSM Engine] Global extraction - found', allDataKeys.length, 'dataKeys');
 
-                // Usar o service backend
                 const globalExtractionResult = await this.dataExtractor.extractAllDataFromMessage(
                     {
                         message: input.lastMessage,
@@ -267,14 +257,19 @@ export class FSMEngineService {
                     extractedFields: globalExtractionResult.metadata.extractedFields,
                 });
 
-                // Merge global extraction with current extracted data
+                const safeNewData: Record<string, any> = {};
+                for (const [key, value] of Object.entries(globalExtractionResult.extractedData)) {
+                    if (value !== null && value !== undefined && value !== 'null' && value !== 'undefined') {
+                        safeNewData[key] = value;
+                    }
+                }
+
                 let updatedExtractedData = {
                     ...input.extractedData,
-                    ...globalExtractionResult.extractedData,
+                    ...safeNewData,
                 };
 
-                // Save extracted data to lead if leadId is provided
-                if (input.leadId && Object.keys(globalExtractionResult.extractedData).length > 0) {
+                if (input.leadId && Object.keys(safeNewData).length > 0) {
                     await this.prisma.lead.update({
                         where: { id: input.leadId },
                         data: {
@@ -284,45 +279,9 @@ export class FSMEngineService {
                     console.log('[FSM Engine] Saved', Object.keys(globalExtractionResult.extractedData).length, 'new data fields to lead');
                 }
 
-                // Update input with new extracted data
                 input.extractedData = updatedExtractedData;
 
-                // ==================== GREETING IMPROVEMENT ====================
-                // Check for greeting BEFORE the loop if no data was found
-                // This ensures "Ola" triggers the specific greeting logic like legacy fallback
-                const isGreeting = input.lastMessage.trim().length < 20 &&
-                    input.conversationHistory.length <= 2;
-
-                const greetingKeywords = ['ola', 'olá', 'oi', 'bom dia', 'boa tarde', 'boa noite', 'hey', 'hello'];
-                const containsGreeting = greetingKeywords.some(keyword =>
-                    input.lastMessage.toLowerCase().includes(keyword)
-                );
-
                 const hasNewData = Object.values(globalExtractionResult.extractedData).some(v => v !== null && v !== undefined);
-
-                if (isGreeting && containsGreeting && !hasNewData) {
-                    console.log('[FSM Engine] Detected greeting (pre-loop), returning clean welcome message');
-                    metrics.totalTime = Date.now() - startTime;
-                    return {
-                        nextState: state.name,
-                        reasoning: [
-                            'Saudação inicial detectada',
-                            'Apresente-se cordialmente conforme a personalidade',
-                            'IMPORTANTE: Execute a missão do estado atual (ex: perguntar nome)',
-                        ],
-                        extractedData: input.extractedData,
-                        validation: {
-                            approved: true,
-                            confidence: 0.8,
-                            justificativa: 'Saudação inicial - iniciando conversa',
-                            alertas: [],
-                            retryable: false,
-                        },
-                        shouldExtractData: true,
-                        dataToExtract: state.dataKey,
-                        metrics,
-                    };
-                }
 
                 // ==================== IA 1: DATA EXTRACTOR ====================
                 const extractionStart = Date.now();
@@ -332,7 +291,7 @@ export class FSMEngineService {
                     dataKey: state.dataKey,
                     dataType: state.dataType,
                     dataDescription: state.dataDescription,
-                    currentExtractedData: updatedExtractedData, // Use updated data
+                    currentExtractedData: updatedExtractedData,
                     conversationHistory: input.conversationHistory,
                     agentContext,
                 };
@@ -355,7 +314,6 @@ export class FSMEngineService {
                 // ==================== IA 2: STATE DECIDER ====================
                 const decisionStart = Date.now();
 
-                // Search for relevant knowledge before making decision
                 try {
                     console.log('[FSM Engine] Searching knowledge base...', {
                         query: input.lastMessage.substring(0, 100),
@@ -363,7 +321,6 @@ export class FSMEngineService {
                         organizationId: input.organizationId,
                     });
 
-                    // Get stats about knowledge base
                     const stats = await this.knowledgeSearch.getKnowledgeStats(input.agentId, input.organizationId);
                     knowledgeSearchInfo.chunksTotal = stats.totalChunks;
                     knowledgeSearchInfo.chunksWithEmbeddings = stats.chunksWithEmbeddings;
@@ -398,6 +355,16 @@ export class FSMEngineService {
                     knowledgeSearchInfo.errorMessage = knowledgeError?.message || 'Erro desconhecido';
                 }
 
+                let dynamicProhibitions = state.prohibitions || '';
+                const isDataMissing = state.dataKey &&
+                    (!extractionResult.data[state.dataKey] || extractionResult.data[state.dataKey] === null);
+
+                if (isDataMissing) {
+                    const forceAskMsg = `\nIMPORTANTE: O dado '${state.dataKey}' ainda não foi coletado. SUA ÚNICA MISSÃO AGORA É PERGUNTAR ISSO AO USUÁRIO. NÃO AVANCE DE ESTADO SEM ISSO.`;
+                    dynamicProhibitions += forceAskMsg;
+                    state.missionPrompt += forceAskMsg;
+                }
+
                 const decisionInput: DecisionInputForAI = {
                     currentState: state.name,
                     missionPrompt: state.missionPrompt,
@@ -406,7 +373,7 @@ export class FSMEngineService {
                     lastMessage: input.lastMessage,
                     conversationHistory: input.conversationHistory,
                     availableRoutes: routes,
-                    prohibitions: state.prohibitions,
+                    prohibitions: dynamicProhibitions,
                     agentContext,
                     knowledgeContext,
                 };
@@ -427,7 +394,6 @@ export class FSMEngineService {
                     confianca: decisionResult.confianca,
                 });
 
-                // Validar regras do motor de decisão
                 const rulesValidation = this.stateDecider.validateDecisionRules(decisionResult, decisionInput);
                 if (!rulesValidation.valid) {
                     console.warn('[FSM Engine] Decision rules violated:', rulesValidation.errors);
@@ -465,9 +431,9 @@ export class FSMEngineService {
                     alertasCount: validationResult.alertas.length,
                 });
 
-                // Initialize final next state based on validation
                 let finalNextState = validationResult.approved ? decisionResult.estado_escolhido : state.name;
 
+                // ==================== TOOL EXECUTION ====================
                 // ==================== TOOL EXECUTION ====================
                 // Execute tools if the current state has them configured
                 if (toolsHandler.hasTools(state)) {
@@ -477,38 +443,69 @@ export class FSMEngineService {
                         if (toolsList.length > 0) {
                             console.log(`[FSM Engine] State '${state.name}' has tools:`, toolsList);
 
-                            for (const toolName of toolsList) {
-                                console.log(`[FSM Engine] Executing tool: ${toolName}`);
+                            for (const toolConfig of toolsList) {
+                                // Cast to access properties since it can be string or object
+                                const configObj = typeof toolConfig === 'string'
+                                    ? { name: toolConfig, args: {} }
+                                    : toolConfig as { name: string; args?: any };
 
-                                // Build tool arguments from extracted data
-                                const diaHorario = updatedExtractedData.dia_horário || updatedExtractedData.horario_escolhido || '';
+                                const toolName = configObj.name;
+                                const toolStaticArgs = configObj.args || {};
 
-                                // Parse arguments logic can be complex, simplifying for backend parity or assuming similar logic
-                                // For now passed hardcoded args or simplistic derivation as in legacy code if possible
-                                // But without full logic from legacy tools-handler (which had date parsing), we pass updatedExtractedData simply?
-                                // Legacy extracted date/time from diaHorario inside the loop (lines 444-476 of legacy ts).
-                                // I will replicate that logic here.
+                                console.log(`[FSM Engine] Executing tool: ${toolName}`, { staticArgs: toolStaticArgs });
 
-                                let date = '';
-                                let time = '';
+                                let toolArgs: any = { ...toolStaticArgs };
 
-                                if (diaHorario) {
-                                    const timeMatch = diaHorario.match(/(\d{1,2}):?(\d{2})?h?/);
-                                    if (timeMatch) {
-                                        const hours = timeMatch[1];
-                                        const minutes = timeMatch[2] || '00';
-                                        time = `${hours}:${minutes}`;
+                                if (toolName === 'gerenciar_agenda') {
+                                    // Merge extracted data into args
+                                    if (updatedExtractedData.periodo_dia) toolArgs.periodo_dia = updatedExtractedData.periodo_dia;
+
+                                    // Handle dates and times intelligently
+                                    const dataExt = updatedExtractedData.data_especifica || updatedExtractedData.dia;
+                                    const horaExt = updatedExtractedData.horario_especifico || updatedExtractedData.horario;
+
+                                    if (dataExt) toolArgs.data_especifica = dataExt;
+                                    if (horaExt) toolArgs.horario_especifico = horaExt;
+
+                                    // Handle legacy "diaHorario" field if present
+                                    const diaHorario = updatedExtractedData.dia_horário || updatedExtractedData.horario_escolhido;
+                                    if (diaHorario && !toolArgs.data_especifica) {
+                                        // Simple regex extraction attempt
+                                        const timeMatch = diaHorario.match(/(\d{1,2}):?(\d{2})?h?/);
+                                        if (timeMatch) {
+                                            const hours = timeMatch[1].padStart(2, '0');
+                                            const minutes = (timeMatch[2] || '00').padStart(2, '0');
+                                            toolArgs.horario_especifico = `${hours}:${minutes}`;
+                                        }
+                                        // Note: Extracting exact date from string "amanhã às 14h" is hard without NLP here, 
+                                        // but gerenciar_agenda might need structured data.
+                                        toolArgs.mensagem_original = diaHorario;
                                     }
-                                    const dateLower = diaHorario.toLowerCase();
-                                    if (dateLower.includes('amanhã') || dateLower.includes('amanha')) date = 'amanhã';
-                                    else if (dateLower.includes('segunda')) date = 'segunda-feira';
-                                    else if (dateLower.includes('terça') || dateLower.includes('terca')) date = 'terça-feira';
-                                    else if (dateLower.includes('quarta')) date = 'quarta-feira';
-                                    else if (dateLower.includes('quinta')) date = 'quinta-feira';
-                                    else if (dateLower.includes('sexta')) date = 'sexta-feira';
-                                }
+                                } else {
+                                    // Legacy behavior for other tools
+                                    const diaHorario = updatedExtractedData.dia_horário || updatedExtractedData.horario_escolhido || '';
+                                    let date = '';
+                                    let time = '';
 
-                                const toolArgs = { date, time, notes: `Agendamento via IA - ${diaHorario}` };
+                                    if (diaHorario) {
+                                        const timeMatch = diaHorario.match(/(\d{1,2}):?(\d{2})?h?/);
+                                        if (timeMatch) {
+                                            const hours = timeMatch[1];
+                                            const minutes = timeMatch[2] || '00';
+                                            time = `${hours}:${minutes}`;
+                                        }
+                                        const dateLower = diaHorario.toLowerCase();
+                                        if (dateLower.includes('amanhã') || dateLower.includes('amanha')) date = 'amanhã';
+                                        else if (dateLower.includes('segunda')) date = 'segunda-feira';
+                                        else if (dateLower.includes('terça') || dateLower.includes('terca')) date = 'terça-feira';
+                                        else if (dateLower.includes('quarta')) date = 'quarta-feira';
+                                        else if (dateLower.includes('quinta')) date = 'quinta-feira';
+                                        else if (dateLower.includes('sexta')) date = 'sexta-feira';
+                                    }
+
+                                    // Merge legacy args with any static args
+                                    toolArgs = { date, time, notes: `Agendamento via IA - ${diaHorario}`, ...toolArgs };
+                                }
 
                                 const toolResult = await toolsHandler.executeFSMTool(
                                     toolName,
@@ -597,22 +594,22 @@ export class FSMEngineService {
                     knowledgeReasoningLines.push(`  Similaridade máxima: ${(knowledgeSearchInfo.topSimilarity * 100).toFixed(1)}%`);
                 }
 
+                const finalReasoning = [
+                    ...(knowledgeReasoningLines || []),
+                    '---',
+                    ...(extractionResult?.reasoning || []),
+                    '---',
+                    ...(decisionResult?.pensamento || []),
+                    '---',
+                    `Validação: ${validationResult?.approved ? 'APROVADA' : 'REJEITADA'}`,
+                    validationResult?.justificativa || '',
+                    ...(validationResult?.alertas?.map(a => `⚠️ ${a}`) || []),
+                ];
+
                 const output: DecisionOutput = {
-                    nextState: validationResult.approved
-                        ? decisionResult.estado_escolhido
-                        : validationResult.suggestedState || state.name,
-                    reasoning: [
-                        ...knowledgeReasoningLines,
-                        '---',
-                        ...extractionResult.reasoning,
-                        '---',
-                        ...decisionResult.pensamento,
-                        '---',
-                        `Validação: ${validationResult.approved ? 'APROVADA' : 'REJEITADA'}`,
-                        validationResult.justificativa,
-                        ...validationResult.alertas.map(a => `⚠️ ${a}`),
-                    ],
-                    extractedData: extractionResult.data, // Using correctly identified specific extraction data
+                    nextState: finalNextState,
+                    reasoning: finalReasoning,
+                    extractedData: extractionResult.data,
                     validation: validationResult,
                     shouldExtractData: extractionResult.success && extractionResult.metadata.extractedFields.length > 0,
                     dataToExtract: state.dataKey,
@@ -631,44 +628,14 @@ export class FSMEngineService {
                     const backoffMs = calculateBackoff(retryCount - 1);
                     console.warn(`[FSM Engine] Retrying after error in ${backoffMs}ms (${retryCount}/${MAX_RETRIES})`);
                     await delay(backoffMs);
-                    continue; // Retry
+                    continue;
                 }
                 break;
             }
         }
 
-        // ==================== GREETING FALLBACK (When loop fails) ====================
+
         metrics.totalTime = Date.now() - startTime;
-
-        const isGreeting = input.lastMessage.trim().length < 20 &&
-            input.conversationHistory.length <= 2;
-
-        const greetingKeywords = ['ola', 'olá', 'oi', 'bom dia', 'boa tarde', 'boa noite', 'hey', 'hello'];
-        const containsGreeting = greetingKeywords.some(keyword =>
-            input.lastMessage.toLowerCase().includes(keyword)
-        );
-
-        if (isGreeting && containsGreeting) {
-            console.log('[FSM Engine] Detected greeting (fallback), returning clean welcome message');
-            return {
-                nextState: state.name,
-                reasoning: [
-                    'Saudação inicial detectada',
-                    'Iniciando conversa com mensagem de boas-vindas',
-                ],
-                extractedData: input.extractedData,
-                validation: {
-                    approved: true,
-                    confidence: 0.8,
-                    justificativa: 'Saudação inicial - iniciando conversa',
-                    alertas: [],
-                    retryable: false,
-                },
-                shouldExtractData: true,
-                dataToExtract: state.dataKey,
-                metrics,
-            };
-        }
 
         // Default Error output
         return {

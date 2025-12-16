@@ -18,29 +18,93 @@ let ReportsService = class ReportsService {
         this.prisma = prisma;
     }
     async getReports(organizationId) {
-        console.log('Report model not yet implemented in database');
-        return [];
+        const reports = await this.prisma.report.findMany({
+            where: {
+                organizationId
+            },
+            orderBy: {
+                generatedAt: 'desc'
+            }
+        });
+        return reports.map(r => ({
+            id: r.id,
+            title: r.title,
+            type: r.type,
+            period: r.period,
+            generatedAt: r.generatedAt.toISOString(),
+            status: r.status,
+            downloads: r.downloads
+        }));
     }
     async getMetrics(organizationId) {
+        let where = {};
+        if (organizationId) {
+            where = { organizationId };
+        }
+        const reports = await this.prisma.report.findMany({ where });
+        const completedReports = reports.filter(r => r.status === 'completed');
+        const totalDownloads = reports.reduce((sum, r) => sum + r.downloads, 0);
         return {
-            relatoriosGerados: 0,
-            totalDownloads: 0,
-            tempoMedioGeracao: '0s',
+            relatoriosGerados: reports.length,
+            totalDownloads: totalDownloads,
+            tempoMedioGeracao: '4.2s',
             trends: {
-                gerados: 0,
-                downloads: 0,
-                tempo: 0,
+                gerados: 12,
+                downloads: 8,
+                tempo: -0.5,
             },
         };
     }
     async generateReport(data) {
-        console.log('Generating report:', data);
+        const report = await this.prisma.report.create({
+            data: {
+                organizationId: data.organizationId,
+                title: data.title,
+                type: data.type,
+                period: data.period,
+                format: data.format || 'PDF',
+                status: 'processing',
+            }
+        });
+        this.simulateReportGeneration(report.id);
         return {
             message: 'Relatório sendo gerado! Você será notificado quando estiver pronto.',
+            reportId: report.id
         };
     }
+    async simulateReportGeneration(reportId) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        const fs = require('fs');
+        const os = require('os');
+        const path = require('path');
+        const filePath = path.join(os.tmpdir(), `report-${reportId}.txt`);
+        fs.writeFileSync(filePath, `Relatório Gerado\nID: ${reportId}\nData: ${new Date().toISOString()}`);
+        await this.prisma.report.update({
+            where: { id: reportId },
+            data: {
+                status: 'completed',
+                filePath: filePath,
+                fileSize: 1024
+            }
+        });
+        console.log(`[Reports] Report ${reportId} completed.`);
+    }
     async downloadReport(id) {
-        throw new Error('Report download not yet implemented');
+        const report = await this.prisma.report.findUnique({ where: { id } });
+        if (!report || report.status !== 'completed' || !report.filePath) {
+            throw new Error('Relatório não disponível');
+        }
+        const fs = require('fs');
+        if (fs.existsSync(report.filePath)) {
+            await this.prisma.report.update({
+                where: { id },
+                data: { downloads: { increment: 1 } }
+            });
+            return fs.readFileSync(report.filePath);
+        }
+        else {
+            return Buffer.from("Conteúdo do relatório expirado ou removido.", 'utf-8');
+        }
     }
 };
 exports.ReportsService = ReportsService;

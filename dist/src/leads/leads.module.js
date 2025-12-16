@@ -10,11 +10,13 @@ exports.LeadsModule = void 0;
 const common_1 = require("@nestjs/common");
 const leads_controller_1 = require("./leads.controller");
 const leads_service_1 = require("./leads.service");
+const ai_module_1 = require("../ai/ai.module");
 let LeadsModule = class LeadsModule {
 };
 exports.LeadsModule = LeadsModule;
 exports.LeadsModule = LeadsModule = __decorate([
     (0, common_1.Module)({
+        imports: [ai_module_1.AIModule],
         controllers: [leads_controller_1.LeadsController],
         providers: [leads_service_1.LeadsService],
         exports: [leads_service_1.LeadsService],

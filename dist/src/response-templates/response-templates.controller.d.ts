@@ -3,10 +3,10 @@ export declare class ResponseTemplatesController {
     private responseTemplatesService;
     constructor(responseTemplatesService: ResponseTemplatesService);
     findAll(organizationId: string, category?: string): Promise<{
-        name: string;
         id: string;
         organizationId: string;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         content: string;
         category: string;
@@ -14,10 +14,10 @@ export declare class ResponseTemplatesController {
         isDefault: boolean;
     }[]>;
     create(data: any): Promise<{
-        name: string;
         id: string;
         organizationId: string;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         content: string;
         category: string;
@@ -25,10 +25,10 @@ export declare class ResponseTemplatesController {
         isDefault: boolean;
     }>;
     update(id: string, data: any): Promise<{
-        name: string;
         id: string;
         organizationId: string;
         createdAt: Date;
+        name: string;
         updatedAt: Date;
         content: string;
         category: string;

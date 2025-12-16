@@ -12,12 +12,13 @@ const followups_controller_1 = require("./followups.controller");
 const followups_service_1 = require("./followups.service");
 const prisma_module_1 = require("../database/prisma.module");
 const integrations_module_1 = require("../integrations/integrations.module");
+const ai_module_1 = require("../ai/ai.module");
 let FollowupsModule = class FollowupsModule {
 };
 exports.FollowupsModule = FollowupsModule;
 exports.FollowupsModule = FollowupsModule = __decorate([
     (0, common_1.Module)({
-        imports: [prisma_module_1.PrismaModule, integrations_module_1.IntegrationsModule],
+        imports: [prisma_module_1.PrismaModule, integrations_module_1.IntegrationsModule, ai_module_1.AIModule],
         controllers: [followups_controller_1.FollowupsController],
         providers: [followups_service_1.FollowupsService],
         exports: [followups_service_1.FollowupsService],

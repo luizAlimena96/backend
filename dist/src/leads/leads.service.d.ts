@@ -1,24 +1,28 @@
 import { PrismaService } from "../database/prisma.service";
+import { OpenAIService } from "../ai/services/openai.service";
+import { CRMAutomationService } from "../common/services/crm-automation.service";
 export declare class LeadsService {
     private prisma;
-    constructor(prisma: PrismaService);
+    private openaiService;
+    private crmAutomationService;
+    constructor(prisma: PrismaService, openaiService: OpenAIService, crmAutomationService: CRMAutomationService);
     findAll(organizationId: string, agentId?: string): Promise<({
         agent: {
-            name: string;
             id: string;
+            name: string;
         };
         _count: {
             conversations: number;
         };
         appointments: {
             id: string;
-            type: string;
             organizationId: string;
             leadId: string | null;
             createdAt: Date;
             updatedAt: Date;
             title: string;
             duration: number;
+            type: string;
             location: string | null;
             meetingLink: string | null;
             notes: string | null;
@@ -31,13 +35,13 @@ export declare class LeadsService {
         }[];
     } & {
         log: string | null;
-        name: string | null;
         id: string;
         phone: string;
         currentState: string | null;
         organizationId: string;
         agentId: string;
         createdAt: Date;
+        name: string | null;
         updatedAt: Date;
         notes: string | null;
         status: import(".prisma/client").$Enums.LeadStatus;
@@ -56,21 +60,17 @@ export declare class LeadsService {
         zapSignStatus: string | null;
         birthDate: Date | null;
         rg: string | null;
+        crmStageId: string | null;
+        conversationSummary: string | null;
     })[]>;
     findOne(id: string): Promise<({
         agent: {
-            isActive: boolean;
-            name: string;
             id: string;
             organizationId: string;
             createdAt: Date;
+            name: string;
+            isActive: boolean;
             updatedAt: Date;
-            googleAccessToken: string | null;
-            googleCalendarEnabled: boolean;
-            googleCalendarId: string | null;
-            googleRefreshToken: string | null;
-            googleTokenExpiry: Date | null;
-            workingHours: import("@prisma/client/runtime/library").JsonValue | null;
             description: string | null;
             tone: import(".prisma/client").$Enums.Tone;
             language: string;
@@ -82,6 +82,11 @@ export declare class LeadsService {
             customTimeWindows: import("@prisma/client/runtime/library").JsonValue | null;
             followupDelay: number;
             followupEnabled: boolean;
+            googleAccessToken: string | null;
+            googleCalendarEnabled: boolean;
+            googleCalendarId: string | null;
+            googleRefreshToken: string | null;
+            googleTokenExpiry: Date | null;
             instructions: string | null;
             maxMeetingDuration: number;
             meetingDuration: number;
@@ -95,6 +100,7 @@ export declare class LeadsService {
             reminderMessage: string | null;
             systemPrompt: string | null;
             useCustomTimeWindows: boolean;
+            workingHours: import("@prisma/client/runtime/library").JsonValue | null;
             dataCollectionInstructions: string | null;
             followupDecisionPrompt: string | null;
             followupHours: import("@prisma/client/runtime/library").JsonValue | null;
@@ -116,13 +122,13 @@ export declare class LeadsService {
         };
         appointments: {
             id: string;
-            type: string;
             organizationId: string;
             leadId: string | null;
             createdAt: Date;
             updatedAt: Date;
             title: string;
             duration: number;
+            type: string;
             location: string | null;
             meetingLink: string | null;
             notes: string | null;
@@ -136,13 +142,16 @@ export declare class LeadsService {
         conversations: ({
             messages: {
                 id: string;
-                timestamp: Date;
-                type: import(".prisma/client").$Enums.MessageType;
                 conversationId: string;
+                type: import(".prisma/client").$Enums.MessageType;
+                mediaUrl: string | null;
+                caption: string | null;
+                timestamp: Date;
                 messageId: string;
                 content: string;
                 fromMe: boolean;
                 thought: string | null;
+                mediaType: string | null;
             }[];
         } & {
             id: string;
@@ -156,13 +165,13 @@ export declare class LeadsService {
         })[];
     } & {
         log: string | null;
-        name: string | null;
         id: string;
         phone: string;
         currentState: string | null;
         organizationId: string;
         agentId: string;
         createdAt: Date;
+        name: string | null;
         updatedAt: Date;
         notes: string | null;
         status: import(".prisma/client").$Enums.LeadStatus;
@@ -181,21 +190,17 @@ export declare class LeadsService {
         zapSignStatus: string | null;
         birthDate: Date | null;
         rg: string | null;
+        crmStageId: string | null;
+        conversationSummary: string | null;
     }) | null>;
     create(data: any): Promise<{
         agent: {
-            isActive: boolean;
-            name: string;
             id: string;
             organizationId: string;
             createdAt: Date;
+            name: string;
+            isActive: boolean;
             updatedAt: Date;
-            googleAccessToken: string | null;
-            googleCalendarEnabled: boolean;
-            googleCalendarId: string | null;
-            googleRefreshToken: string | null;
-            googleTokenExpiry: Date | null;
-            workingHours: import("@prisma/client/runtime/library").JsonValue | null;
             description: string | null;
             tone: import(".prisma/client").$Enums.Tone;
             language: string;
@@ -207,6 +212,11 @@ export declare class LeadsService {
             customTimeWindows: import("@prisma/client/runtime/library").JsonValue | null;
             followupDelay: number;
             followupEnabled: boolean;
+            googleAccessToken: string | null;
+            googleCalendarEnabled: boolean;
+            googleCalendarId: string | null;
+            googleRefreshToken: string | null;
+            googleTokenExpiry: Date | null;
             instructions: string | null;
             maxMeetingDuration: number;
             meetingDuration: number;
@@ -220,6 +230,7 @@ export declare class LeadsService {
             reminderMessage: string | null;
             systemPrompt: string | null;
             useCustomTimeWindows: boolean;
+            workingHours: import("@prisma/client/runtime/library").JsonValue | null;
             dataCollectionInstructions: string | null;
             followupDecisionPrompt: string | null;
             followupHours: import("@prisma/client/runtime/library").JsonValue | null;
@@ -241,13 +252,13 @@ export declare class LeadsService {
         };
     } & {
         log: string | null;
-        name: string | null;
         id: string;
         phone: string;
         currentState: string | null;
         organizationId: string;
         agentId: string;
         createdAt: Date;
+        name: string | null;
         updatedAt: Date;
         notes: string | null;
         status: import(".prisma/client").$Enums.LeadStatus;
@@ -266,16 +277,18 @@ export declare class LeadsService {
         zapSignStatus: string | null;
         birthDate: Date | null;
         rg: string | null;
+        crmStageId: string | null;
+        conversationSummary: string | null;
     }>;
     update(id: string, data: any): Promise<{
         log: string | null;
-        name: string | null;
         id: string;
         phone: string;
         currentState: string | null;
         organizationId: string;
         agentId: string;
         createdAt: Date;
+        name: string | null;
         updatedAt: Date;
         notes: string | null;
         status: import(".prisma/client").$Enums.LeadStatus;
@@ -294,8 +307,11 @@ export declare class LeadsService {
         zapSignStatus: string | null;
         birthDate: Date | null;
         rg: string | null;
+        crmStageId: string | null;
+        conversationSummary: string | null;
     }>;
     delete(id: string): Promise<{
         success: boolean;
     }>;
+    updateConversationSummary(leadId: string): Promise<void>;
 }

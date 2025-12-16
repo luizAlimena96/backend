@@ -13,6 +13,9 @@ async function bootstrap() {
     credentials: true,
   });
 
+  app.use(require('body-parser').json({ limit: '10mb' }));
+  app.use(require('body-parser').urlencoded({ limit: '10mb', extended: true }));
+
   // Enable validation
   app.useGlobalPipes(
     new ValidationPipe({
@@ -26,7 +29,7 @@ async function bootstrap() {
 
   const port = configService.get<number>('PORT', 3002);
   await app.listen(port);
-  
+
   console.log(` Backend is running on: http://localhost:${port}/api`);
 }
 

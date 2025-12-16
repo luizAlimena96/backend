@@ -20,6 +20,8 @@ const email_service_1 = require("./services/email.service");
 const crm_automation_service_1 = require("./services/crm-automation.service");
 const ai_module_1 = require("../ai/ai.module");
 const integrations_module_1 = require("../integrations/integrations.module");
+const storage_service_1 = require("./services/storage.service");
+const pdf_service_1 = require("./services/pdf.service");
 let CommonModule = class CommonModule {
 };
 exports.CommonModule = CommonModule;
@@ -37,6 +39,8 @@ exports.CommonModule = CommonModule = __decorate([
             lead_data_extraction_service_1.LeadDataExtractionService,
             email_service_1.EmailService,
             crm_automation_service_1.CRMAutomationService,
+            storage_service_1.StorageService,
+            pdf_service_1.PdfService,
         ],
         exports: [
             debug_service_1.DebugService,
@@ -48,6 +52,8 @@ exports.CommonModule = CommonModule = __decorate([
             lead_data_extraction_service_1.LeadDataExtractionService,
             email_service_1.EmailService,
             crm_automation_service_1.CRMAutomationService,
+            storage_service_1.StorageService,
+            pdf_service_1.PdfService,
         ],
     })
 ], CommonModule);

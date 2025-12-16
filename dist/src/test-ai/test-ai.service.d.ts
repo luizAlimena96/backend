@@ -1,15 +1,21 @@
 import { PrismaService } from '../database/prisma.service';
-import { FSMEngineService } from '../ai/fsm-engine/fsm-engine.service';
 import { OpenAIService } from '../ai/services/openai.service';
 import { ElevenLabsService } from '../integrations/elevenlabs/elevenlabs.service';
-import { AgentFollowupService } from '../common/services/agent-followup.service';
+import { FSMEngineService } from '../ai/fsm-engine/fsm-engine.service';
+import { LeadsService } from '../leads/leads.service';
+import { MediaAnalysisService } from '../ai/services/media-analysis.service';
+import { PdfService } from '../common/services/pdf.service';
+import { FollowupsService } from '../followups/followups.service';
 export declare class TestAIService {
     private prisma;
-    private fsmEngine;
     private openaiService;
     private elevenLabsService;
-    private agentFollowup;
-    constructor(prisma: PrismaService, fsmEngine: FSMEngineService, openaiService: OpenAIService, elevenLabsService: ElevenLabsService, agentFollowup: AgentFollowupService);
+    private fsmEngineService;
+    private leadsService;
+    private mediaAnalysisService;
+    private pdfService;
+    private followupsService;
+    constructor(prisma: PrismaService, openaiService: OpenAIService, elevenLabsService: ElevenLabsService, fsmEngineService: FSMEngineService, leadsService: LeadsService, mediaAnalysisService: MediaAnalysisService, pdfService: PdfService, followupsService: FollowupsService);
     processMessage(data: any, userId: string, userRole: string): Promise<{
         response: string;
         audioBase64: string | null;
@@ -61,17 +67,16 @@ export declare class TestAIService {
     resetConversation(organizationId: string, userRole: string): Promise<{
         success: boolean;
     }>;
-    triggerFollowup(organizationId: string, agentId: string, userRole: string): Promise<{
-        success: boolean;
-        message: string;
-        stats?: undefined;
-    } | {
+    triggerFollowup(organizationId: string, agentId: string, userRole: string, forceIgnoreDelay?: boolean): Promise<{
         success: boolean;
         message: string;
         stats: {
-            totalSent: number;
-            lastSentAt: Date | null;
-            followupRules: number;
+            processed: number;
+            rulesChecked: number;
         };
+    } | {
+        success: boolean;
+        message: string;
+        stats?: undefined;
     }>;
 }

@@ -53,6 +53,36 @@ let GoogleCalendarService = class GoogleCalendarService {
             throw new Error('Failed to list calendar events');
         }
     }
+    async deleteEvent(accessToken, calendarId, eventId) {
+        try {
+            await (0, rxjs_1.firstValueFrom)(this.httpService.delete(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`, {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            }));
+        }
+        catch (error) {
+            console.error('Google Calendar delete event error:', error);
+            if (error.response?.status !== 404 && error.response?.status !== 410) {
+                throw new Error('Failed to delete calendar event');
+            }
+        }
+    }
+    async updateEvent(accessToken, calendarId, eventId, event) {
+        try {
+            const response = await (0, rxjs_1.firstValueFrom)(this.httpService.put(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`, event, {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                },
+            }));
+            return response.data;
+        }
+        catch (error) {
+            console.error('Google Calendar update event error:', error);
+            throw new Error('Failed to update calendar event');
+        }
+    }
 };
 exports.GoogleCalendarService = GoogleCalendarService;
 exports.GoogleCalendarService = GoogleCalendarService = __decorate([

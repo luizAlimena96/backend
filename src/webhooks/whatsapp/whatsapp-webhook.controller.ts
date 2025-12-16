@@ -1,14 +1,14 @@
 ﻿import { Controller, Post, Body } from "@nestjs/common";
-import { PrismaService } from "../../database/prisma.service";
+import { WhatsAppMessageService } from "./whatsapp-message.service";
 
 @Controller("webhooks/whatsapp")
 export class WhatsAppWebhookController {
-  constructor(private prisma: PrismaService) {}
+  constructor(private messageService: WhatsAppMessageService) { }
 
   @Post()
   async handleWebhook(@Body() body: any) {
     const event = body.event;
-    
+
     if (event !== "messages.upsert") {
       return { success: true };
     }
@@ -18,17 +18,11 @@ export class WhatsAppWebhookController {
       return { success: true };
     }
 
-    const phone = data.key.remoteJid.replace("@s.whatsapp.net", "");
-    const instanceName = body.instance;
-    const messageId = data.key.id;
+    // Process message in background (non-blocking)
+    this.messageService.processIncomingMessage(body).catch(err => {
+      console.error('[WhatsApp Webhook] Error processing message:', err);
+    });
 
-    // TODO: Implement full webhook processing
-    // This is a placeholder - full implementation will include:
-    // - Message processing
-    // - AI response generation
-    // - Lead management
-    // - Audio/Image/Document handling
-
-    return { success: true, message: "Webhook received" };
+    return { success: true, message: "Processing" };
   }
 }

@@ -4,4 +4,5 @@ export declare class ZapSignService {
     constructor(httpService: HttpService);
     createDocument(apiToken: string, templateId: string, data: any): Promise<any>;
     getDocumentStatus(apiToken: string, documentId: string): Promise<any>;
+    getTemplates(apiToken: string): Promise<any>;
 }

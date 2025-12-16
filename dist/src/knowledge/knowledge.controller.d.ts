@@ -1,20 +1,22 @@
 import { KnowledgeService } from "./knowledge.service";
+import { DocumentService } from "./document.service";
 export declare class KnowledgeController {
     private knowledgeService;
-    constructor(knowledgeService: KnowledgeService);
+    private documentService;
+    constructor(knowledgeService: KnowledgeService, documentService: DocumentService);
     findAll(organizationId: string, agentId?: string): Promise<({
         agent: {
-            name: string;
             id: string;
+            name: string;
         };
     } & {
         id: string;
-        type: import(".prisma/client").$Enums.KnowledgeType;
         organizationId: string;
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
         title: string;
+        type: import(".prisma/client").$Enums.KnowledgeType;
         content: string;
         fileUrl: string | null;
         fileName: string | null;
@@ -22,25 +24,41 @@ export declare class KnowledgeController {
     })[]>;
     create(data: any): Promise<{
         id: string;
-        type: import(".prisma/client").$Enums.KnowledgeType;
         organizationId: string;
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
         title: string;
+        type: import(".prisma/client").$Enums.KnowledgeType;
         content: string;
         fileUrl: string | null;
         fileName: string | null;
         fileSize: number | null;
     }>;
+    upload(file: Express.Multer.File, title: string, agentId: string, organizationId: string): Promise<{
+        success: boolean;
+        knowledge: {
+            id: string;
+            organizationId: string;
+            agentId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            title: string;
+            type: import(".prisma/client").$Enums.KnowledgeType;
+            content: string;
+            fileUrl: string | null;
+            fileName: string | null;
+            fileSize: number | null;
+        };
+    }>;
     update(id: string, data: any): Promise<{
         id: string;
-        type: import(".prisma/client").$Enums.KnowledgeType;
         organizationId: string;
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
         title: string;
+        type: import(".prisma/client").$Enums.KnowledgeType;
         content: string;
         fileUrl: string | null;
         fileName: string | null;

@@ -4,18 +4,18 @@ export declare class AppointmentsService {
     constructor(prisma: PrismaService);
     findAll(organizationId: string, leadId?: string): Promise<({
         lead: {
-            name: string | null;
             phone: string;
+            name: string | null;
         } | null;
     } & {
         id: string;
-        type: string;
         organizationId: string;
         leadId: string | null;
         createdAt: Date;
         updatedAt: Date;
         title: string;
         duration: number;
+        type: string;
         location: string | null;
         meetingLink: string | null;
         notes: string | null;
@@ -29,13 +29,13 @@ export declare class AppointmentsService {
     findOne(id: string): Promise<({
         lead: {
             log: string | null;
-            name: string | null;
             id: string;
             phone: string;
             currentState: string | null;
             organizationId: string;
             agentId: string;
             createdAt: Date;
+            name: string | null;
             updatedAt: Date;
             notes: string | null;
             status: import(".prisma/client").$Enums.LeadStatus;
@@ -54,25 +54,27 @@ export declare class AppointmentsService {
             zapSignStatus: string | null;
             birthDate: Date | null;
             rg: string | null;
+            crmStageId: string | null;
+            conversationSummary: string | null;
         } | null;
         reminders: {
-            id: string;
             message: string;
+            id: string;
             createdAt: Date;
             status: string;
-            sentAt: Date | null;
             scheduledFor: Date;
+            sentAt: Date | null;
             appointmentId: string;
         }[];
     } & {
         id: string;
-        type: string;
         organizationId: string;
         leadId: string | null;
         createdAt: Date;
         updatedAt: Date;
         title: string;
         duration: number;
+        type: string;
         location: string | null;
         meetingLink: string | null;
         notes: string | null;
@@ -86,13 +88,13 @@ export declare class AppointmentsService {
     create(data: any): Promise<{
         lead: {
             log: string | null;
-            name: string | null;
             id: string;
             phone: string;
             currentState: string | null;
             organizationId: string;
             agentId: string;
             createdAt: Date;
+            name: string | null;
             updatedAt: Date;
             notes: string | null;
             status: import(".prisma/client").$Enums.LeadStatus;
@@ -111,16 +113,18 @@ export declare class AppointmentsService {
             zapSignStatus: string | null;
             birthDate: Date | null;
             rg: string | null;
+            crmStageId: string | null;
+            conversationSummary: string | null;
         } | null;
     } & {
         id: string;
-        type: string;
         organizationId: string;
         leadId: string | null;
         createdAt: Date;
         updatedAt: Date;
         title: string;
         duration: number;
+        type: string;
         location: string | null;
         meetingLink: string | null;
         notes: string | null;
@@ -133,13 +137,13 @@ export declare class AppointmentsService {
     }>;
     update(id: string, data: any): Promise<{
         id: string;
-        type: string;
         organizationId: string;
         leadId: string | null;
         createdAt: Date;
         updatedAt: Date;
         title: string;
         duration: number;
+        type: string;
         location: string | null;
         meetingLink: string | null;
         notes: string | null;

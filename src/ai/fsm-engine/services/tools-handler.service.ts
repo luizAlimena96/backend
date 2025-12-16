@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
+import { SchedulingToolsService } from '../../tools/scheduling-tools.service';
 
 export interface ToolExecutionResult {
     success: boolean;
@@ -14,7 +15,10 @@ export interface ToolExecutionResult {
  */
 @Injectable()
 export class ToolsHandlerService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private schedulingTools: SchedulingToolsService,
+    ) { }
 
     /**
      * Execute a tool based on its name
@@ -32,6 +36,8 @@ export class ToolsHandlerService {
 
         try {
             switch (toolName) {
+                case 'gerenciar_agenda':
+                    return await this.handleGerenciarAgenda(args, context);
                 case 'criar_evento':
                     return await this.handleCreateEvent(args, context);
                 case 'cancelar_evento':
@@ -54,6 +60,53 @@ export class ToolsHandlerService {
                 message: `Erro ao executar ferramenta: ${error.message}`
             };
         }
+    }
+
+    /**
+     * Handle gerenciar_agenda tool
+     */
+    private async handleGerenciarAgenda(
+        args: Record<string, any>,
+        context: {
+            organizationId: string;
+            leadId?: string;
+            conversationId: string;
+        }
+    ): Promise<ToolExecutionResult> {
+        const { acao, periodo_dia, data_especifica, horario_especifico, horarios_ja_oferecidos } = args;
+
+        if (!acao) {
+            return {
+                success: false,
+                message: 'Parâmetro "acao" é obrigatório.'
+            };
+        }
+
+        if (!context.leadId) {
+            return {
+                success: false,
+                message: 'Lead ID não encontrado no contexto.'
+            };
+        }
+
+        const result = await this.schedulingTools.gerenciarAgenda(acao, {
+            organizationId: context.organizationId,
+            leadId: context.leadId,
+            periodo_dia,
+            data_especifica,
+            horario_especifico,
+            horarios_ja_oferecidos,
+        });
+
+        return {
+            success: result.success,
+            data: {
+                horarios: result.horarios,
+                disponivel: result.disponivel,
+                agendamento: result.agendamento,
+            },
+            message: result.mensagem
+        };
     }
 
     /**
@@ -115,13 +168,21 @@ export class ToolsHandlerService {
         context: any
     ): Promise<ToolExecutionResult> {
         if (!context.leadId) {
-            return { success: false, message: 'Não foi possível identificar o cliente.' };
+            return {
+                success: false,
+                message: 'Não foi possível identificar o cliente.'
+            };
         }
 
-        // TODO: Implement cancellation logic
+        const result = await this.schedulingTools.cancelarUltimoAgendamento({
+            organizationId: context.organizationId,
+            leadId: context.leadId,
+        });
+
         return {
-            success: true,
-            message: 'Agendamento cancelado com sucesso.'
+            success: result.success,
+            data: result.agendamento,
+            message: result.mensagem
         };
     }
 
@@ -133,24 +194,59 @@ export class ToolsHandlerService {
         context: any
     ): Promise<ToolExecutionResult> {
         if (!context.leadId) {
-            return { success: false, message: 'Não foi possível identificar o cliente.' };
+            return {
+                success: false,
+                message: 'Não foi possível identificar o cliente.'
+            };
         }
 
         const { date, time } = args;
         if (!date || !time) {
-            return { success: false, message: 'Por favor, informe a nova data e horário.' };
+            return {
+                success: false,
+                message: 'Por favor, informe a nova data e horário para o reagendamento.'
+            };
         }
 
         try {
-            const parsedDate = this.parseDateInput(date, time);
+            // Validate/Format date/time
+            // Note: The service expects "YYYY-MM-DD" and "HH:MM"
+            // The FSM might send them in varied formats, but usually normalized by extraction
+            // We'll trust the strings for now or add normalization if needed.
+            // But strict checking is good.
 
-            // TODO: Implement rescheduling logic
+            // If incoming date is like "amanhã", we might need to parse it?
+            // The FSM extraction is usually smart.
+            // Let's assume standard format for now or basic cleaning.
+            // If the service fails, it returns a message.
+
+            // HOWEVER, the logic in implementation plan said "Seek upcoming... verify availability".
+            // The service method `reagendarUltimoAgendamento` requires `data_especifica` (YYYY-MM-DD) and `horario_especifico` (HH:MM).
+            // We should use `parseDateInput` logic to ensure we have a valid Date object, then format it back to string.
+
+            const parsedDate = this.parseDateInput(date, time);
+            const dateStr = parsedDate.toISOString().split('T')[0];
+            const timeStr = parsedDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            const result = await this.schedulingTools.reagendarUltimoAgendamento({
+                organizationId: context.organizationId,
+                leadId: context.leadId,
+                data_especifica: dateStr,
+                horario_especifico: timeStr
+            });
+
             return {
-                success: true,
-                message: 'Agendamento reagendado com sucesso.'
+                success: result.success,
+                data: result.agendamento,
+                message: result.mensagem
             };
+
         } catch (error) {
-            return { success: false, message: 'Data inválida.' };
+            console.error('[FSM Tools] Error in reschedule:', error);
+            return {
+                success: false,
+                message: 'Não entendi a nova data ou horário. Poderia repetir?'
+            };
         }
     }
 
@@ -239,13 +335,24 @@ export class ToolsHandlerService {
 
     /**
      * Parse tools from state
+     * Supports:
+     * - ["tool1", "tool2"]
+     * - [{"name": "tool1", "args": {...}}]
      */
-    parseStateTools(state: any): string[] {
+    parseStateTools(state: any): Array<{ name: string; args?: any }> {
         if (!this.hasTools(state)) return [];
 
         try {
             const tools = typeof state.tools === 'string' ? JSON.parse(state.tools) : state.tools;
-            return Array.isArray(tools) ? tools : [];
+
+            if (!Array.isArray(tools)) return [];
+
+            return tools.map(tool => {
+                if (typeof tool === 'string') {
+                    return { name: tool, args: {} };
+                }
+                return tool; // Assumes object { name: '...', args: {...} }
+            });
         } catch (error) {
             console.error('[FSM Tools] Error parsing tools:', error);
             return [];

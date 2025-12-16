@@ -61,8 +61,8 @@ import { FollowupsModule } from '../followups/followups.module';
                         // ============================================
                         // SEGURANÇA
                         // ============================================
-                        enableOfflineQueue: false,
-                        // CRÍTICO: Não enfileirar comandos offline
+                        enableOfflineQueue: true,
+                        // Permitir fila offline para evitar crashes (alinhado com redis.config.ts)
 
                         enableReadyCheck: true,
                         // Verifica se Redis está pronto antes de usar

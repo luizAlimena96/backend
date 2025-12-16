@@ -12,15 +12,20 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ToolsHandlerService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../../database/prisma.service");
+const scheduling_tools_service_1 = require("../../tools/scheduling-tools.service");
 let ToolsHandlerService = class ToolsHandlerService {
     prisma;
-    constructor(prisma) {
+    schedulingTools;
+    constructor(prisma, schedulingTools) {
         this.prisma = prisma;
+        this.schedulingTools = schedulingTools;
     }
     async executeFSMTool(toolName, args, context) {
         console.log(`[FSM Tools] Executing tool: ${toolName}`, { args, context });
         try {
             switch (toolName) {
+                case 'gerenciar_agenda':
+                    return await this.handleGerenciarAgenda(args, context);
                 case 'criar_evento':
                     return await this.handleCreateEvent(args, context);
                 case 'cancelar_evento':
@@ -43,6 +48,38 @@ let ToolsHandlerService = class ToolsHandlerService {
                 message: `Erro ao executar ferramenta: ${error.message}`
             };
         }
+    }
+    async handleGerenciarAgenda(args, context) {
+        const { acao, periodo_dia, data_especifica, horario_especifico, horarios_ja_oferecidos } = args;
+        if (!acao) {
+            return {
+                success: false,
+                message: 'Parâmetro "acao" é obrigatório.'
+            };
+        }
+        if (!context.leadId) {
+            return {
+                success: false,
+                message: 'Lead ID não encontrado no contexto.'
+            };
+        }
+        const result = await this.schedulingTools.gerenciarAgenda(acao, {
+            organizationId: context.organizationId,
+            leadId: context.leadId,
+            periodo_dia,
+            data_especifica,
+            horario_especifico,
+            horarios_ja_oferecidos,
+        });
+        return {
+            success: result.success,
+            data: {
+                horarios: result.horarios,
+                disponivel: result.disponivel,
+                agendamento: result.agendamento,
+            },
+            message: result.mensagem
+        };
     }
     async handleCreateEvent(args, context) {
         if (!context.leadId) {
@@ -81,30 +118,57 @@ let ToolsHandlerService = class ToolsHandlerService {
     }
     async handleCancelEvent(args, context) {
         if (!context.leadId) {
-            return { success: false, message: 'Não foi possível identificar o cliente.' };
+            return {
+                success: false,
+                message: 'Não foi possível identificar o cliente.'
+            };
         }
+        const result = await this.schedulingTools.cancelarUltimoAgendamento({
+            organizationId: context.organizationId,
+            leadId: context.leadId,
+        });
         return {
-            success: true,
-            message: 'Agendamento cancelado com sucesso.'
+            success: result.success,
+            data: result.agendamento,
+            message: result.mensagem
         };
     }
     async handleRescheduleEvent(args, context) {
         if (!context.leadId) {
-            return { success: false, message: 'Não foi possível identificar o cliente.' };
+            return {
+                success: false,
+                message: 'Não foi possível identificar o cliente.'
+            };
         }
         const { date, time } = args;
         if (!date || !time) {
-            return { success: false, message: 'Por favor, informe a nova data e horário.' };
+            return {
+                success: false,
+                message: 'Por favor, informe a nova data e horário para o reagendamento.'
+            };
         }
         try {
             const parsedDate = this.parseDateInput(date, time);
+            const dateStr = parsedDate.toISOString().split('T')[0];
+            const timeStr = parsedDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const result = await this.schedulingTools.reagendarUltimoAgendamento({
+                organizationId: context.organizationId,
+                leadId: context.leadId,
+                data_especifica: dateStr,
+                horario_especifico: timeStr
+            });
             return {
-                success: true,
-                message: 'Agendamento reagendado com sucesso.'
+                success: result.success,
+                data: result.agendamento,
+                message: result.mensagem
             };
         }
         catch (error) {
-            return { success: false, message: 'Data inválida.' };
+            console.error('[FSM Tools] Error in reschedule:', error);
+            return {
+                success: false,
+                message: 'Não entendi a nova data ou horário. Poderia repetir?'
+            };
         }
     }
     parseDateInput(date, time) {
@@ -170,7 +234,14 @@ let ToolsHandlerService = class ToolsHandlerService {
             return [];
         try {
             const tools = typeof state.tools === 'string' ? JSON.parse(state.tools) : state.tools;
-            return Array.isArray(tools) ? tools : [];
+            if (!Array.isArray(tools))
+                return [];
+            return tools.map(tool => {
+                if (typeof tool === 'string') {
+                    return { name: tool, args: {} };
+                }
+                return tool;
+            });
         }
         catch (error) {
             console.error('[FSM Tools] Error parsing tools:', error);
@@ -181,6 +252,7 @@ let ToolsHandlerService = class ToolsHandlerService {
 exports.ToolsHandlerService = ToolsHandlerService;
 exports.ToolsHandlerService = ToolsHandlerService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        scheduling_tools_service_1.SchedulingToolsService])
 ], ToolsHandlerService);
 //# sourceMappingURL=tools-handler.service.js.map

@@ -12,10 +12,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.LeadsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../database/prisma.service");
+const openai_service_1 = require("../ai/services/openai.service");
+const crm_automation_service_1 = require("../common/services/crm-automation.service");
 let LeadsService = class LeadsService {
     prisma;
-    constructor(prisma) {
+    openaiService;
+    crmAutomationService;
+    constructor(prisma, openaiService, crmAutomationService) {
         this.prisma = prisma;
+        this.openaiService = openaiService;
+        this.crmAutomationService = crmAutomationService;
     }
     async findAll(organizationId, agentId) {
         return this.prisma.lead.findMany({
@@ -48,19 +54,92 @@ let LeadsService = class LeadsService {
         });
     }
     async update(id, data) {
-        return this.prisma.lead.update({
+        const startLead = await this.prisma.lead.findUnique({ where: { id }, select: { crmStageId: true } });
+        const updatedLead = await this.prisma.lead.update({
             where: { id },
             data,
         });
+        if (data.crmStageId && startLead?.crmStageId !== data.crmStageId) {
+            console.log(`[LeadsService] Stage changed for lead ${id}: ${startLead?.crmStageId} -> ${data.crmStageId}`);
+            this.crmAutomationService.executeAutomationsForState(id, data.crmStageId).catch(err => {
+                console.error(`[LeadsService] Error executing automations:`, err);
+            });
+        }
+        return updatedLead;
     }
     async delete(id) {
         await this.prisma.lead.delete({ where: { id } });
         return { success: true };
     }
+    async updateConversationSummary(leadId) {
+        try {
+            const lead = await this.prisma.lead.findUnique({
+                where: { id: leadId },
+                include: {
+                    conversations: {
+                        include: {
+                            messages: {
+                                orderBy: { timestamp: 'desc' },
+                                take: 20,
+                            },
+                        },
+                    },
+                    agent: {
+                        include: {
+                            organization: {
+                                select: {
+                                    openaiApiKey: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+            if (!lead || !lead.conversations.length) {
+                console.log(`[Lead] No conversations found for lead ${leadId}`);
+                return;
+            }
+            const messages = lead.conversations[0].messages
+                .reverse()
+                .map(m => `${m.fromMe ? 'Bot' : 'Lead'}: ${m.content}`)
+                .join('\n');
+            if (!messages) {
+                console.log(`[Lead] No messages to summarize for lead ${leadId}`);
+                return;
+            }
+            const apiKey = lead.agent.organization.openaiApiKey;
+            if (!apiKey) {
+                console.error('[Lead] No OpenAI API key available');
+                return;
+            }
+            const prompt = `Resuma a seguinte conversa entre um lead e um assistente de vendas.
+Foque em: interesses do lead, dúvidas principais, objeções mencionadas, e próximos passos.
+Seja conciso e objetivo. Máximo 150 palavras.
+
+Conversa:
+${messages}
+
+Resumo:`;
+            const response = await this.openaiService.createChatCompletion(apiKey, 'gpt-4o-mini', [{ role: 'user', content: prompt }]);
+            const summary = response;
+            await this.prisma.lead.update({
+                where: { id: leadId },
+                data: {
+                    conversationSummary: summary,
+                },
+            });
+            console.log(`[Lead] Updated conversation summary for ${leadId}`);
+        }
+        catch (error) {
+            console.error(`[Lead] Error updating conversation summary:`, error);
+        }
+    }
 };
 exports.LeadsService = LeadsService;
 exports.LeadsService = LeadsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        openai_service_1.OpenAIService,
+        crm_automation_service_1.CRMAutomationService])
 ], LeadsService);
 //# sourceMappingURL=leads.service.js.map

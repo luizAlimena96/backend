@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { WhatsAppIntegrationService } from '../../integrations/whatsapp/whatsapp-integration.service';
+import { OpenAIService } from '../../ai/services/openai.service';
 
 @Injectable()
 export class AgentFollowupService {
     constructor(
         private prisma: PrismaService,
-        private whatsappService: WhatsAppIntegrationService
+        private whatsappService: WhatsAppIntegrationService,
+        private openaiService: OpenAIService
     ) { }
 
     /**
@@ -35,6 +37,8 @@ export class AgentFollowupService {
                                     organization: {
                                         select: {
                                             workingHours: true,
+                                            openaiApiKey: true, // Needed for AI generation
+                                            openaiModel: true,
                                         },
                                     },
                                 },
@@ -65,6 +69,12 @@ export class AgentFollowupService {
 
                 // Check each followup rule
                 for (const followupRule of agent.followups) {
+                    // 1. STATE FILTER: Check if lead is in the correct state
+                    if (followupRule.matrixStageId && lead.currentState !== followupRule.matrixStageId) {
+                        // Skip if lead is not in the required state
+                        continue;
+                    }
+
                     // Check if followup is due
                     if (hoursSinceLastMessage >= followupRule.delayHours) {
                         // Check if followup already sent recently
@@ -90,8 +100,28 @@ export class AgentFollowupService {
                             );
 
                             if (!isWithinWorkingHours) {
-                                console.log(`[Agent Followup] Outside working hours, skipping followup`);
+                                console.log(`[Agent Followup] Outside working hours, skipping popup`);
                                 continue;
+                            }
+                        }
+
+                        // AI Generation Logic
+                        let messageToSend = followupRule.message;
+                        if (followupRule.aiDecisionEnabled && agent.organization.openaiApiKey) {
+                            try {
+                                const aiMessage = await this.generateAIResponse(
+                                    lead,
+                                    conversation,
+                                    agent,
+                                    followupRule,
+                                    agent.organization.openaiApiKey,
+                                    agent.organization.openaiModel || 'gpt-4o-mini'
+                                );
+                                if (aiMessage) {
+                                    messageToSend = aiMessage;
+                                }
+                            } catch (aiError) {
+                                console.error('[Agent Followup] AI generation failed, falling back to static message:', aiError);
                             }
                         }
 
@@ -99,7 +129,8 @@ export class AgentFollowupService {
                         await this.executeFollowupForConversation(
                             conversation.id,
                             followupRule.id,
-                            lead.id
+                            lead.id,
+                            messageToSend // Pass the custom message
                         );
                     }
                 }
@@ -169,7 +200,8 @@ export class AgentFollowupService {
     private async executeFollowupForConversation(
         conversationId: string,
         followupId: string,
-        leadId: string | null
+        leadId: string | null,
+        customMessage?: string
     ): Promise<void> {
         try {
             const conversation = await this.prisma.conversation.findUnique({
@@ -190,15 +222,18 @@ export class AgentFollowupService {
             const instanceName = conversation.agent.instance;
             const recipient = conversation.whatsapp;
 
+            // Determine message to send
+            const messageToSend = customMessage || followup.message;
+
             // Send followup message
             if (followup.mediaType === 'text' || !followup.mediaType) {
-                await this.whatsappService.sendMessage(instanceName, recipient, followup.message);
+                await this.whatsappService.sendMessage(instanceName, recipient, messageToSend);
             } else if (followup.mediaType === 'media' && followup.mediaUrl) {
                 await this.whatsappService.sendMedia(
                     instanceName,
                     recipient,
                     followup.mediaUrl,
-                    followup.message
+                    messageToSend
                 );
             }
 
@@ -208,7 +243,7 @@ export class AgentFollowupService {
                     data: {
                         leadId,
                         followupId,
-                        message: followup.message,
+                        message: messageToSend,
                     },
                 });
             }
@@ -217,6 +252,56 @@ export class AgentFollowupService {
         } catch (error) {
             console.error(`[Agent Followup] Error sending followup:`, error);
             throw error;
+        }
+    }
+
+    /**
+     * Generate AI response for followup
+     */
+    private async generateAIResponse(
+        lead: any,
+        conversation: any,
+        agent: any,
+        followup: any,
+        apiKey: string,
+        model: string
+    ): Promise<string | null> {
+        try {
+            // Build simple context
+            const history = conversation.messages.map((msg: any) => ({
+                role: msg.fromMe ? 'assistant' : 'user',
+                content: msg.content,
+            })).reverse(); // Reverse because we fetched desc order
+
+            const systemPrompt = `${agent.systemPrompt || 'Você é um assistente virtual.'}
+            
+CONTEXTO DO AGENTE:
+Nome: ${agent.name}
+Personalidade: ${agent.personality || 'Profissional'}
+
+INSTRUÇÃO DE FOLLOW-UP (VITAL):
+${followup.aiDecisionPrompt || 'O usuário não respondeu. Tente re-engajar cordialmente.'}
+
+DADOS DO CLIENTE:
+Nome: ${lead.name || 'Cliente'}
+Estado Atual: ${lead.currentState || 'Desconhecido'}
+
+Gere uma mensagem curta e direta para retomar a conversa.`;
+
+            const response = await this.openaiService.createChatCompletion(
+                apiKey,
+                model,
+                [
+                    { role: 'system', content: systemPrompt },
+                    ...history
+                ],
+                { maxTokens: 150 }
+            );
+
+            return response?.trim() || null;
+        } catch (error) {
+            console.error('[Agent Followup] Error generating AI response:', error);
+            return null;
         }
     }
 

@@ -20,11 +20,13 @@ const state_decider_service_1 = require("./fsm-engine/services/state-decider.ser
 const decision_validator_service_1 = require("./fsm-engine/services/decision-validator.service");
 const message_buffer_service_1 = require("./fsm-engine/services/message-buffer.service");
 const tools_handler_service_1 = require("./fsm-engine/services/tools-handler.service");
+const tools_module_1 = require("./tools/tools.module");
 let AIModule = class AIModule {
 };
 exports.AIModule = AIModule;
 exports.AIModule = AIModule = __decorate([
     (0, common_1.Module)({
+        imports: [tools_module_1.ToolsModule],
         controllers: [ai_controller_1.AIController],
         providers: [
             ai_service_1.AIService,
@@ -42,15 +44,9 @@ exports.AIModule = AIModule = __decorate([
         exports: [
             ai_service_1.AIService,
             openai_service_1.OpenAIService,
-            media_analysis_service_1.MediaAnalysisService,
-            knowledge_search_service_1.KnowledgeSearchService,
-            message_event_emitter_1.MessageEventEmitter,
             fsm_engine_service_1.FSMEngineService,
-            data_extractor_service_1.DataExtractorService,
-            state_decider_service_1.StateDeciderService,
-            decision_validator_service_1.DecisionValidatorService,
-            message_buffer_service_1.MessageBufferService,
-            tools_handler_service_1.ToolsHandlerService,
+            knowledge_search_service_1.KnowledgeSearchService,
+            media_analysis_service_1.MediaAnalysisService,
         ],
     })
 ], AIModule);

@@ -5,11 +5,33 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OpenAIService = void 0;
 const common_1 = require("@nestjs/common");
-const openai_1 = require("openai");
+const openai_1 = __importDefault(require("openai"));
 let OpenAIService = class OpenAIService {
+    async chat(apiKey, messages, model = 'gpt-4o-mini') {
+        const openai = new openai_1.default({ apiKey });
+        const response = await openai.chat.completions.create({
+            model,
+            messages,
+            temperature: 0.7,
+        });
+        return response.choices[0].message.content || '';
+    }
+    async chatWithTools(apiKey, messages, tools, model = 'gpt-4o-mini') {
+        const openai = new openai_1.default({ apiKey });
+        const response = await openai.chat.completions.create({
+            model,
+            messages,
+            tools,
+            tool_choice: 'auto',
+        });
+        return response.choices[0].message.content || '';
+    }
     async createChatCompletion(apiKey, model, messages, options) {
         const openai = new openai_1.default({ apiKey });
         const completionOptions = {
@@ -32,6 +54,7 @@ let OpenAIService = class OpenAIService {
             file,
             model: 'whisper-1',
             language: 'pt',
+            prompt: 'Mensagem de voz do WhatsApp em português brasileiro. Transcreva exatamente o que foi dito, incluindo cumprimentos, perguntas e conversação natural.',
         });
         return transcription.text;
     }
@@ -40,8 +63,32 @@ let OpenAIService = class OpenAIService {
         const response = await openai.embeddings.create({
             model: 'text-embedding-3-small',
             input: text,
+            dimensions: 1536,
         });
         return response.data[0].embedding;
+    }
+    async analyzeImage(apiKey, imageBuffer, prompt) {
+        const openai = new openai_1.default({ apiKey });
+        const base64Image = imageBuffer.toString('base64');
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+                {
+                    role: 'user',
+                    content: [
+                        { type: 'text', text: prompt },
+                        {
+                            type: 'image_url',
+                            image_url: {
+                                url: `data:image/jpeg;base64,${base64Image}`,
+                            },
+                        },
+                    ],
+                },
+            ],
+            max_tokens: 300,
+        });
+        return response.choices[0].message.content || '';
     }
 };
 exports.OpenAIService = OpenAIService;

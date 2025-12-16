@@ -86,6 +86,7 @@ model Organization {
   states                    State[]
   tags                      Tag[]
   users                     User[]
+  reports                   Report[]
 
   @@map("organizations")
 }
@@ -266,7 +267,7 @@ model Followup {
   name                 String
   condition            String
   message              String
-  delayHours           Int
+  delayHours           Float         // Changed to Float for fractional hours (e.g., 0.5)
   isActive             Boolean       @default(true)
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
@@ -283,13 +284,16 @@ model Followup {
   specificTimeEnabled  Boolean       @default(false)
   delayMinutes         Int?          @default(0)
   matrixStageId        String?
+  crmStageId           String?       // CRM Stage filter for follow-ups
   logs                 FollowupLog[]
   agent                Agent         @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  crmStage             CRMStage?     @relation(fields: [crmStageId], references: [id], onDelete: SetNull)
   organization         Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([organizationId, isActive])
   @@index([organizationId, agentId])
+  @@index([crmStageId])
   @@map("followups")
 }
 
@@ -338,9 +342,11 @@ model Lead {
   zapSignDocumentId String?
   zapSignSignedAt   DateTime?
   zapSignStatus     String?
-  birthDate         DateTime?
-  rg                String?
-  appointments      Appointment[]
+  birthDate            DateTime?
+  rg                   String?
+  crmStageId           String?       // Current CRM stage
+  conversationSummary  String?       // AI-generated summary for personalized follow-ups
+  appointments         Appointment[]
   conversations     Conversation[]
   followupLogs      FollowupLog[]
   agent             Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -407,6 +413,9 @@ model Message {
   timestamp      DateTime     @default(now())
   conversationId String
   thought        String?
+  mediaUrl       String?
+  mediaType      String?
+  caption        String?
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([messageId])
@@ -517,18 +526,7 @@ model ResponseTemplate {
   @@map("response_templates")
 }
 
-model Report {
-  id        String   @id @default(uuid())
-  title     String
-  type      String
-  period    String
-  format    String
-  fileUrl   String?
-  fileSize  Int?
-  createdAt DateTime @default(now())
 
-  @@map("reports")
-}
 
 model FlowRule {
   id        String   @id @default(uuid())
@@ -591,6 +589,7 @@ model CRMStage {
   createdAt                  DateTime               @default(now())
   updatedAt                  DateTime               @updatedAt
   followUps                  AgentFollowUp[]
+  followups                  Followup[]        // New relation for CRM stage-based follow-ups
   autoSchedulingConfigs      AutoSchedulingConfig[] @relation("TriggerStage")
   autoSchedulingMoveToStages AutoSchedulingConfig[] @relation("MoveToStage")
   crmAutomations             CRMAutomation[]
@@ -624,6 +623,8 @@ model AutoSchedulingConfig {
   reschedulingTemplate String?
   sendConfirmation     Boolean                     @default(true)
   teamPhones           String[]
+  reminderWindowStart  String                      @default("08:00") // New: Start of sending window
+  reminderWindowEnd    String                      @default("22:00") // New: End of sending window
   reminders            AppointmentReminderConfig[]
   agent                Agent                       @relation(fields: [agentId], references: [id], onDelete: Cascade)
   crmStage             CRMStage                    @relation("TriggerStage", fields: [crmStageId], references: [id], onDelete: Cascade)
@@ -641,6 +642,7 @@ model AppointmentReminderConfig {
   minutesBefore          Int
   sendToLead             Boolean              @default(true)
   sendToTeam             Boolean              @default(false)
+  additionalPhones       String[]             @default([]) // New: Extra recipients
   leadMessageTemplate    String
   teamMessageTemplate    String?
   isActive               Boolean              @default(true)
@@ -650,6 +652,25 @@ model AppointmentReminderConfig {
 
   @@index([autoSchedulingConfigId])
   @@map("appointment_reminder_configs")
+}
+
+model AppointmentReminder {
+  id            String            @id @default(uuid())
+  appointmentId String
+  scheduledFor  DateTime          // When it should ideally be sent
+  sentAt        DateTime?         // When it was actually sent
+  status        String            @default("PENDING") // PENDING, SENT, FAILED, SKIPPED
+  type          String            // LEAD, TEAM, ADDITIONAL
+  recipient     String            // Phone number
+  message       String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  appointment   Appointment       @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([appointmentId])
+  @@index([status])
+  @@index([scheduledFor])
+  @@map("appointment_reminders")
 }
 
 model ErrorLog {
@@ -722,26 +743,7 @@ model ReminderLog {
   @@map("reminder_logs")
 }
 
-model AppointmentReminder {
-  id                  String      @id @default(uuid())
-  appointmentId       String
-  reminderConfigId    String?
-  scheduledFor        DateTime
-  minutesBefore       Int
-  sendToLead          Boolean     @default(true)
-  sendToTeam          Boolean     @default(false)
-  leadMessageTemplate String
-  teamMessageTemplate String?
-  teamPhones          String[]
-  sent                Boolean     @default(false)
-  sentAt              DateTime?
-  createdAt           DateTime    @default(now())
-  appointment         Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
-  @@index([scheduledFor, sent])
-  @@index([appointmentId])
-  @@map("appointment_reminders")
-}
 
 model FollowupLog {
   id         String   @id @default(uuid())
@@ -944,8 +946,8 @@ enum MessageType {
   TEXT
   IMAGE
   AUDIO
-  DOCUMENT
   VIDEO
+  DOCUMENT
 }
 
 enum AppointmentStatus {
@@ -981,4 +983,23 @@ enum QuickResponseType {
   TEXT
   AUDIO
   IMAGE
+}
+
+model Report {
+  id             String       @id @default(uuid())
+  organizationId String
+  title          String
+  type           String
+  period         String
+  format         String       @default("PDF")
+  status         String       @default("processing") // processing, completed, failed
+  filePath       String?
+  fileSize       Int?
+  generatedAt    DateTime     @default(now())
+  downloads      Int          @default(0)
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("reports")
 }

@@ -21,48 +21,62 @@ let ReportsController = class ReportsController {
     constructor(reportsService) {
         this.reportsService = reportsService;
     }
-    async getReports(organizationId) {
+    async getReports(queryOrgId, req) {
+        const organizationId = req.user.organizationId || queryOrgId;
         return this.reportsService.getReports(organizationId);
     }
-    async getMetrics(organizationId) {
+    async getMetrics(queryOrgId, req) {
+        const organizationId = req.user.organizationId || queryOrgId;
         return this.reportsService.getMetrics(organizationId);
     }
-    async generateReport(data) {
-        return this.reportsService.generateReport(data);
+    async generateReport(data, req) {
+        return this.reportsService.generateReport({
+            ...data,
+            organizationId: req.user.organizationId
+        });
     }
-    async downloadReport(id) {
+    async downloadReport(id, res) {
         const buffer = await this.reportsService.downloadReport(id);
-        return buffer;
+        res.set({
+            'Content-Type': 'text/plain',
+            'Content-Disposition': `attachment; filename="relatorio-${id}.txt"`,
+            'Content-Length': buffer.length,
+        });
+        res.send(buffer);
     }
 };
 exports.ReportsController = ReportsController;
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)('organizationId')),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], ReportsController.prototype, "getReports", null);
 __decorate([
     (0, common_1.Get)('metrics'),
     __param(0, (0, common_1.Query)('organizationId')),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], ReportsController.prototype, "getMetrics", null);
 __decorate([
     (0, common_1.Post)('generate'),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], ReportsController.prototype, "generateReport", null);
 __decorate([
     (0, common_1.Get)(':id/download'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], ReportsController.prototype, "downloadReport", null);
 exports.ReportsController = ReportsController = __decorate([

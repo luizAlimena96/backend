@@ -50,4 +50,23 @@ export class ZapSignService {
             throw new Error('Failed to get document status');
         }
     }
+
+    async getTemplates(apiToken: string): Promise<any> {
+        try {
+            const response = await firstValueFrom(
+                this.httpService.get(
+                    'https://api.zapsign.com.br/api/v1/templates/?limit=5',
+                    {
+                        headers: {
+                            Authorization: `Bearer ${apiToken}`,
+                        },
+                    }
+                )
+            );
+            return response.data;
+        } catch (error) {
+            console.error('ZapSign get templates error:', error);
+            throw new Error('Failed to get templates');
+        }
+    }
 }

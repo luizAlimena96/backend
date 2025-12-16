@@ -132,6 +132,11 @@ let DataExtractorService = class DataExtractorService {
                 .map(dk => `- **${dk.key}**: ${dk.description} (tipo: ${dk.type})`)
                 .join('\n');
             const prompt = `Você é um extrator de dados especializado. Analise a mensagem e extraia TODOS os dados possíveis.
+            
+DIRETRIZ SUPREMA (LEI ZERO):
+NÃO EXTRAIA SAUDAÇÕES COMO DADOS.
+Se a mensagem for apenas "Olá", "Oi", "Eai", "Tudo bem", "Bom dia", ou variações, RETORNE UM JSON VAZIO em 'extractedData'.
+NUNCA invente um nome baseando-se em uma saudação (ex: "Eai" NÃO É UM NOME).
 
 DADOS DISPONÍVEIS PARA EXTRAÇÃO:
 ${dataKeysDescription}
@@ -143,11 +148,12 @@ MENSAGEM DO USUÁRIO:
 "${input.message}"
 
 REGRAS:
-1. Tente extrair TODOS os dados que encontrar na mensagem
-2. Se um dado não estiver presente, não o inclua no resultado
-3. Normalize os valores conforme o tipo esperado
-4. Retorne apenas os dados que você tem ALTA confiança (>0.7)
-5. NÃO extraia dados que já existem em DADOS JÁ COLETADOS com valores válidos
+1. LEI ZERO: Ignore saudações. "Eai" não é nome. "Oi" não é nome.
+2. Tente extrair TODOS os dados que encontrar na mensagem (exceto saudações)
+3. Se um dado não estiver presente, não o inclua no resultado
+4. Normalize os valores conforme o tipo esperado
+5. Retorne apenas os dados que você tem ALTA confiança (>0.7)
+6. NÃO extraia dados que já existem em DADOS JÁ COLETADOS com valores válidos
 
 FORMATO DE SAÍDA (JSON):
 {
@@ -222,6 +228,38 @@ FORMATO DE SAÍDA (JSON):
             .join('\n');
         return `${customPrompt}
 
+# DIRETRIZ SUPREMA (LEI ZERO) - INTELIGÊNCIA SEMÂNTICA
+Você deve usar RACIOCÍNIO CONTEXTUAL para determinar se algo é um dado real ou não.
+
+## REGRAS DE EXTRAÇÃO DE NOMES:
+Um nome APENAS é válido se houver EVIDÊNCIA LINGUÍSTICA CLARA:
+
+VÁLIDO (extrair):
+- "Meu nome é João"
+- "Me chamo Maria"
+- "Sou o Pedro"
+- "Pode me chamar de Ana"
+- "Eu sou Carlos"
+- "Meu nome: Rafael"
+
+INVÁLIDO (NÃO extrair):
+- Saudações isoladas: "Oi", "Olá", "Eai", "E aí", "Beleza", "Bom dia"
+- Palavras aleatórias sem contexto: "Arvore", "Casa", "Carro", "Azul"
+- Perguntas: "Como vai?", "Tudo bem?"
+- Respostas genéricas: "Sim", "Não", "Talvez"
+- Qualquer palavra SEM um verbo/frase que indique identidade
+
+## PRINCÍPIO FUNDAMENTAL:
+Se a mensagem NÃO contém uma estrutura linguística que EXPLICITAMENTE identifique algo como um dado pessoal, retorne JSON VAZIO.
+
+Pergunte-se: "O cliente está DECLARANDO uma informação sobre si mesmo ou apenas conversando?"
+- "Eai" → Apenas conversando → JSON VAZIO
+- "Meu nome é Eai" → Declarando nome → Extrair "Eai"
+
+## CONFIANÇA MÍNIMA:
+- Apenas extraia dados com confiança ≥ 0.8
+- Se houver QUALQUER dúvida, retorne JSON vazio
+
 # CONTEXTO DO AGENTE
 
 **Nome do Agente**: ${input.agentContext?.name || 'N/A'}
@@ -236,8 +274,8 @@ ${input.agentContext?.prohibitions ? `**PROIBIÇÕES GLOBAIS DO AGENTE**: ${inpu
 
 ## CAMPO A EXTRAIR
 - **Chave**: ${input.dataKey}
-- **Tipo Esperado**: ${input.dataType || 'string'}
-- **Descrição**: ${input.dataDescription || 'Não especificada'}
+- **Tipo Esperado**: ${input.dataType}
+- **Descrição**: ${input.dataDescription}
 
 ## DADOS JÁ COLETADOS
 \`\`\`json
@@ -250,6 +288,14 @@ ${conversationText}
 
 ## MENSAGEM MAIS RECENTE
 "${input.message}"
+
+## CHECKLIST DE VALIDAÇÃO ANTES DE EXTRAIR:
+1. ✓ A mensagem contém uma DECLARAÇÃO explícita? (ex: "meu nome é", "me chamo", "sou")
+2. ✓ O dado faz sentido no contexto? (não é saudação, não é palavra aleatória)
+3. ✓ Tenho confiança ≥ 0.8 de que isso é um dado real?
+4. ✓ O cliente está FORNECENDO informação, não apenas conversando?
+
+Se QUALQUER resposta for NÃO → Retorne JSON VAZIO.
 `;
     }
 };

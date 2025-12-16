@@ -55,7 +55,7 @@ exports.QueuesModule = QueuesModule = __decorate([
                             },
                             connectTimeout: parseInt(configService.get('BULLMQ_CONNECTION_TIMEOUT', '10000'), 10),
                             commandTimeout: parseInt(configService.get('BULLMQ_COMMAND_TIMEOUT', '30000'), 10),
-                            enableOfflineQueue: false,
+                            enableOfflineQueue: true,
                             enableReadyCheck: true,
                             lazyConnect: false,
                             family: 4,

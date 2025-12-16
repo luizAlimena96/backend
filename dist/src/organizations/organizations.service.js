@@ -12,10 +12,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.OrganizationsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../database/prisma.service");
+const zapsign_service_1 = require("../integrations/zapsign/zapsign.service");
 let OrganizationsService = class OrganizationsService {
     prisma;
-    constructor(prisma) {
+    zapSignService;
+    constructor(prisma, zapSignService) {
         this.prisma = prisma;
+        this.zapSignService = zapSignService;
     }
     async findAll(userId, userRole, userOrgId) {
         const where = userRole === 'SUPER_ADMIN' ? {} : { id: userOrgId || '' };
@@ -131,6 +134,24 @@ let OrganizationsService = class OrganizationsService {
         });
         return { success: true };
     }
+    async updateZapSignConfig(id, data) {
+        return this.prisma.organization.update({
+            where: { id },
+            data: {
+                zapSignApiToken: data.apiToken,
+                zapSignTemplateId: data.templateId,
+            }
+        });
+    }
+    async testZapSignConnection(apiToken) {
+        try {
+            await this.zapSignService.getTemplates(apiToken);
+            return { success: true, message: 'Conexão realizada com sucesso!' };
+        }
+        catch (error) {
+            return { success: false, message: 'Falha na autenticação: Verifique o token.' };
+        }
+    }
     canAccessOrganization(userRole, userOrgId, targetOrgId) {
         if (userRole === 'SUPER_ADMIN')
             return true;
@@ -140,6 +161,7 @@ let OrganizationsService = class OrganizationsService {
 exports.OrganizationsService = OrganizationsService;
 exports.OrganizationsService = OrganizationsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        zapsign_service_1.ZapSignService])
 ], OrganizationsService);
 //# sourceMappingURL=organizations.service.js.map

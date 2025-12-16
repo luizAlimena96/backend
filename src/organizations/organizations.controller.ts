@@ -71,4 +71,38 @@ export class OrganizationsController {
 
         return this.organizationsService.remove(id);
     }
+
+    // ============================================
+    // ZAPSIGN CONFIG (Organization Level)
+    // ============================================
+
+    @Post(':id/zapsign')
+    async saveZapSignConfig(
+        @Param('id') id: string,
+        @Body() data: { enabled: boolean; apiToken: string; templateId: string },
+        @Request() req
+    ) {
+        const { role, organizationId } = req.user;
+
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new ForbiddenException('Sem permissão para configurar esta organização');
+        }
+
+        return this.organizationsService.updateZapSignConfig(id, data);
+    }
+
+    @Post(':id/zapsign/test')
+    async testZapSignConfig(
+        @Param('id') id: string,
+        @Body() data: { apiToken: string },
+        @Request() req
+    ) {
+        const { role, organizationId } = req.user;
+
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new ForbiddenException('Sem permissão para testar conexão desta organização');
+        }
+
+        return this.organizationsService.testZapSignConnection(data.apiToken);
+    }
 }

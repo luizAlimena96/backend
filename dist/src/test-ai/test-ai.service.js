@@ -12,22 +12,31 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TestAIService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../database/prisma.service");
-const fsm_engine_service_1 = require("../ai/fsm-engine/fsm-engine.service");
 const openai_service_1 = require("../ai/services/openai.service");
 const elevenlabs_service_1 = require("../integrations/elevenlabs/elevenlabs.service");
-const agent_followup_service_1 = require("../common/services/agent-followup.service");
+const fsm_engine_service_1 = require("../ai/fsm-engine/fsm-engine.service");
+const leads_service_1 = require("../leads/leads.service");
+const media_analysis_service_1 = require("../ai/services/media-analysis.service");
+const pdf_service_1 = require("../common/services/pdf.service");
+const followups_service_1 = require("../followups/followups.service");
 let TestAIService = class TestAIService {
     prisma;
-    fsmEngine;
     openaiService;
     elevenLabsService;
-    agentFollowup;
-    constructor(prisma, fsmEngine, openaiService, elevenLabsService, agentFollowup) {
+    fsmEngineService;
+    leadsService;
+    mediaAnalysisService;
+    pdfService;
+    followupsService;
+    constructor(prisma, openaiService, elevenLabsService, fsmEngineService, leadsService, mediaAnalysisService, pdfService, followupsService) {
         this.prisma = prisma;
-        this.fsmEngine = fsmEngine;
         this.openaiService = openaiService;
         this.elevenLabsService = elevenLabsService;
-        this.agentFollowup = agentFollowup;
+        this.fsmEngineService = fsmEngineService;
+        this.leadsService = leadsService;
+        this.mediaAnalysisService = mediaAnalysisService;
+        this.pdfService = pdfService;
+        this.followupsService = followupsService;
     }
     async processMessage(data, userId, userRole) {
         if (userRole !== 'SUPER_ADMIN') {
@@ -92,9 +101,11 @@ let TestAIService = class TestAIService {
             });
         }
         let processedMessage = message || '';
+        let userSentAudio = false;
         if (file) {
             const apiKey = organization.openaiApiKey || process.env.OPENAI_API_KEY;
             if (file.type.startsWith('audio/') && apiKey) {
+                userSentAudio = true;
                 try {
                     const transcription = await this.openaiService.transcribeAudio(apiKey, file.base64);
                     processedMessage = `[ÁUDIO TRANSCRITO]: ${transcription}${message ? `\n[COMENTÁRIO]: ${message}` : ''}`;
@@ -102,6 +113,37 @@ let TestAIService = class TestAIService {
                 catch (error) {
                     console.error('[Test AI] Error transcribing audio:', error);
                     processedMessage = `[Arquivo de áudio enviado]${message ? `\n${message}` : ''}`;
+                }
+            }
+            else if (file.type.startsWith('image/') && apiKey) {
+                try {
+                    console.log('[Test AI] Analyzing image...');
+                    const imageAnalysis = await this.mediaAnalysisService.analyzeImage(file.base64, apiKey, 'Analise esta imagem em detalhes em português. Se houver texto, transcreva-o completamente.');
+                    if (imageAnalysis.success) {
+                        processedMessage = `[IMAGEM ANALISADA]: ${imageAnalysis.content}${message ? `\n[COMENTÁRIO]: ${message}` : ''}`;
+                        console.log('[Test AI] Image analyzed successfully');
+                    }
+                    else {
+                        processedMessage = `[Imagem enviada - erro ao analisar]${message ? `\n${message}` : ''}`;
+                    }
+                }
+                catch (error) {
+                    console.error('[Test AI] Error analyzing image:', error);
+                    processedMessage = `[Imagem enviada]${message ? `\n${message}` : ''}`;
+                }
+            }
+            else if (file.type === 'application/pdf' && apiKey) {
+                try {
+                    console.log('[Test AI] Processing PDF...');
+                    const pdfBuffer = Buffer.from(file.base64, 'base64');
+                    const pdfText = await this.pdfService.extractText(pdfBuffer);
+                    const textPreview = pdfText.substring(0, 2000);
+                    processedMessage = `[DOCUMENTO PDF RECEBIDO - Conteúdo:\n${textPreview}${pdfText.length > 2000 ? '...' : ''}]${message ? `\n[COMENTÁRIO]: ${message}` : ''}`;
+                    console.log('[Test AI] PDF processed successfully');
+                }
+                catch (error) {
+                    console.error('[Test AI] Error processing PDF:', error);
+                    processedMessage = `[Documento PDF enviado]${message ? `\n${message}` : ''}`;
                 }
             }
             else {
@@ -117,9 +159,10 @@ let TestAIService = class TestAIService {
                 messageId: crypto.randomUUID(),
             },
         });
-        const currentState = agent.states?.find(s => s.name === lead.currentState) || agent.states?.[0];
-        if (!currentState) {
-            throw new common_1.NotFoundException('No states configured for this agent');
+        if (lead.id) {
+            this.leadsService.updateConversationSummary(lead.id).catch(err => {
+                console.error('[Test AI] Failed to update conversation summary:', err);
+            });
         }
         const history = conversationHistory?.map((msg) => ({
             role: msg.fromMe ? 'assistant' : 'user',
@@ -129,7 +172,7 @@ let TestAIService = class TestAIService {
             role: 'user',
             content: processedMessage,
         });
-        const fsmDecision = await this.fsmEngine.decideNextState({
+        const fsmDecision = await this.fsmEngineService.decideNextState({
             agentId: agent.id,
             currentState: lead.currentState || 'INICIO',
             lastMessage: processedMessage,
@@ -146,6 +189,9 @@ let TestAIService = class TestAIService {
             },
         });
         const nextStateInfo = agent.states?.find(s => s.name === fsmDecision.nextState) || agent.states?.[0];
+        if (!nextStateInfo) {
+            throw new common_1.NotFoundException('No states configured for this agent');
+        }
         const knowledgeContext = agent.knowledge.map(k => `${k.title}: ${k.content}`).join('\n');
         const dataRequirement = fsmDecision.dataToExtract
             ? `\n\n[DADO OBRIGATÓRIO PARA COLETAR]: ${fsmDecision.dataToExtract}`
@@ -190,7 +236,28 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
             { role: 'system', content: systemPrompt },
             ...history,
         ], { maxTokens: 500 });
-        const responseParts = aiResponse.split(/\n|\\n|\/n/).filter(part => part.trim().length > 0);
+        let audioBase64 = null;
+        if (agent.audioResponseEnabled && userSentAudio && organization.elevenLabsApiKey) {
+            try {
+                console.log('[Test AI] Generating audio response (user sent audio)...');
+                const cleanText = aiResponse.replace(/\\n/g, '\n').replace(/\n/g, '. ');
+                const audioBuffer = await this.elevenLabsService.textToSpeech(organization.elevenLabsApiKey, cleanText, organization.elevenLabsVoiceId || '21m00Tcm4TlvDq8ikWAM');
+                audioBase64 = audioBuffer.toString('base64');
+                console.log('[Test AI] Audio generated successfully, base64 length:', audioBase64.length);
+            }
+            catch (error) {
+                console.error('[Test AI] Error generating audio:', error);
+            }
+        }
+        else if (!agent.audioResponseEnabled && userSentAudio) {
+            console.log('[Test AI] Audio response disabled, responding with text even though user sent audio');
+        }
+        else if (agent.audioResponseEnabled && !userSentAudio) {
+            console.log('[Test AI] User sent text, responding with text (mirroring input type)');
+        }
+        const responseParts = audioBase64
+            ? [aiResponse]
+            : aiResponse.split(/\n|\\n|\/n/).filter(part => part.trim().length > 0);
         const sentMessages = [];
         if (responseParts.length === 0) {
             responseParts.push(aiResponse);
@@ -221,16 +288,10 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
                 leadId: lead.id,
             },
         });
-        let audioBase64 = null;
-        if (agent.audioResponseEnabled && organization.elevenLabsApiKey) {
-            try {
-                const audioBuffer = await this.elevenLabsService.textToSpeech(aiResponse.replace(/\n/g, '. '), organization.elevenLabsVoiceId || '21m00Tcm4TlvDq8ikWAM', organization.elevenLabsApiKey);
-                audioBase64 = audioBuffer.toString('base64');
-            }
-            catch (error) {
-                console.error('[Test AI] Error generating audio:', error);
-            }
-        }
+        console.log('[Test AI] Returning response with audio:', {
+            hasAudio: !!audioBase64,
+            audioLength: audioBase64?.length || 0
+        });
         return {
             response: aiResponse,
             audioBase64,
@@ -251,7 +312,7 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
                 content: m.content,
                 timestamp: m.timestamp,
                 thought: fsmDecision.reasoning.join('\n'),
-                type: 'TEXT',
+                type: audioBase64 ? 'AUDIO' : 'TEXT',
             })),
         };
     }
@@ -332,32 +393,18 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
         }
         return { success: true };
     }
-    async triggerFollowup(organizationId, agentId, userRole) {
+    async triggerFollowup(organizationId, agentId, userRole, forceIgnoreDelay = true) {
         if (userRole !== 'SUPER_ADMIN') {
             throw new common_1.ForbiddenException('Only SUPER_ADMIN can access this endpoint');
         }
         try {
-            const testConversation = await this.prisma.conversation.findFirst({
-                where: {
-                    agentId,
-                    whatsapp: { contains: 'test-ai' },
-                },
-                include: {
-                    lead: true,
-                },
-            });
-            if (!testConversation || !testConversation.leadId) {
-                return {
-                    success: false,
-                    message: 'Nenhuma conversa de teste encontrada. Envie uma mensagem primeiro.',
-                };
-            }
-            await this.agentFollowup.checkAndCreateFollowups(testConversation.leadId);
-            const stats = await this.agentFollowup.getFollowupStats(testConversation.leadId);
+            console.log('[Test AI] Triggering follow-up check...', { forceIgnoreDelay });
+            const result = await this.followupsService.checkAgentFollowUps(forceIgnoreDelay);
+            console.log('[Test AI] Follow-up check completed:', result);
             return {
                 success: true,
-                message: `Follow-up verificado! Total enviados: ${stats.totalSent}`,
-                stats,
+                message: `Follow-up verificado! Processados: ${result.processed} de ${result.rulesChecked} regras`,
+                stats: result,
             };
         }
         catch (error) {
@@ -373,9 +420,12 @@ exports.TestAIService = TestAIService;
 exports.TestAIService = TestAIService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        fsm_engine_service_1.FSMEngineService,
         openai_service_1.OpenAIService,
         elevenlabs_service_1.ElevenLabsService,
-        agent_followup_service_1.AgentFollowupService])
+        fsm_engine_service_1.FSMEngineService,
+        leads_service_1.LeadsService,
+        media_analysis_service_1.MediaAnalysisService,
+        pdf_service_1.PdfService,
+        followups_service_1.FollowupsService])
 ], TestAIService);
 //# sourceMappingURL=test-ai.service.js.map

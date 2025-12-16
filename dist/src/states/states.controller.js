@@ -30,6 +30,9 @@ let StatesController = class StatesController {
     async update(id, data) {
         return this.statesService.update(id, data);
     }
+    async updatePartial(id, data) {
+        return this.statesService.update(id, data);
+    }
     async delete(id) {
         return this.statesService.delete(id);
     }
@@ -57,6 +60,14 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], StatesController.prototype, "update", null);
+__decorate([
+    (0, common_1.Patch)(":id"),
+    __param(0, (0, common_1.Param)("id")),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], StatesController.prototype, "updatePartial", null);
 __decorate([
     (0, common_1.Delete)(":id"),
     __param(0, (0, common_1.Param)("id")),

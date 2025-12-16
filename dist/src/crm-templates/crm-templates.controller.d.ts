@@ -6,8 +6,8 @@ export declare class CrmTemplatesController {
         id: string;
         organizationId: string | null;
         createdAt: Date;
-        updatedAt: Date;
         name: string;
+        updatedAt: Date;
         description: string | null;
         crmType: string;
         baseUrl: string;
@@ -19,8 +19,8 @@ export declare class CrmTemplatesController {
         id: string;
         organizationId: string | null;
         createdAt: Date;
-        updatedAt: Date;
         name: string;
+        updatedAt: Date;
         description: string | null;
         crmType: string;
         baseUrl: string;
@@ -32,20 +32,20 @@ export declare class CrmTemplatesController {
         id: string;
         organizationId: string;
         createdAt: Date;
-        updatedAt: Date;
         name: string;
         isActive: boolean;
+        updatedAt: Date;
         crmType: string;
+        apiKey: string;
         baseUrl: string;
         authType: string;
-        apiKey: string;
     }>;
     delete(id: string, req: any): Promise<{
         id: string;
         organizationId: string | null;
         createdAt: Date;
-        updatedAt: Date;
         name: string;
+        updatedAt: Date;
         description: string | null;
         crmType: string;
         baseUrl: string;

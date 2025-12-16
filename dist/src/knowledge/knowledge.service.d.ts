@@ -1,20 +1,30 @@
+import { OnModuleDestroy } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
-export declare class KnowledgeService {
+import { OpenAIService } from "../ai/services/openai.service";
+import { ConfigService } from "@nestjs/config";
+import { DocumentService } from "./document.service";
+export declare class KnowledgeService implements OnModuleDestroy {
     private prisma;
-    constructor(prisma: PrismaService);
+    private openaiService;
+    private configService;
+    private documentService;
+    private readonly logger;
+    private encoder;
+    constructor(prisma: PrismaService, openaiService: OpenAIService, configService: ConfigService, documentService: DocumentService);
+    onModuleDestroy(): void;
     findAll(organizationId: string, agentId?: string): Promise<({
         agent: {
-            name: string;
             id: string;
+            name: string;
         };
     } & {
         id: string;
-        type: import(".prisma/client").$Enums.KnowledgeType;
         organizationId: string;
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
         title: string;
+        type: import(".prisma/client").$Enums.KnowledgeType;
         content: string;
         fileUrl: string | null;
         fileName: string | null;
@@ -22,12 +32,12 @@ export declare class KnowledgeService {
     })[]>;
     create(data: any): Promise<{
         id: string;
-        type: import(".prisma/client").$Enums.KnowledgeType;
         organizationId: string;
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
         title: string;
+        type: import(".prisma/client").$Enums.KnowledgeType;
         content: string;
         fileUrl: string | null;
         fileName: string | null;
@@ -35,12 +45,12 @@ export declare class KnowledgeService {
     }>;
     update(id: string, data: any): Promise<{
         id: string;
-        type: import(".prisma/client").$Enums.KnowledgeType;
         organizationId: string;
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
         title: string;
+        type: import(".prisma/client").$Enums.KnowledgeType;
         content: string;
         fileUrl: string | null;
         fileName: string | null;
@@ -49,4 +59,11 @@ export declare class KnowledgeService {
     delete(id: string): Promise<{
         success: boolean;
     }>;
+    waitForProcessing(knowledgeId: string): Promise<void>;
+    private processKnowledge;
+    private countTokens;
+    private splitIntoSentences;
+    private splitIntoParagraphs;
+    private getOverlapText;
+    private chunkText;
 }

@@ -11,14 +11,23 @@ const common_1 = require("@nestjs/common");
 const test_ai_controller_1 = require("./test-ai.controller");
 const test_ai_service_1 = require("./test-ai.service");
 const ai_module_1 = require("../ai/ai.module");
-const prisma_service_1 = require("../database/prisma.service");
 const integrations_module_1 = require("../integrations/integrations.module");
+const followups_module_1 = require("../followups/followups.module");
+const leads_module_1 = require("../leads/leads.module");
+const common_module_1 = require("../common/common.module");
+const prisma_service_1 = require("../database/prisma.service");
 let TestAIModule = class TestAIModule {
 };
 exports.TestAIModule = TestAIModule;
 exports.TestAIModule = TestAIModule = __decorate([
     (0, common_1.Module)({
-        imports: [ai_module_1.AIModule, integrations_module_1.IntegrationsModule],
+        imports: [
+            ai_module_1.AIModule,
+            integrations_module_1.IntegrationsModule,
+            followups_module_1.FollowupsModule,
+            leads_module_1.LeadsModule,
+            common_module_1.CommonModule,
+        ],
         controllers: [test_ai_controller_1.TestAIController],
         providers: [test_ai_service_1.TestAIService, prisma_service_1.PrismaService],
         exports: [test_ai_service_1.TestAIService],

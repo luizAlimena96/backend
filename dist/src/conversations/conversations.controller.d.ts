@@ -4,31 +4,34 @@ export declare class ConversationsController {
     constructor(conversationsService: ConversationsService);
     findAll(organizationId: string): Promise<({
         agent: {
-            name: string;
             id: string;
+            name: string;
         };
         lead: {
-            name: string | null;
             id: string;
             phone: string;
+            name: string | null;
         } | null;
         tags: {
-            name: string;
             id: string;
             organizationId: string;
             createdAt: Date;
+            name: string;
             updatedAt: Date;
             color: string;
         }[];
         messages: {
             id: string;
-            timestamp: Date;
-            type: import(".prisma/client").$Enums.MessageType;
             conversationId: string;
+            type: import(".prisma/client").$Enums.MessageType;
+            mediaUrl: string | null;
+            caption: string | null;
+            timestamp: Date;
             messageId: string;
             content: string;
             fromMe: boolean;
             thought: string | null;
+            mediaType: string | null;
         }[];
     } & {
         id: string;
@@ -42,18 +45,12 @@ export declare class ConversationsController {
     })[]>;
     findOne(id: string): Promise<({
         agent: {
-            isActive: boolean;
-            name: string;
             id: string;
             organizationId: string;
             createdAt: Date;
+            name: string;
+            isActive: boolean;
             updatedAt: Date;
-            googleAccessToken: string | null;
-            googleCalendarEnabled: boolean;
-            googleCalendarId: string | null;
-            googleRefreshToken: string | null;
-            googleTokenExpiry: Date | null;
-            workingHours: import("@prisma/client/runtime/library").JsonValue | null;
             description: string | null;
             tone: import(".prisma/client").$Enums.Tone;
             language: string;
@@ -65,6 +62,11 @@ export declare class ConversationsController {
             customTimeWindows: import("@prisma/client/runtime/library").JsonValue | null;
             followupDelay: number;
             followupEnabled: boolean;
+            googleAccessToken: string | null;
+            googleCalendarEnabled: boolean;
+            googleCalendarId: string | null;
+            googleRefreshToken: string | null;
+            googleTokenExpiry: Date | null;
             instructions: string | null;
             maxMeetingDuration: number;
             meetingDuration: number;
@@ -78,6 +80,7 @@ export declare class ConversationsController {
             reminderMessage: string | null;
             systemPrompt: string | null;
             useCustomTimeWindows: boolean;
+            workingHours: import("@prisma/client/runtime/library").JsonValue | null;
             dataCollectionInstructions: string | null;
             followupDecisionPrompt: string | null;
             followupHours: import("@prisma/client/runtime/library").JsonValue | null;
@@ -99,13 +102,13 @@ export declare class ConversationsController {
         };
         lead: {
             log: string | null;
-            name: string | null;
             id: string;
             phone: string;
             currentState: string | null;
             organizationId: string;
             agentId: string;
             createdAt: Date;
+            name: string | null;
             updatedAt: Date;
             notes: string | null;
             status: import(".prisma/client").$Enums.LeadStatus;
@@ -124,24 +127,29 @@ export declare class ConversationsController {
             zapSignStatus: string | null;
             birthDate: Date | null;
             rg: string | null;
+            crmStageId: string | null;
+            conversationSummary: string | null;
         } | null;
         tags: {
-            name: string;
             id: string;
             organizationId: string;
             createdAt: Date;
+            name: string;
             updatedAt: Date;
             color: string;
         }[];
         messages: {
             id: string;
-            timestamp: Date;
-            type: import(".prisma/client").$Enums.MessageType;
             conversationId: string;
+            type: import(".prisma/client").$Enums.MessageType;
+            mediaUrl: string | null;
+            caption: string | null;
+            timestamp: Date;
             messageId: string;
             content: string;
             fromMe: boolean;
             thought: string | null;
+            mediaType: string | null;
         }[];
     } & {
         id: string;
@@ -185,30 +193,36 @@ export declare class ConversationsController {
     }>;
     getMessages(id: string): Promise<{
         id: string;
-        timestamp: Date;
-        type: import(".prisma/client").$Enums.MessageType;
         conversationId: string;
+        type: import(".prisma/client").$Enums.MessageType;
+        mediaUrl: string | null;
+        caption: string | null;
+        timestamp: Date;
         messageId: string;
         content: string;
         fromMe: boolean;
         thought: string | null;
+        mediaType: string | null;
     }[]>;
     sendMessage(id: string, content: string, role: string): Promise<{
         id: string;
-        timestamp: Date;
-        type: import(".prisma/client").$Enums.MessageType;
         conversationId: string;
+        type: import(".prisma/client").$Enums.MessageType;
+        mediaUrl: string | null;
+        caption: string | null;
+        timestamp: Date;
         messageId: string;
         content: string;
         fromMe: boolean;
         thought: string | null;
+        mediaType: string | null;
     }>;
     addTag(id: string, tagId: string): Promise<{
         tags: {
-            name: string;
             id: string;
             organizationId: string;
             createdAt: Date;
+            name: string;
             updatedAt: Date;
             color: string;
         }[];
@@ -224,10 +238,10 @@ export declare class ConversationsController {
     }>;
     removeTag(id: string, tagId: string): Promise<{
         tags: {
-            name: string;
             id: string;
             organizationId: string;
             createdAt: Date;
+            name: string;
             updatedAt: Date;
             color: string;
         }[];

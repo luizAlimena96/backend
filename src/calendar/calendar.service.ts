@@ -50,4 +50,66 @@ export class CalendarService {
             return [];
         }
     }
+
+    // Blocked Slots Management
+    async getBlockedSlots(organizationId: string) {
+        return this.prisma.blockedSlot.findMany({
+            where: { organizationId },
+            orderBy: { startTime: 'asc' },
+        });
+    }
+
+    async createBlockedSlot(data: {
+        organizationId: string;
+        startTime: string;
+        endTime: string;
+        title?: string;
+        allDay?: boolean;
+    }) {
+        return this.prisma.blockedSlot.create({
+            data: {
+                organizationId: data.organizationId,
+                startTime: new Date(data.startTime),
+                endTime: new Date(data.endTime),
+                title: data.title || 'Horário Bloqueado',
+                allDay: data.allDay || false,
+            },
+        });
+    }
+
+    async deleteBlockedSlot(id: string) {
+        return this.prisma.blockedSlot.delete({
+            where: { id },
+        });
+    }
+
+    // Working Hours Management
+    async getWorkingHours(organizationId: string) {
+        const organization = await this.prisma.organization.findUnique({
+            where: { id: organizationId },
+            select: { workingHours: true },
+        });
+
+        return organization?.workingHours || this.getDefaultWorkingHours();
+    }
+
+    async updateWorkingHours(organizationId: string, workingHours: any) {
+        return this.prisma.organization.update({
+            where: { id: organizationId },
+            data: { workingHours },
+        });
+    }
+
+    private getDefaultWorkingHours() {
+        const defaultShift = [{ start: '09:00', end: '18:00' }];
+        return {
+            MON: { enabled: true, shifts: defaultShift },
+            TUE: { enabled: true, shifts: defaultShift },
+            WED: { enabled: true, shifts: defaultShift },
+            THU: { enabled: true, shifts: defaultShift },
+            FRI: { enabled: true, shifts: defaultShift },
+            SAT: { enabled: false, shifts: [] },
+            SUN: { enabled: false, shifts: [] },
+        };
+    }
 }

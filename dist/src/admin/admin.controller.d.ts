@@ -12,21 +12,22 @@ export declare class AdminController {
         message: string;
     }>;
     getData(orgId: string, type: string): Promise<{
-        isActive: boolean;
-        name: string;
-        id: string;
         message: string;
+        id: string;
         organizationId: string;
         agentId: string;
         createdAt: Date;
+        name: string;
+        isActive: boolean;
         updatedAt: Date;
+        crmStageId: string | null;
         mediaUrl: string | null;
+        mediaType: string;
         condition: string;
         delayHours: number;
         aiDecisionEnabled: boolean;
         aiDecisionPrompt: string | null;
         audioVoiceId: string | null;
-        mediaType: string;
         respectBusinessHours: boolean;
         specificHour: number | null;
         specificMinute: number | null;
@@ -34,35 +35,14 @@ export declare class AdminController {
         delayMinutes: number | null;
         matrixStageId: string | null;
     }[] | {
-        name: string;
-        id: string;
-        organizationId: string;
-        agentId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        prohibitions: string | null;
-        missionPrompt: string;
-        availableRoutes: import("@prisma/client/runtime/library").JsonValue;
-        dataKey: string | null;
-        dataDescription: string | null;
-        dataType: string | null;
-        mediaId: string | null;
-        tools: string | null;
-        crmStatus: string | null;
-        order: number;
-        dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
-        mediaTiming: string | null;
-        responseType: string | null;
-        crmStageId: string | null;
-    }[] | {
         log: string | null;
-        name: string | null;
         id: string;
         phone: string;
         currentState: string | null;
         organizationId: string;
         agentId: string;
         createdAt: Date;
+        name: string | null;
         updatedAt: Date;
         notes: string | null;
         status: import(".prisma/client").$Enums.LeadStatus;
@@ -81,28 +61,51 @@ export declare class AdminController {
         zapSignStatus: string | null;
         birthDate: Date | null;
         rg: string | null;
+        crmStageId: string | null;
+        conversationSummary: string | null;
     }[] | {
         id: string;
-        type: import(".prisma/client").$Enums.KnowledgeType;
         organizationId: string;
         agentId: string;
         createdAt: Date;
         updatedAt: Date;
         title: string;
+        type: import(".prisma/client").$Enums.KnowledgeType;
         content: string;
         fileUrl: string | null;
         fileName: string | null;
         fileSize: number | null;
+    }[] | {
+        id: string;
+        organizationId: string;
+        agentId: string;
+        createdAt: Date;
+        name: string;
+        updatedAt: Date;
+        crmStageId: string | null;
+        prohibitions: string | null;
+        missionPrompt: string;
+        availableRoutes: import("@prisma/client/runtime/library").JsonValue;
+        dataKey: string | null;
+        dataDescription: string | null;
+        dataType: string | null;
+        mediaId: string | null;
+        tools: string | null;
+        crmStatus: string | null;
+        order: number;
+        dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
+        mediaTiming: string | null;
+        responseType: string | null;
     }[] | ({
         lead: {
             log: string | null;
-            name: string | null;
             id: string;
             phone: string;
             currentState: string | null;
             organizationId: string;
             agentId: string;
             createdAt: Date;
+            name: string | null;
             updatedAt: Date;
             notes: string | null;
             status: import(".prisma/client").$Enums.LeadStatus;
@@ -121,16 +124,18 @@ export declare class AdminController {
             zapSignStatus: string | null;
             birthDate: Date | null;
             rg: string | null;
+            crmStageId: string | null;
+            conversationSummary: string | null;
         } | null;
     } & {
         id: string;
-        type: string;
         organizationId: string;
         leadId: string | null;
         createdAt: Date;
         updatedAt: Date;
         title: string;
         duration: number;
+        type: string;
         location: string | null;
         meetingLink: string | null;
         notes: string | null;
@@ -143,13 +148,13 @@ export declare class AdminController {
     })[] | ({
         lead: {
             log: string | null;
-            name: string | null;
             id: string;
             phone: string;
             currentState: string | null;
             organizationId: string;
             agentId: string;
             createdAt: Date;
+            name: string | null;
             updatedAt: Date;
             notes: string | null;
             status: import(".prisma/client").$Enums.LeadStatus;
@@ -168,6 +173,8 @@ export declare class AdminController {
             zapSignStatus: string | null;
             birthDate: Date | null;
             rg: string | null;
+            crmStageId: string | null;
+            conversationSummary: string | null;
         } | null;
         _count: {
             messages: number;

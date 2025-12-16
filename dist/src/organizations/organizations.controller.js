@@ -53,6 +53,20 @@ let OrganizationsController = class OrganizationsController {
         }
         return this.organizationsService.remove(id);
     }
+    async saveZapSignConfig(id, data, req) {
+        const { role, organizationId } = req.user;
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new common_1.ForbiddenException('Sem permissão para configurar esta organização');
+        }
+        return this.organizationsService.updateZapSignConfig(id, data);
+    }
+    async testZapSignConfig(id, data, req) {
+        const { role, organizationId } = req.user;
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new common_1.ForbiddenException('Sem permissão para testar conexão desta organização');
+        }
+        return this.organizationsService.testZapSignConnection(data.apiToken);
+    }
 };
 exports.OrganizationsController = OrganizationsController;
 __decorate([
@@ -96,6 +110,24 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], OrganizationsController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Post)(':id/zapsign'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], OrganizationsController.prototype, "saveZapSignConfig", null);
+__decorate([
+    (0, common_1.Post)(':id/zapsign/test'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], OrganizationsController.prototype, "testZapSignConfig", null);
 exports.OrganizationsController = OrganizationsController = __decorate([
     (0, common_1.Controller)('organizations'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
