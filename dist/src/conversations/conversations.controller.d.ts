@@ -97,6 +97,9 @@ export declare class ConversationsController {
             fsmStateDeciderPrompt: string | null;
             fsmValidatorPrompt: string | null;
             audioResponseEnabled: boolean;
+            aiControlEnabled: boolean;
+            aiDisableEmoji: string | null;
+            aiEnableEmoji: string | null;
             zapSignFieldMapping: import("@prisma/client/runtime/library").JsonValue | null;
             zapSignTriggerCrmStageId: string | null;
         };
