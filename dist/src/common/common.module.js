@@ -22,6 +22,7 @@ const ai_module_1 = require("../ai/ai.module");
 const integrations_module_1 = require("../integrations/integrations.module");
 const storage_service_1 = require("./services/storage.service");
 const pdf_service_1 = require("./services/pdf.service");
+const media_processor_service_1 = require("./services/media-processor.service");
 let CommonModule = class CommonModule {
 };
 exports.CommonModule = CommonModule;
@@ -41,6 +42,7 @@ exports.CommonModule = CommonModule = __decorate([
             crm_automation_service_1.CRMAutomationService,
             storage_service_1.StorageService,
             pdf_service_1.PdfService,
+            media_processor_service_1.MediaProcessorService,
         ],
         exports: [
             debug_service_1.DebugService,
@@ -54,6 +56,7 @@ exports.CommonModule = CommonModule = __decorate([
             crm_automation_service_1.CRMAutomationService,
             storage_service_1.StorageService,
             pdf_service_1.PdfService,
+            media_processor_service_1.MediaProcessorService,
         ],
     })
 ], CommonModule);

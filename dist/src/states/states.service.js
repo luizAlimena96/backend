@@ -29,13 +29,13 @@ let StatesService = class StatesService {
     async update(id, data) {
         try {
             console.log(`[StatesService] Updating state ${id} with data:`, data);
-            const { name, missionPrompt, availableRoutes, dataKey, dataDescription, dataType, mediaId, tools, prohibitions, responseType, crmStatus, order, crmStageId, mediaTiming, dataCollections } = data;
+            const { name, missionPrompt, availableRoutes, dataKey, dataDescription, dataType, mediaId, tools, prohibitions, responseType, crmStatus, order, crmStageId, mediaTiming, dataCollections, mediaItems } = data;
             return await this.prisma.state.update({
                 where: { id },
                 data: {
                     name, missionPrompt, availableRoutes, dataKey, dataDescription,
                     dataType, mediaId, tools, prohibitions, responseType, crmStatus, order: order ? parseInt(order.toString()) : undefined,
-                    crmStageId, mediaTiming, dataCollections
+                    crmStageId, mediaTiming, dataCollections, mediaItems
                 }
             });
         }

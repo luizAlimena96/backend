@@ -23,6 +23,7 @@ export declare class StatesService {
         dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
         mediaTiming: string | null;
         responseType: string | null;
+        mediaItems: import("@prisma/client/runtime/library").JsonValue | null;
     }[]>;
     create(data: any): Promise<{
         id: string;
@@ -45,6 +46,7 @@ export declare class StatesService {
         dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
         mediaTiming: string | null;
         responseType: string | null;
+        mediaItems: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     update(id: string, data: any): Promise<{
         id: string;
@@ -67,6 +69,7 @@ export declare class StatesService {
         dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
         mediaTiming: string | null;
         responseType: string | null;
+        mediaItems: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     delete(id: string): Promise<{
         success: boolean;

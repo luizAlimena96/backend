@@ -24,7 +24,7 @@ export class StatesService {
       const {
         name, missionPrompt, availableRoutes, dataKey, dataDescription,
         dataType, mediaId, tools, prohibitions, responseType, crmStatus, order,
-        crmStageId, mediaTiming, dataCollections
+        crmStageId, mediaTiming, dataCollections, mediaItems
       } = data;
 
       return await this.prisma.state.update({
@@ -32,7 +32,7 @@ export class StatesService {
         data: {
           name, missionPrompt, availableRoutes, dataKey, dataDescription,
           dataType, mediaId, tools, prohibitions, responseType, crmStatus, order: order ? parseInt(order.toString()) : undefined,
-          crmStageId, mediaTiming, dataCollections
+          crmStageId, mediaTiming, dataCollections, mediaItems
         }
       });
     } catch (error) {

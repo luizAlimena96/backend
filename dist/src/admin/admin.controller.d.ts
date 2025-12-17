@@ -96,6 +96,7 @@ export declare class AdminController {
         dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
         mediaTiming: string | null;
         responseType: string | null;
+        mediaItems: import("@prisma/client/runtime/library").JsonValue | null;
     }[] | ({
         lead: {
             log: string | null;

@@ -8,6 +8,7 @@ import { HttpService } from '@nestjs/axios';
 import { StorageService } from '../../common/services/storage.service';
 import { PdfService } from '../../common/services/pdf.service';
 import { ElevenLabsService } from '../../integrations/elevenlabs/elevenlabs.service';
+import { MediaProcessorService } from '../../common/services/media-processor.service';
 import { firstValueFrom } from 'rxjs';
 import * as crypto from 'crypto';
 
@@ -23,6 +24,7 @@ export class WhatsAppMessageService {
         private storageService: StorageService,
         private pdfService: PdfService,
         private elevenLabsService: ElevenLabsService,
+        private mediaProcessor: MediaProcessorService,
     ) { }
 
     async processIncomingMessage(webhookData: any): Promise<void> {
@@ -290,57 +292,160 @@ export class WhatsAppMessageService {
                 { maxTokens: 500 }
             );
 
-            // 12. Split response into parts (if needed)
-            const responseParts = aiResponse.split(/\n|\\\n|\/n/).filter(part => part.trim().length > 0);
-            if (responseParts.length === 0) {
-                responseParts.push(aiResponse);
+            // 12. Process and send state media items (if any)
+            const stateMediaItems = nextState?.mediaItems as any[] || [];
+            const mediaTiming = nextState?.mediaTiming || 'after'; // default to 'after'
+
+            // Helper function to send media items
+            const sendMediaItems = async () => {
+                if (stateMediaItems.length > 0) {
+                    console.log(`[WhatsApp] 📎 Processing ${stateMediaItems.length} media item(s) from state`);
+
+                    for (const mediaItem of stateMediaItems) {
+                        try {
+                            const { url, type, caption, fileName } = mediaItem;
+
+                            // Process URL (convert Google Drive if needed)
+                            const processedMedia = await this.mediaProcessor.processMediaUrl(url, {
+                                type: type || undefined
+                            });
+
+                            console.log(`[WhatsApp] 📤 Sending ${processedMedia.type}: ${processedMedia.fileName}`);
+
+                            // Send based on media type
+                            switch (processedMedia.type) {
+                                case 'image':
+                                    await this.whatsappService.sendImage(
+                                        instanceName,
+                                        phone,
+                                        processedMedia.url,
+                                        caption
+                                    );
+                                    break;
+                                case 'video':
+                                    await this.whatsappService.sendVideo(
+                                        instanceName,
+                                        phone,
+                                        processedMedia.url,
+                                        caption
+                                    );
+                                    break;
+                                case 'document':
+                                    await this.whatsappService.sendDocument(
+                                        instanceName,
+                                        phone,
+                                        processedMedia.url,
+                                        fileName || processedMedia.fileName,
+                                        caption
+                                    );
+                                    break;
+                                case 'audio':
+                                    await this.whatsappService.sendAudio(
+                                        instanceName,
+                                        phone,
+                                        processedMedia.url
+                                    );
+                                    break;
+                            }
+
+                            console.log(`[WhatsApp] ✅ Sent ${processedMedia.type} successfully`);
+                        } catch (error) {
+                            console.error('[WhatsApp] ❌ Error sending media item:', error);
+                            // Continue with next media item even if one fails
+                        }
+                    }
+                }
+            };
+
+            // Send media based on timing
+            if (mediaTiming === 'before') {
+                await sendMediaItems();
             }
 
-            // 13. Save and send each part
-            for (const part of responseParts) {
-                const trimmedPart = part.trim();
+            // 13. Split response into parts (if needed) - only if not 'only' timing
+            const shouldSendText = mediaTiming !== 'only';
 
-                // Debug: Check ElevenLabs credentials
-                console.log('[WhatsApp] Debug - audioResponseEnabled:', agent.audioResponseEnabled);
-                console.log('[WhatsApp] Debug - elevenLabsApiKey:', agent.organization.elevenLabsApiKey ? 'EXISTS' : 'MISSING');
-                console.log('[WhatsApp] Debug - elevenLabsVoiceId:', agent.organization.elevenLabsVoiceId ? 'EXISTS' : 'MISSING');
-                console.log('[WhatsApp] Debug - userSentAudio:', userSentAudio);
+            if (shouldSendText) {
+                const responseParts = aiResponse.split(/\n|\\\n|\/n/).filter(part => part.trim().length > 0);
+                if (responseParts.length === 0) {
+                    responseParts.push(aiResponse);
+                }
 
-                // Decide if we should respond with audio
-                // Send audio ONLY if:
-                // 1. audioResponseEnabled is true AND
-                // 2. User sent audio (mirror input type) AND
-                // 3. Credentials exist
-                const shouldSendAudio = agent.audioResponseEnabled &&
-                    userSentAudio &&
-                    agent.organization.elevenLabsApiKey &&
-                    agent.organization.elevenLabsVoiceId;
+                // 14. Save and send each part
+                for (const part of responseParts) {
+                    const trimmedPart = part.trim();
 
-                console.log('[WhatsApp] Debug - shouldSendAudio:', shouldSendAudio);
+                    // Debug: Check ElevenLabs credentials
+                    console.log('[WhatsApp] Debug - audioResponseEnabled:', agent.audioResponseEnabled);
+                    console.log('[WhatsApp] Debug - elevenLabsApiKey:', agent.organization.elevenLabsApiKey ? 'EXISTS' : 'MISSING');
+                    console.log('[WhatsApp] Debug - elevenLabsVoiceId:', agent.organization.elevenLabsVoiceId ? 'EXISTS' : 'MISSING');
+                    console.log('[WhatsApp] Debug - userSentAudio:', userSentAudio);
 
-                if (shouldSendAudio) {
-                    try {
-                        // Generate audio using ElevenLabs
-                        // Non-null assertion is safe because shouldSendAudio checks for existence
-                        const audioBuffer = await this.elevenLabsService.textToSpeech(
-                            agent.organization.elevenLabsApiKey!,
-                            trimmedPart,
-                            agent.organization.elevenLabsVoiceId!
-                        );
+                    // Decide if we should respond with audio
+                    // Send audio ONLY if:
+                    // 1. audioResponseEnabled is true AND
+                    // 2. User sent audio (mirror input type) AND
+                    // 3. Credentials exist
+                    const shouldSendAudio = agent.audioResponseEnabled &&
+                        userSentAudio &&
+                        agent.organization.elevenLabsApiKey &&
+                        agent.organization.elevenLabsVoiceId;
 
-                        // Save audio file
-                        const audioFileName = `response-${crypto.randomUUID()}.mp3`;
-                        const audioPath = await this.storageService.saveFile(audioBuffer, audioFileName, 'audio/mpeg');
+                    console.log('[WhatsApp] Debug - shouldSendAudio:', shouldSendAudio);
 
-                        // Build full URL for WhatsApp (Evolution API needs accessible URL)
-                        const fullAudioUrl = process.env.BACKEND_URL
-                            ? `${process.env.BACKEND_URL}${audioPath}`
-                            : audioPath;
+                    if (shouldSendAudio) {
+                        try {
+                            // Generate audio using ElevenLabs
+                            // Non-null assertion is safe because shouldSendAudio checks for existence
+                            const audioBuffer = await this.elevenLabsService.textToSpeech(
+                                agent.organization.elevenLabsApiKey!,
+                                trimmedPart,
+                                agent.organization.elevenLabsVoiceId!
+                            );
 
-                        // Send ONLY audio via WhatsApp
-                        await this.whatsappService.sendMedia(instanceName, phone, fullAudioUrl, trimmedPart);
+                            // Save audio file
+                            const audioFileName = `response-${crypto.randomUUID()}.mp3`;
+                            const audioPath = await this.storageService.saveFile(audioBuffer, audioFileName, 'audio/mpeg');
 
-                        // Save audio message to database
+                            // Build full URL for WhatsApp (Evolution API needs accessible URL)
+                            const fullAudioUrl = process.env.BACKEND_URL
+                                ? `${process.env.BACKEND_URL}${audioPath}`
+                                : audioPath;
+
+                            // Send ONLY audio via WhatsApp
+                            await this.whatsappService.sendMedia(instanceName, phone, fullAudioUrl, trimmedPart);
+
+                            // Save audio message to database
+                            await this.prisma.message.create({
+                                data: {
+                                    conversationId: conversation.id,
+                                    content: trimmedPart,
+                                    fromMe: true,
+                                    type: 'TEXT',
+                                    messageId: crypto.randomUUID(),
+                                    thought: fsmDecision.reasoning.join('\n'),
+                                },
+                            });
+
+                            console.log('[WhatsApp] Sent audio response via ElevenLabs');
+                        } catch (error) {
+                            console.error('[WhatsApp] TTS failed, falling back to text:', error);
+
+                            // Fallback: send as text
+                            await this.prisma.message.create({
+                                data: {
+                                    conversationId: conversation.id,
+                                    content: trimmedPart,
+                                    fromMe: true,
+                                    type: 'TEXT',
+                                    messageId: crypto.randomUUID(),
+                                    thought: fsmDecision.reasoning.join('\n'),
+                                },
+                            });
+                            await this.whatsappService.sendMessage(instanceName, phone, trimmedPart);
+                        }
+                    } else {
+                        // Send ONLY text
                         await this.prisma.message.create({
                             data: {
                                 conversationId: conversation.id,
@@ -352,41 +457,17 @@ export class WhatsAppMessageService {
                             },
                         });
 
-                        console.log('[WhatsApp] Sent audio response via ElevenLabs');
-                    } catch (error) {
-                        console.error('[WhatsApp] TTS failed, falling back to text:', error);
-
-                        // Fallback: send as text
-                        await this.prisma.message.create({
-                            data: {
-                                conversationId: conversation.id,
-                                content: trimmedPart,
-                                fromMe: true,
-                                type: 'TEXT',
-                                messageId: crypto.randomUUID(),
-                                thought: fsmDecision.reasoning.join('\n'),
-                            },
-                        });
                         await this.whatsappService.sendMessage(instanceName, phone, trimmedPart);
                     }
-                } else {
-                    // Send ONLY text
-                    await this.prisma.message.create({
-                        data: {
-                            conversationId: conversation.id,
-                            content: trimmedPart,
-                            fromMe: true,
-                            type: 'TEXT',
-                            messageId: crypto.randomUUID(),
-                            thought: fsmDecision.reasoning.join('\n'),
-                        },
-                    });
-
-                    await this.whatsappService.sendMessage(instanceName, phone, trimmedPart);
                 }
             }
 
-            console.log(`[WhatsApp] ✅ Processed message from ${phone}, sent ${responseParts.length} response(s)`);
+            // Send media after text if timing is 'after' (default) or 'only'
+            if (mediaTiming === 'after' || mediaTiming === 'only') {
+                await sendMediaItems();
+            }
+
+            console.log(`[WhatsApp] ✅ Processed message from ${phone}`);
         } catch (error) {
             console.error('[WhatsApp] Error processing message:', error);
             throw error;

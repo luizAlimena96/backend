@@ -85,11 +85,11 @@ export declare class UsersController {
         name: string;
         updatedAt: Date;
         email: string;
+        image: string | null;
         password: string;
         resetToken: string | null;
         role: import(".prisma/client").$Enums.UserRole;
         allowedTabs: import("@prisma/client/runtime/library").JsonValue | null;
-        image: string | null;
         resetTokenExpiry: Date | null;
     }>;
 }

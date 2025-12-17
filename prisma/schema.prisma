@@ -564,6 +564,7 @@ model State {
   prohibitions    String?
   responseType    String?
   crmStageId      String?
+  mediaItems      Json?
   followUps       AgentFollowUp[]
   notifications   AgentNotification[]
   crmAutomations  CRMAutomation[]

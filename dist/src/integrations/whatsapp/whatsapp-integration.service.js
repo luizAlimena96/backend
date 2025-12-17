@@ -32,6 +32,18 @@ let WhatsAppIntegrationService = class WhatsAppIntegrationService {
     async getQRCode(instanceName) {
         return this.evolutionAPI.getQRCode(instanceName);
     }
+    async sendImage(instanceName, to, imageUrl, caption) {
+        return this.evolutionAPI.sendImage(instanceName, to, imageUrl, caption);
+    }
+    async sendVideo(instanceName, to, videoUrl, caption) {
+        return this.evolutionAPI.sendVideo(instanceName, to, videoUrl, caption);
+    }
+    async sendDocument(instanceName, to, documentUrl, fileName, caption) {
+        return this.evolutionAPI.sendDocument(instanceName, to, documentUrl, fileName, caption);
+    }
+    async sendAudio(instanceName, to, audioUrl) {
+        return this.evolutionAPI.sendAudio(instanceName, to, audioUrl);
+    }
 };
 exports.WhatsAppIntegrationService = WhatsAppIntegrationService;
 exports.WhatsAppIntegrationService = WhatsAppIntegrationService = __decorate([

@@ -13,6 +13,7 @@ import { AIModule } from '../ai/ai.module';
 import { IntegrationsModule } from '../integrations/integrations.module';
 import { StorageService } from './services/storage.service';
 import { PdfService } from './services/pdf.service';
+import { MediaProcessorService } from './services/media-processor.service';
 
 @Global()
 @Module({
@@ -29,6 +30,7 @@ import { PdfService } from './services/pdf.service';
         CRMAutomationService,
         StorageService,
         PdfService,
+        MediaProcessorService,
     ],
     exports: [
         DebugService,
@@ -42,6 +44,7 @@ import { PdfService } from './services/pdf.service';
         CRMAutomationService,
         StorageService,
         PdfService,
+        MediaProcessorService,
     ],
 })
 export class CommonModule { }

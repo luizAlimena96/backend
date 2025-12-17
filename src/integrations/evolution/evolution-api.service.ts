@@ -107,6 +107,114 @@ export class EvolutionAPIService {
         }
     }
 
+    async sendImage(instanceName: string, to: string, imageUrl: string, caption?: string): Promise<any> {
+        try {
+            const response = await firstValueFrom(
+                this.httpService.post(
+                    `${this.getBaseUrl()}/message/sendMedia/${instanceName}`,
+                    {
+                        number: to,
+                        mediatype: 'image',
+                        media: imageUrl,
+                        caption,
+                    },
+                    {
+                        headers: {
+                            apikey: this.getApiKey(),
+                            'Content-Type': 'application/json',
+                        },
+                    }
+                )
+            );
+
+            return response.data;
+        } catch (error) {
+            console.error('Evolution API send image error:', error);
+            throw error;
+        }
+    }
+
+    async sendVideo(instanceName: string, to: string, videoUrl: string, caption?: string): Promise<any> {
+        try {
+            const response = await firstValueFrom(
+                this.httpService.post(
+                    `${this.getBaseUrl()}/message/sendMedia/${instanceName}`,
+                    {
+                        number: to,
+                        mediatype: 'video',
+                        media: videoUrl,
+                        caption,
+                    },
+                    {
+                        headers: {
+                            apikey: this.getApiKey(),
+                            'Content-Type': 'application/json',
+                        },
+                    }
+                )
+            );
+
+            return response.data;
+        } catch (error) {
+            console.error('Evolution API send video error:', error);
+            throw error;
+        }
+    }
+
+    async sendDocument(instanceName: string, to: string, documentUrl: string, fileName?: string, caption?: string): Promise<any> {
+        try {
+            const response = await firstValueFrom(
+                this.httpService.post(
+                    `${this.getBaseUrl()}/message/sendMedia/${instanceName}`,
+                    {
+                        number: to,
+                        mediatype: 'document',
+                        media: documentUrl,
+                        fileName: fileName || 'document',
+                        caption,
+                    },
+                    {
+                        headers: {
+                            apikey: this.getApiKey(),
+                            'Content-Type': 'application/json',
+                        },
+                    }
+                )
+            );
+
+            return response.data;
+        } catch (error) {
+            console.error('Evolution API send document error:', error);
+            throw error;
+        }
+    }
+
+    async sendAudio(instanceName: string, to: string, audioUrl: string): Promise<any> {
+        try {
+            const response = await firstValueFrom(
+                this.httpService.post(
+                    `${this.getBaseUrl()}/message/sendMedia/${instanceName}`,
+                    {
+                        number: to,
+                        mediatype: 'audio',
+                        media: audioUrl,
+                    },
+                    {
+                        headers: {
+                            apikey: this.getApiKey(),
+                            'Content-Type': 'application/json',
+                        },
+                    }
+                )
+            );
+
+            return response.data;
+        } catch (error) {
+            console.error('Evolution API send audio error:', error);
+            throw error;
+        }
+    }
+
     async getInstanceStatus(instanceName: string): Promise<any> {
         try {
             const response = await firstValueFrom(

@@ -446,6 +446,7 @@ export declare class AgentsService {
             dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
             mediaTiming: string | null;
             responseType: string | null;
+            mediaItems: import("@prisma/client/runtime/library").JsonValue | null;
         } | {
             id: string;
             organizationId: string;
@@ -467,6 +468,7 @@ export declare class AgentsService {
             dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
             mediaTiming: string | null;
             responseType: string | null;
+            mediaItems: import("@prisma/client/runtime/library").JsonValue | null;
         })[] | {
             log: string | null;
             id: string;
@@ -628,6 +630,7 @@ export declare class AgentsService {
             dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
             mediaTiming: string | null;
             responseType: string | null;
+            mediaItems: import("@prisma/client/runtime/library").JsonValue | null;
         }[];
         [x: number]: never;
         [x: symbol]: never;
