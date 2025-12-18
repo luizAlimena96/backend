@@ -15,11 +15,15 @@ import {
 } from '@nestjs/common';
 import { OrganizationsService } from './organizations.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { WhatsAppIntegrationService } from '../integrations/whatsapp/whatsapp-integration.service';
 
 @Controller('organizations')
 @UseGuards(JwtAuthGuard)
 export class OrganizationsController {
-    constructor(private organizationsService: OrganizationsService) { }
+    constructor(
+        private organizationsService: OrganizationsService,
+        private whatsappService: WhatsAppIntegrationService,
+    ) { }
 
     @Get()
     async findAll(@Request() req) {
@@ -73,6 +77,68 @@ export class OrganizationsController {
     }
 
     // ============================================
+    // WHATSAPP CONNECTION
+    // ============================================
+
+    @Post(':id/whatsapp')
+    async connectWhatsApp(
+        @Param('id') id: string,
+        @Body() data: { alertPhone1?: string; alertPhone2?: string },
+        @Request() req
+    ) {
+        const { role, organizationId } = req.user;
+
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new ForbiddenException('Sem permissão para conectar WhatsApp desta organização');
+        }
+
+        try {
+            // Get organization to get/create instance name
+            const org = await this.organizationsService.findOne(id);
+            let instanceName = org.evolutionInstanceName;
+
+            // If no instance name, create one based on org id
+            if (!instanceName) {
+                instanceName = `org_${id.replace(/-/g, '_').substring(0, 20)}`;
+
+                // Try to create instance in Evolution API
+                try {
+                    await this.whatsappService.createInstance(instanceName);
+                } catch (createError: any) {
+                    // Instance might already exist, continue
+                    console.log('Instance creation result:', createError?.response?.data || createError.message);
+                }
+
+                // Save instance name to organization
+                await this.organizationsService.update(id, { evolutionInstanceName: instanceName }, role);
+            }
+
+            // Save alert phones if provided
+            if (data.alertPhone1 || data.alertPhone2) {
+                await this.organizationsService.update(id, {
+                    alertPhone1: data.alertPhone1 || undefined,
+                    alertPhone2: data.alertPhone2 || process.env.LEXA_PHONE || undefined,
+                }, role);
+            }
+
+            // Get QR code
+            const qrCode = await this.whatsappService.getQRCode(instanceName);
+
+            return {
+                success: true,
+                qrCode,
+                instanceName,
+            };
+        } catch (error: any) {
+            console.error('WhatsApp connect error:', error);
+            return {
+                success: false,
+                error: error?.response?.data?.message || error.message || 'Erro ao conectar WhatsApp',
+            };
+        }
+    }
+
+    // ============================================
     // ZAPSIGN CONFIG (Organization Level)
     // ============================================
 
@@ -104,5 +170,66 @@ export class OrganizationsController {
         }
 
         return this.organizationsService.testZapSignConnection(data.apiToken);
+    }
+
+    // ============================================
+    // USER MANAGEMENT (Organization Level)
+    // ============================================
+
+    @Get(':id/users')
+    async listUsers(@Param('id') id: string, @Request() req) {
+        const { role, organizationId } = req.user;
+
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new ForbiddenException('Sem permissão para ver usuários desta organização');
+        }
+
+        return this.organizationsService.getUsers(id);
+    }
+
+    @Post(':id/users')
+    async createUser(
+        @Param('id') id: string,
+        @Body() data: { name: string; email: string; password: string; role?: string; allowedTabs?: string[] },
+        @Request() req
+    ) {
+        const { role, organizationId } = req.user;
+
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new ForbiddenException('Sem permissão para criar usuários nesta organização');
+        }
+
+        return this.organizationsService.createUser(id, data);
+    }
+
+    @Put(':id/users/:userId')
+    async updateUser(
+        @Param('id') id: string,
+        @Param('userId') userId: string,
+        @Body() data: any,
+        @Request() req
+    ) {
+        const { role, organizationId } = req.user;
+
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new ForbiddenException('Sem permissão para editar usuários desta organização');
+        }
+
+        return this.organizationsService.updateUser(userId, data);
+    }
+
+    @Delete(':id/users/:userId')
+    async deleteUser(
+        @Param('id') id: string,
+        @Param('userId') userId: string,
+        @Request() req
+    ) {
+        const { role, organizationId } = req.user;
+
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new ForbiddenException('Sem permissão para remover usuários desta organização');
+        }
+
+        return this.organizationsService.deleteUser(userId);
     }
 }

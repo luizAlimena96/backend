@@ -16,10 +16,13 @@ exports.OrganizationsController = void 0;
 const common_1 = require("@nestjs/common");
 const organizations_service_1 = require("./organizations.service");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
+const whatsapp_integration_service_1 = require("../integrations/whatsapp/whatsapp-integration.service");
 let OrganizationsController = class OrganizationsController {
     organizationsService;
-    constructor(organizationsService) {
+    whatsappService;
+    constructor(organizationsService, whatsappService) {
         this.organizationsService = organizationsService;
+        this.whatsappService = whatsappService;
     }
     async findAll(req) {
         const { id: userId, role, organizationId } = req.user;
@@ -53,6 +56,45 @@ let OrganizationsController = class OrganizationsController {
         }
         return this.organizationsService.remove(id);
     }
+    async connectWhatsApp(id, data, req) {
+        const { role, organizationId } = req.user;
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new common_1.ForbiddenException('Sem permissão para conectar WhatsApp desta organização');
+        }
+        try {
+            const org = await this.organizationsService.findOne(id);
+            let instanceName = org.evolutionInstanceName;
+            if (!instanceName) {
+                instanceName = `org_${id.replace(/-/g, '_').substring(0, 20)}`;
+                try {
+                    await this.whatsappService.createInstance(instanceName);
+                }
+                catch (createError) {
+                    console.log('Instance creation result:', createError?.response?.data || createError.message);
+                }
+                await this.organizationsService.update(id, { evolutionInstanceName: instanceName }, role);
+            }
+            if (data.alertPhone1 || data.alertPhone2) {
+                await this.organizationsService.update(id, {
+                    alertPhone1: data.alertPhone1 || undefined,
+                    alertPhone2: data.alertPhone2 || process.env.LEXA_PHONE || undefined,
+                }, role);
+            }
+            const qrCode = await this.whatsappService.getQRCode(instanceName);
+            return {
+                success: true,
+                qrCode,
+                instanceName,
+            };
+        }
+        catch (error) {
+            console.error('WhatsApp connect error:', error);
+            return {
+                success: false,
+                error: error?.response?.data?.message || error.message || 'Erro ao conectar WhatsApp',
+            };
+        }
+    }
     async saveZapSignConfig(id, data, req) {
         const { role, organizationId } = req.user;
         if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
@@ -66,6 +108,34 @@ let OrganizationsController = class OrganizationsController {
             throw new common_1.ForbiddenException('Sem permissão para testar conexão desta organização');
         }
         return this.organizationsService.testZapSignConnection(data.apiToken);
+    }
+    async listUsers(id, req) {
+        const { role, organizationId } = req.user;
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new common_1.ForbiddenException('Sem permissão para ver usuários desta organização');
+        }
+        return this.organizationsService.getUsers(id);
+    }
+    async createUser(id, data, req) {
+        const { role, organizationId } = req.user;
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new common_1.ForbiddenException('Sem permissão para criar usuários nesta organização');
+        }
+        return this.organizationsService.createUser(id, data);
+    }
+    async updateUser(id, userId, data, req) {
+        const { role, organizationId } = req.user;
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new common_1.ForbiddenException('Sem permissão para editar usuários desta organização');
+        }
+        return this.organizationsService.updateUser(userId, data);
+    }
+    async deleteUser(id, userId, req) {
+        const { role, organizationId } = req.user;
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new common_1.ForbiddenException('Sem permissão para remover usuários desta organização');
+        }
+        return this.organizationsService.deleteUser(userId);
     }
 };
 exports.OrganizationsController = OrganizationsController;
@@ -111,6 +181,15 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], OrganizationsController.prototype, "remove", null);
 __decorate([
+    (0, common_1.Post)(':id/whatsapp'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], OrganizationsController.prototype, "connectWhatsApp", null);
+__decorate([
     (0, common_1.Post)(':id/zapsign'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
@@ -128,9 +207,46 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], OrganizationsController.prototype, "testZapSignConfig", null);
+__decorate([
+    (0, common_1.Get)(':id/users'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], OrganizationsController.prototype, "listUsers", null);
+__decorate([
+    (0, common_1.Post)(':id/users'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], OrganizationsController.prototype, "createUser", null);
+__decorate([
+    (0, common_1.Put)(':id/users/:userId'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('userId')),
+    __param(2, (0, common_1.Body)()),
+    __param(3, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], OrganizationsController.prototype, "updateUser", null);
+__decorate([
+    (0, common_1.Delete)(':id/users/:userId'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('userId')),
+    __param(2, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", Promise)
+], OrganizationsController.prototype, "deleteUser", null);
 exports.OrganizationsController = OrganizationsController = __decorate([
     (0, common_1.Controller)('organizations'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    __metadata("design:paramtypes", [organizations_service_1.OrganizationsService])
+    __metadata("design:paramtypes", [organizations_service_1.OrganizationsService,
+        whatsapp_integration_service_1.WhatsAppIntegrationService])
 ], OrganizationsController);
 //# sourceMappingURL=organizations.controller.js.map

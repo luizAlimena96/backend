@@ -103,4 +103,14 @@ export declare class UsersController {
         allowedTabs: import("@prisma/client/runtime/library").JsonValue | null;
         resetTokenExpiry: Date | null;
     }>;
+    updateProfile(req: any, data: {
+        newPassword?: string;
+        name?: string;
+        email?: string;
+    }): Promise<{
+        id: string;
+        name: string;
+        email: string;
+        role: import(".prisma/client").$Enums.UserRole;
+    }>;
 }

@@ -1,7 +1,9 @@
 import { OrganizationsService } from './organizations.service';
+import { WhatsAppIntegrationService } from '../integrations/whatsapp/whatsapp-integration.service';
 export declare class OrganizationsController {
     private organizationsService;
-    constructor(organizationsService: OrganizationsService);
+    private whatsappService;
+    constructor(organizationsService: OrganizationsService, whatsappService: WhatsAppIntegrationService);
     findAll(req: any): Promise<{
         id: string;
         phone: string | null;
@@ -256,6 +258,20 @@ export declare class OrganizationsController {
     remove(id: string, req: any): Promise<{
         success: boolean;
     }>;
+    connectWhatsApp(id: string, data: {
+        alertPhone1?: string;
+        alertPhone2?: string;
+    }, req: any): Promise<{
+        success: boolean;
+        qrCode: string;
+        instanceName: string;
+        error?: undefined;
+    } | {
+        success: boolean;
+        error: any;
+        qrCode?: undefined;
+        instanceName?: undefined;
+    }>;
     saveZapSignConfig(id: string, data: {
         enabled: boolean;
         apiToken: string;
@@ -335,5 +351,48 @@ export declare class OrganizationsController {
     }, req: any): Promise<{
         success: boolean;
         message: string;
+    }>;
+    listUsers(id: string, req: any): Promise<{
+        id: string;
+        createdAt: Date;
+        name: string;
+        email: string;
+        role: import(".prisma/client").$Enums.UserRole;
+        allowedTabs: import("@prisma/client/runtime/library").JsonValue;
+    }[]>;
+    createUser(id: string, data: {
+        name: string;
+        email: string;
+        password: string;
+        role?: string;
+        allowedTabs?: string[];
+    }, req: any): Promise<{
+        id: string;
+        createdAt: Date;
+        name: string;
+        email: string;
+        role: import(".prisma/client").$Enums.UserRole;
+        allowedTabs: import("@prisma/client/runtime/library").JsonValue;
+    }>;
+    updateUser(id: string, userId: string, data: any, req: any): Promise<{
+        id: string;
+        name: string;
+        email: string;
+        role: import(".prisma/client").$Enums.UserRole;
+        allowedTabs: import("@prisma/client/runtime/library").JsonValue;
+    }>;
+    deleteUser(id: string, userId: string, req: any): Promise<{
+        id: string;
+        organizationId: string | null;
+        createdAt: Date;
+        name: string;
+        updatedAt: Date;
+        email: string;
+        image: string | null;
+        password: string;
+        resetToken: string | null;
+        role: import(".prisma/client").$Enums.UserRole;
+        allowedTabs: import("@prisma/client/runtime/library").JsonValue | null;
+        resetTokenExpiry: Date | null;
     }>;
 }

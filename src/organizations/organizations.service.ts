@@ -224,8 +224,79 @@ export class OrganizationsService {
         }
     }
 
+    // ============================================
+    // USER MANAGEMENT
+    // ============================================
+
+    async getUsers(organizationId: string) {
+        return this.prisma.user.findMany({
+            where: { organizationId },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                allowedTabs: true,
+                createdAt: true,
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+
+    async createUser(organizationId: string, data: { name: string; email: string; password: string; role?: string; allowedTabs?: string[] }) {
+        const bcrypt = await import('bcryptjs');
+        const hashedPassword = await bcrypt.hash(data.password, 10);
+
+        return this.prisma.user.create({
+            data: {
+                name: data.name,
+                email: data.email,
+                password: hashedPassword,
+                role: (data.role as any) || 'USER',
+                allowedTabs: data.allowedTabs || [],
+                organizationId,
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                allowedTabs: true,
+                createdAt: true,
+            },
+        });
+    }
+
+    async updateUser(userId: string, data: any) {
+        const { password, ...updateData } = data;
+
+        if (password && password.length > 0) {
+            const bcrypt = await import('bcryptjs');
+            updateData.password = await bcrypt.hash(password, 10);
+        }
+
+        return this.prisma.user.update({
+            where: { id: userId },
+            data: updateData,
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                allowedTabs: true,
+            },
+        });
+    }
+
+    async deleteUser(userId: string) {
+        return this.prisma.user.delete({
+            where: { id: userId },
+        });
+    }
+
     canAccessOrganization(userRole: string, userOrgId: string, targetOrgId: string): boolean {
         if (userRole === 'SUPER_ADMIN') return true;
         return userOrgId === targetOrgId;
     }
 }
+

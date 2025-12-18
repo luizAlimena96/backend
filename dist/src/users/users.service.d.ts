@@ -103,4 +103,42 @@ export declare class UsersService {
         allowedTabs: import("@prisma/client/runtime/library").JsonValue | null;
         resetTokenExpiry: Date | null;
     }>;
+    updateProfile(userId: string, data: {
+        newPassword?: string;
+        name?: string;
+        email?: string;
+    }): Promise<{
+        id: string;
+        name: string;
+        email: string;
+        role: import(".prisma/client").$Enums.UserRole;
+    }>;
+    createUser(organizationId: string, data: {
+        name: string;
+        email: string;
+        password: string;
+        role: string;
+        allowedTabs: string[];
+    }): Promise<{
+        id: string;
+        createdAt: Date;
+        name: string;
+        email: string;
+        role: import(".prisma/client").$Enums.UserRole;
+        allowedTabs: import("@prisma/client/runtime/library").JsonValue;
+    }>;
+    deleteUser(userId: string): Promise<{
+        id: string;
+        organizationId: string | null;
+        createdAt: Date;
+        name: string;
+        updatedAt: Date;
+        email: string;
+        image: string | null;
+        password: string;
+        resetToken: string | null;
+        role: import(".prisma/client").$Enums.UserRole;
+        allowedTabs: import("@prisma/client/runtime/library").JsonValue | null;
+        resetTokenExpiry: Date | null;
+    }>;
 }
