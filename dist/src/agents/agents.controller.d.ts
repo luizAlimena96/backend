@@ -74,9 +74,6 @@ export declare class AgentsController {
         fsmStateDeciderPrompt: string | null;
         fsmValidatorPrompt: string | null;
         audioResponseEnabled: boolean;
-        aiControlEnabled: boolean;
-        aiDisableEmoji: string | null;
-        aiEnableEmoji: string | null;
         zapSignFieldMapping: import("@prisma/client/runtime/library").JsonValue | null;
         zapSignTriggerCrmStageId: string | null;
     })[]>;
@@ -451,6 +448,7 @@ export declare class AgentsController {
             dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
             mediaTiming: string | null;
             responseType: string | null;
+            mediaItems: import("@prisma/client/runtime/library").JsonValue | null;
         } | {
             id: string;
             organizationId: string;
@@ -472,6 +470,7 @@ export declare class AgentsController {
             dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
             mediaTiming: string | null;
             responseType: string | null;
+            mediaItems: import("@prisma/client/runtime/library").JsonValue | null;
         })[] | {
             log: string | null;
             id: string;
@@ -633,6 +632,7 @@ export declare class AgentsController {
             dataCollections: import("@prisma/client/runtime/library").JsonValue | null;
             mediaTiming: string | null;
             responseType: string | null;
+            mediaItems: import("@prisma/client/runtime/library").JsonValue | null;
         }[];
         [x: number]: never;
         [x: symbol]: never;
@@ -689,9 +689,6 @@ export declare class AgentsController {
         fsmStateDeciderPrompt: string | null;
         fsmValidatorPrompt: string | null;
         audioResponseEnabled: boolean;
-        aiControlEnabled: boolean;
-        aiDisableEmoji: string | null;
-        aiEnableEmoji: string | null;
         zapSignFieldMapping: import("@prisma/client/runtime/library").JsonValue | null;
         zapSignTriggerCrmStageId: string | null;
     }>;
@@ -813,9 +810,6 @@ export declare class AgentsController {
         fsmStateDeciderPrompt: string | null;
         fsmValidatorPrompt: string | null;
         audioResponseEnabled: boolean;
-        aiControlEnabled: boolean;
-        aiDisableEmoji: string | null;
-        aiEnableEmoji: string | null;
         zapSignFieldMapping: import("@prisma/client/runtime/library").JsonValue | null;
         zapSignTriggerCrmStageId: string | null;
     }>;
@@ -872,9 +866,6 @@ export declare class AgentsController {
         fsmStateDeciderPrompt: string | null;
         fsmValidatorPrompt: string | null;
         audioResponseEnabled: boolean;
-        aiControlEnabled: boolean;
-        aiDisableEmoji: string | null;
-        aiEnableEmoji: string | null;
         zapSignFieldMapping: import("@prisma/client/runtime/library").JsonValue | null;
         zapSignTriggerCrmStageId: string | null;
     }>;
@@ -941,9 +932,6 @@ export declare class AgentsController {
         fsmStateDeciderPrompt: string | null;
         fsmValidatorPrompt: string | null;
         audioResponseEnabled: boolean;
-        aiControlEnabled: boolean;
-        aiDisableEmoji: string | null;
-        aiEnableEmoji: string | null;
         zapSignFieldMapping: import("@prisma/client/runtime/library").JsonValue | null;
         zapSignTriggerCrmStageId: string | null;
     }>;
@@ -1009,9 +997,6 @@ export declare class AgentsController {
         fsmStateDeciderPrompt: string | null;
         fsmValidatorPrompt: string | null;
         audioResponseEnabled: boolean;
-        aiControlEnabled: boolean;
-        aiDisableEmoji: string | null;
-        aiEnableEmoji: string | null;
         zapSignFieldMapping: import("@prisma/client/runtime/library").JsonValue | null;
         zapSignTriggerCrmStageId: string | null;
     }>;

@@ -31,6 +31,8 @@ let EvolutionAPIService = class EvolutionAPIService {
                     apikey: this.getApiKey(),
                     'Content-Type': 'application/json',
                 },
+                timeout: 30000,
+                signal: AbortSignal.timeout(30000),
             }));
             return response.data;
         }
@@ -45,6 +47,8 @@ let EvolutionAPIService = class EvolutionAPIService {
                 headers: {
                     apikey: this.getApiKey(),
                 },
+                timeout: 30000,
+                signal: AbortSignal.timeout(30000),
             }));
             return response.data.qrcode?.base64 || '';
         }
@@ -63,6 +67,8 @@ let EvolutionAPIService = class EvolutionAPIService {
                     apikey: this.getApiKey(),
                     'Content-Type': 'application/json',
                 },
+                timeout: 30000,
+                signal: AbortSignal.timeout(30000),
             }));
             return response.data;
         }
@@ -82,6 +88,8 @@ let EvolutionAPIService = class EvolutionAPIService {
                     apikey: this.getApiKey(),
                     'Content-Type': 'application/json',
                 },
+                timeout: 30000,
+                signal: AbortSignal.timeout(30000),
             }));
             return response.data;
         }
@@ -102,6 +110,8 @@ let EvolutionAPIService = class EvolutionAPIService {
                     apikey: this.getApiKey(),
                     'Content-Type': 'application/json',
                 },
+                timeout: 30000,
+                signal: AbortSignal.timeout(30000),
             }));
             return response.data;
         }
@@ -122,6 +132,8 @@ let EvolutionAPIService = class EvolutionAPIService {
                     apikey: this.getApiKey(),
                     'Content-Type': 'application/json',
                 },
+                timeout: 30000,
+                signal: AbortSignal.timeout(30000),
             }));
             return response.data;
         }
@@ -143,6 +155,8 @@ let EvolutionAPIService = class EvolutionAPIService {
                     apikey: this.getApiKey(),
                     'Content-Type': 'application/json',
                 },
+                timeout: 30000,
+                signal: AbortSignal.timeout(30000),
             }));
             return response.data;
         }
@@ -162,6 +176,8 @@ let EvolutionAPIService = class EvolutionAPIService {
                     apikey: this.getApiKey(),
                     'Content-Type': 'application/json',
                 },
+                timeout: 30000,
+                signal: AbortSignal.timeout(30000),
             }));
             return response.data;
         }
@@ -176,6 +192,8 @@ let EvolutionAPIService = class EvolutionAPIService {
                 headers: {
                     apikey: this.getApiKey(),
                 },
+                timeout: 30000,
+                signal: AbortSignal.timeout(30000),
             }));
             return response.data;
         }

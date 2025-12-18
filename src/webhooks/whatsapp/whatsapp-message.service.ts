@@ -68,7 +68,11 @@ export class WhatsAppMessageService {
                         // Download audio
                         console.log('[WhatsApp] Downloading audio...');
                         const response = await firstValueFrom(
-                            this.httpService.get(audioUrl, { responseType: 'arraybuffer' })
+                            this.httpService.get(audioUrl, {
+                                responseType: 'arraybuffer',
+                                timeout: 30000,
+                                signal: AbortSignal.timeout(30000),
+                            })
                         );
                         const audioBuffer = Buffer.from(response.data);
                         console.log('[WhatsApp] ✅ Audio downloaded, size:', audioBuffer.length, 'bytes');
@@ -110,7 +114,11 @@ export class WhatsAppMessageService {
                     if (imageUrl) {
                         // Download image
                         const response = await firstValueFrom(
-                            this.httpService.get(imageUrl, { responseType: 'arraybuffer' })
+                            this.httpService.get(imageUrl, {
+                                responseType: 'arraybuffer',
+                                timeout: 30000,
+                                signal: AbortSignal.timeout(30000),
+                            })
                         );
                         const imageBuffer = Buffer.from(response.data);
 
@@ -146,7 +154,11 @@ export class WhatsAppMessageService {
                     if (documentUrl && mimeType === 'application/pdf') {
                         // Download PDF
                         const response = await firstValueFrom(
-                            this.httpService.get(documentUrl, { responseType: 'arraybuffer' })
+                            this.httpService.get(documentUrl, {
+                                responseType: 'arraybuffer',
+                                timeout: 30000,
+                                signal: AbortSignal.timeout(30000),
+                            })
                         );
                         const pdfBuffer = Buffer.from(response.data);
 

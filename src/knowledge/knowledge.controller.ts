@@ -25,7 +25,7 @@ export class KnowledgeController {
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async upload(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: any,
     @Body('title') title: string,
     @Body('agentId') agentId: string,
     @Body('organizationId') organizationId: string,

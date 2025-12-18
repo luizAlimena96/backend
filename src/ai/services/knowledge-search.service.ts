@@ -63,11 +63,11 @@ export class KnowledgeSearchService {
             const embeddingString = `[${queryEmbedding.join(',')}]`;
 
             // Check if there are any chunks
-            const chunkCountResult = await this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
+            const chunkCountResult = await this.prisma.$queryRawUnsafe(
                 `SELECT COUNT(*) as count FROM knowledge_chunks WHERE "organizationId" = $1 AND "agentId" = $2`,
                 organizationId,
                 agentId
-            );
+            ) as Array<{ count: bigint }>;
             const chunkCount = Number(chunkCountResult[0]?.count || 0);
 
             console.log('[Knowledge Search] Total chunks in DB:', chunkCount);
@@ -78,24 +78,16 @@ export class KnowledgeSearchService {
             }
 
             // Check chunks with embeddings
-            const chunksWithEmbedding = await this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
+            const chunksWithEmbedding = await this.prisma.$queryRawUnsafe(
                 `SELECT COUNT(*) as count FROM knowledge_chunks WHERE "organizationId" = $1 AND "agentId" = $2 AND embedding IS NOT NULL`,
                 organizationId,
                 agentId
-            );
+            ) as Array<{ count: bigint }>;
             console.log('[Knowledge Search] Chunks with embeddings:', Number(chunksWithEmbedding[0]?.count || 0));
 
             // Vector similarity search with pgvector
             // <=> operator is cosine distance (1 - similarity)
-            const results = await this.prisma.$queryRawUnsafe<
-                Array<{
-                    id: string;
-                    content: string;
-                    knowledge_id: string;
-                    chunk_index: number;
-                    distance: number;
-                }>
-            >(
+            const results = await this.prisma.$queryRawUnsafe(
                 `SELECT 
                     kc.id,
                     kc.content,
@@ -112,7 +104,13 @@ export class KnowledgeSearchService {
                 organizationId,
                 agentId,
                 topK
-            );
+            ) as Array<{
+                id: string;
+                content: string;
+                knowledge_id: string;
+                chunk_index: number;
+                distance: number;
+            }>;
 
             console.log('[Knowledge Search] Raw query results:', results.length, 'chunks found');
 
@@ -175,19 +173,19 @@ export class KnowledgeSearchService {
     async getKnowledgeStats(agentId: string, organizationId: string): Promise<KnowledgeStats> {
         try {
             // Count total chunks
-            const totalResult = await this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
+            const totalResult = await this.prisma.$queryRawUnsafe(
                 `SELECT COUNT(*) as count FROM knowledge_chunks WHERE "organizationId" = $1 AND "agentId" = $2`,
                 organizationId,
                 agentId
-            );
+            ) as Array<{ count: bigint }>;
             const totalChunks = Number(totalResult[0]?.count || 0);
 
             // Count chunks with embeddings
-            const embeddingResult = await this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
+            const embeddingResult = await this.prisma.$queryRawUnsafe(
                 `SELECT COUNT(*) as count FROM knowledge_chunks WHERE "organizationId" = $1 AND "agentId" = $2 AND embedding IS NOT NULL`,
                 organizationId,
                 agentId
-            );
+            ) as Array<{ count: bigint }>;
             const chunksWithEmbeddings = Number(embeddingResult[0]?.count || 0);
 
             return {

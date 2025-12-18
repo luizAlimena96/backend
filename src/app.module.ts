@@ -2,6 +2,8 @@
 import { ConfigModule } from "@nestjs/config";
 import { HttpModule } from "@nestjs/axios";
 import { ScheduleModule } from "@nestjs/schedule";
+import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
+import { APP_GUARD } from "@nestjs/core";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { PrismaModule } from "./database/prisma.module";
@@ -33,6 +35,7 @@ import { UsageModule } from './usage/usage.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { TestAIModule } from './test-ai/test-ai.module';
 import { CalendarModule } from './calendar/calendar.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -41,6 +44,19 @@ import { CalendarModule } from './calendar/calendar.module';
       envFilePath: ".env",
     }),
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([{
+      name: 'short',
+      ttl: 1000,      // 1 segundo
+      limit: 10,      // 10 requisições
+    }, {
+      name: 'medium',
+      ttl: 60000,     // 1 minuto
+      limit: 100,     // 100 requisições
+    }, {
+      name: 'long',
+      ttl: 900000,    // 15 minutos
+      limit: 1000,    // 1000 requisições
+    }]),
     HttpModule.register({
       timeout: 30000,
       maxRedirects: 5,
@@ -74,8 +90,15 @@ import { CalendarModule } from './calendar/calendar.module';
     OrganizationsModule,
     TestAIModule,
     CalendarModule,
+    HealthModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule { }

@@ -25,6 +25,8 @@ export class EvolutionAPIService {
                             apikey: this.getApiKey(),
                             'Content-Type': 'application/json',
                         },
+                        timeout: 30000,
+                        signal: AbortSignal.timeout(30000),
                     }
                 )
             );
@@ -45,6 +47,8 @@ export class EvolutionAPIService {
                         headers: {
                             apikey: this.getApiKey(),
                         },
+                        timeout: 30000,
+                        signal: AbortSignal.timeout(30000),
                     }
                 )
             );
@@ -70,6 +74,8 @@ export class EvolutionAPIService {
                             apikey: this.getApiKey(),
                             'Content-Type': 'application/json',
                         },
+                        timeout: 30000,
+                        signal: AbortSignal.timeout(30000),
                     }
                 )
             );
@@ -96,6 +102,8 @@ export class EvolutionAPIService {
                             apikey: this.getApiKey(),
                             'Content-Type': 'application/json',
                         },
+                        timeout: 30000,
+                        signal: AbortSignal.timeout(30000),
                     }
                 )
             );
@@ -123,6 +131,8 @@ export class EvolutionAPIService {
                             apikey: this.getApiKey(),
                             'Content-Type': 'application/json',
                         },
+                        timeout: 30000,
+                        signal: AbortSignal.timeout(30000),
                     }
                 )
             );
@@ -150,6 +160,8 @@ export class EvolutionAPIService {
                             apikey: this.getApiKey(),
                             'Content-Type': 'application/json',
                         },
+                        timeout: 30000,
+                        signal: AbortSignal.timeout(30000),
                     }
                 )
             );
@@ -178,6 +190,8 @@ export class EvolutionAPIService {
                             apikey: this.getApiKey(),
                             'Content-Type': 'application/json',
                         },
+                        timeout: 30000,
+                        signal: AbortSignal.timeout(30000),
                     }
                 )
             );
@@ -204,6 +218,8 @@ export class EvolutionAPIService {
                             apikey: this.getApiKey(),
                             'Content-Type': 'application/json',
                         },
+                        timeout: 30000,
+                        signal: AbortSignal.timeout(30000),
                     }
                 )
             );
@@ -224,6 +240,8 @@ export class EvolutionAPIService {
                         headers: {
                             apikey: this.getApiKey(),
                         },
+                        timeout: 30000,
+                        signal: AbortSignal.timeout(30000),
                     }
                 )
             );

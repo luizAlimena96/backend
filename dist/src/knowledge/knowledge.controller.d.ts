@@ -35,7 +35,7 @@ export declare class KnowledgeController {
         fileName: string | null;
         fileSize: number | null;
     }>;
-    upload(file: Express.Multer.File, title: string, agentId: string, organizationId: string): Promise<{
+    upload(file: any, title: string, agentId: string, organizationId: string): Promise<{
         success: boolean;
         knowledge: {
             id: string;

@@ -17,12 +17,23 @@ const common_1 = require("@nestjs/common");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const axios_1 = require("@nestjs/axios");
 const rxjs_1 = require("rxjs");
+const proxy_request_dto_1 = require("./dto/proxy-request.dto");
 let CRMProxyController = class CRMProxyController {
     httpService;
     constructor(httpService) {
         this.httpService = httpService;
     }
     async proxyRequest(data) {
+        const allowedDomains = [
+            process.env.CRM_API_DOMAIN,
+            'calendar.google.com',
+            'www.googleapis.com',
+            'oauth2.googleapis.com',
+        ].filter(Boolean);
+        const url = new URL(data.url);
+        if (!allowedDomains.some(domain => url.hostname.endsWith(domain))) {
+            throw new common_1.BadRequestException(`Domain ${url.hostname} not allowed. Only whitelisted CRM and Google domains are permitted.`);
+        }
         const startTime = Date.now();
         try {
             const response = await (0, rxjs_1.firstValueFrom)(this.httpService.request({
@@ -31,6 +42,7 @@ let CRMProxyController = class CRMProxyController {
                 headers: data.headers,
                 data: data.body,
                 timeout: 30000,
+                signal: AbortSignal.timeout(30000),
             }));
             const responseTime = Date.now() - startTime;
             return {
@@ -70,7 +82,7 @@ __decorate([
     (0, common_1.Post)('proxy'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [proxy_request_dto_1.ProxyRequestDto]),
     __metadata("design:returntype", Promise)
 ], CRMProxyController.prototype, "proxyRequest", null);
 exports.CRMProxyController = CRMProxyController = __decorate([

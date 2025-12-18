@@ -2,19 +2,57 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+import helmet from 'helmet';
+import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-  // Enable CORS
+  // Security headers com Helmet
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+      },
+    },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+  }));
+
+  // CORS melhorado com validação de origem
   app.enableCors({
-    origin: configService.get<string>('FRONTEND_URL', 'http://localhost:3001'),
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        configService.get<string>('FRONTEND_URL'),
+        'http://localhost:3001',
+      ].filter(Boolean);
+
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    maxAge: 3600,
   });
 
-  app.use(require('body-parser').json({ limit: '10mb' }));
-  app.use(require('body-parser').urlencoded({ limit: '10mb', extended: true }));
+  // Body parser com limite reduzido (1MB padrão)
+  app.use(require('body-parser').json({ limit: '1mb' }));
+  app.use(require('body-parser').urlencoded({ limit: '1mb', extended: true }));
+
+  // Global timeout interceptor
+  app.useGlobalInterceptors(new TimeoutInterceptor());
 
   // Enable validation
   app.useGlobalPipes(
@@ -30,7 +68,8 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 3002);
   await app.listen(port);
 
-  console.log(` Backend is running on: http://localhost:${port}/api`);
+  console.log(`✅ Backend is running on: http://localhost:${port}/api`);
+  console.log(`🏥 Health check available at: http://localhost:${port}/api/health`);
 }
 
 bootstrap();
