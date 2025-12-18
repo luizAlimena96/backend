@@ -46,13 +46,22 @@ let FeedbackService = class FeedbackService {
         });
     }
     async create(data) {
+        const ratingToSeverity = (rating) => {
+            if (rating >= 5)
+                return 'CRITICAL';
+            if (rating === 4)
+                return 'HIGH';
+            if (rating === 3)
+                return 'MEDIUM';
+            return 'LOW';
+        };
         const feedbackData = {
             customer: data.customerName || data.customer,
             phone: data.phone,
             rating: data.rating || 3,
             message: data.comment || data.message,
             status: 'PENDING',
-            severity: data.severity || 'MEDIUM',
+            severity: data.severity || ratingToSeverity(data.rating || 3),
         };
         if (data.conversationId) {
             feedbackData.conversationId = data.conversationId;

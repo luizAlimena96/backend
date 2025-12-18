@@ -39,6 +39,14 @@ export class FeedbackService {
   }
 
   async create(data: any) {
+    // Map rating (1-5 stars) to severity
+    const ratingToSeverity = (rating: number): string => {
+      if (rating >= 5) return 'CRITICAL';
+      if (rating === 4) return 'HIGH';
+      if (rating === 3) return 'MEDIUM';
+      return 'LOW'; // 1-2 stars
+    };
+
     // Map frontend field names to database field names
     const feedbackData: any = {
       customer: data.customerName || data.customer,
@@ -46,7 +54,7 @@ export class FeedbackService {
       rating: data.rating || 3,
       message: data.comment || data.message,
       status: 'PENDING',
-      severity: data.severity || 'MEDIUM',
+      severity: data.severity || ratingToSeverity(data.rating || 3),
     };
 
     // Add optional fields

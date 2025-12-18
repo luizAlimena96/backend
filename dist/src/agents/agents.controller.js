@@ -31,7 +31,8 @@ let AgentsController = class AgentsController {
         return this.agentsService.findOne(id, include);
     }
     async create(data, req) {
-        return this.agentsService.create(data, req.user.id, req.user.organizationId);
+        const organizationId = data.organizationId || req.user.organizationId;
+        return this.agentsService.create(data, req.user.id, organizationId);
     }
     async update(id, data) {
         return this.agentsService.update(id, data);

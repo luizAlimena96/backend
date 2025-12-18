@@ -144,6 +144,7 @@ let FollowupsService = class FollowupsService {
                             organization: {
                                 select: {
                                     workingHours: true,
+                                    evolutionInstanceName: true,
                                 },
                             },
                         },
@@ -283,15 +284,28 @@ let FollowupsService = class FollowupsService {
         return true;
     }
     async sendFollowup(conversation, followup) {
+        const instanceName = followup.agent?.organization?.evolutionInstanceName;
+        const recipient = conversation.whatsapp;
+        if (!instanceName) {
+            console.error(`[Followups Service] ❌ No instance configured for agent ${followup.agentId}`);
+            if (conversation.leadId) {
+                await this.prisma.followupLog.create({
+                    data: {
+                        leadId: conversation.leadId,
+                        followupId: followup.id,
+                        message: `[ERRO] Instância não configurada para o agente`,
+                    },
+                });
+            }
+            return;
+        }
+        console.log(`[Followups] 📤 Preparing to send follow-up:`);
+        console.log(`  - Instance: ${instanceName}`);
+        console.log(`  - Recipient: ${recipient}`);
+        console.log(`  - Agent ID: ${followup.agentId}`);
+        console.log(`  - Follow-up ID: ${followup.id}`);
+        let messageToSend = followup.message;
         try {
-            const instanceName = followup.agent.instance;
-            const recipient = conversation.whatsapp;
-            console.log(`[Followups] 📤 Preparing to send follow-up:`);
-            console.log(`  - Instance: ${instanceName}`);
-            console.log(`  - Recipient: ${recipient}`);
-            console.log(`  - Agent ID: ${followup.agentId}`);
-            console.log(`  - Follow-up ID: ${followup.id}`);
-            let messageToSend = followup.message;
             if (followup.aiDecisionEnabled && followup.aiDecisionPrompt) {
                 console.log(`[Followups] 🤖 AI mode enabled - generating personalized message`);
                 try {
@@ -346,6 +360,16 @@ Gere uma mensagem de follow-up personalizada baseada neste contexto.`;
             }
             console.log(`  - Message: ${messageToSend.substring(0, 100)}...`);
             const isTestAI = recipient.startsWith('test_') || conversation.lead?.name?.includes('Test User');
+            if (conversation.leadId) {
+                await this.prisma.followupLog.create({
+                    data: {
+                        leadId: conversation.leadId,
+                        followupId: followup.id,
+                        message: messageToSend,
+                    },
+                });
+                console.log(`[Followups] ✅ Created followup log (prevents retry)`);
+            }
             await this.prisma.message.create({
                 data: {
                     messageId: `followup_${followup.id}_${Date.now()}`,
@@ -358,33 +382,34 @@ Gere uma mensagem de follow-up personalizada baseada neste contexto.`;
             });
             console.log(`[Followups] ✅ Saved follow-up message to conversation`);
             if (!isTestAI) {
-                if (followup.mediaType === 'text' || !followup.mediaType) {
-                    console.log(`[Followups] 📨 Sending text message via Evolution API...`);
-                    await this.whatsappService.sendMessage(instanceName, recipient, messageToSend);
+                try {
+                    if (followup.mediaType === 'text' || !followup.mediaType) {
+                        console.log(`[Followups] 📨 Sending text message via Evolution API...`);
+                        await this.whatsappService.sendMessage(instanceName, recipient, messageToSend);
+                    }
+                    else if (followup.mediaType === 'media' && followup.mediaUrl) {
+                        console.log(`[Followups] 📷 Sending media message via Evolution API...`);
+                        await this.whatsappService.sendMedia(instanceName, recipient, followup.mediaUrl, messageToSend);
+                    }
+                    console.log(`[Followups Service] ✅ Sent follow-up to ${recipient} via Evolution API`);
                 }
-                else if (followup.mediaType === 'media' && followup.mediaUrl) {
-                    console.log(`[Followups] 📷 Sending media message via Evolution API...`);
-                    await this.whatsappService.sendMedia(instanceName, recipient, followup.mediaUrl, messageToSend);
+                catch (sendError) {
+                    const statusCode = sendError?.response?.status || sendError?.status;
+                    if (statusCode >= 400 && statusCode < 500) {
+                        console.error(`[Followups Service] ❌ Permanent failure (${statusCode}): ${sendError.message}`);
+                        console.error(`[Followups Service] ⚠️ Instance "${instanceName}" may not exist or is offline`);
+                    }
+                    else {
+                        console.error(`[Followups Service] ⚠️ Temporary failure (${statusCode}): ${sendError.message}`);
+                    }
                 }
-                console.log(`[Followups Service] ✅ Sent follow-up to ${recipient} via Evolution API`);
             }
             else {
                 console.log(`[Followups] 🧪 Test AI detected - skipping Evolution API send`);
             }
-            if (conversation.leadId) {
-                await this.prisma.followupLog.create({
-                    data: {
-                        leadId: conversation.leadId,
-                        followupId: followup.id,
-                        message: messageToSend,
-                    },
-                });
-            }
         }
         catch (error) {
-            console.error(`[Followups Service] ❌ Error sending follow-up:`, error.message);
-            console.error(`[Followups Service] Full error:`, error);
-            throw error;
+            console.error(`[Followups Service] ❌ Error in follow-up preparation:`, error.message);
         }
     }
     checkWorkingHours(workingHours) {

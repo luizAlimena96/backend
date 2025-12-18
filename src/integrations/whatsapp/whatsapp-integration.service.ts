@@ -40,4 +40,8 @@ export class WhatsAppIntegrationService {
     async sendAudio(instanceName: string, to: string, audioUrl: string): Promise<any> {
         return this.evolutionAPI.sendAudio(instanceName, to, audioUrl);
     }
+
+    async getBase64FromMediaMessage(instanceName: string, messageKeyId: string): Promise<{ base64: string; mimetype: string } | null> {
+        return this.evolutionAPI.getBase64FromMediaMessage(instanceName, messageKeyId);
+    }
 }

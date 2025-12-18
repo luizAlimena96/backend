@@ -26,7 +26,6 @@ export class EvolutionAPIService {
                             'Content-Type': 'application/json',
                         },
                         timeout: 30000,
-                        signal: AbortSignal.timeout(30000),
                     }
                 )
             );
@@ -48,7 +47,6 @@ export class EvolutionAPIService {
                             apikey: this.getApiKey(),
                         },
                         timeout: 30000,
-                        signal: AbortSignal.timeout(30000),
                     }
                 )
             );
@@ -74,8 +72,7 @@ export class EvolutionAPIService {
                             apikey: this.getApiKey(),
                             'Content-Type': 'application/json',
                         },
-                        timeout: 30000,
-                        signal: AbortSignal.timeout(30000),
+                        timeout: 60000,
                     }
                 )
             );
@@ -103,7 +100,6 @@ export class EvolutionAPIService {
                             'Content-Type': 'application/json',
                         },
                         timeout: 30000,
-                        signal: AbortSignal.timeout(30000),
                     }
                 )
             );
@@ -132,7 +128,6 @@ export class EvolutionAPIService {
                             'Content-Type': 'application/json',
                         },
                         timeout: 30000,
-                        signal: AbortSignal.timeout(30000),
                     }
                 )
             );
@@ -161,7 +156,6 @@ export class EvolutionAPIService {
                             'Content-Type': 'application/json',
                         },
                         timeout: 30000,
-                        signal: AbortSignal.timeout(30000),
                     }
                 )
             );
@@ -191,7 +185,6 @@ export class EvolutionAPIService {
                             'Content-Type': 'application/json',
                         },
                         timeout: 30000,
-                        signal: AbortSignal.timeout(30000),
                     }
                 )
             );
@@ -202,28 +195,32 @@ export class EvolutionAPIService {
             throw error;
         }
     }
-
-    async sendAudio(instanceName: string, to: string, audioUrl: string): Promise<any> {
+    /**
+     * Send audio message using base64 encoded data
+     * Uses sendWhatsAppAudio endpoint which supports base64 audio
+     */
+    async sendAudio(instanceName: string, to: string, audioBase64: string): Promise<any> {
         try {
+            console.log('[Evolution API] Sending audio via sendWhatsAppAudio endpoint...');
             const response = await firstValueFrom(
                 this.httpService.post(
-                    `${this.getBaseUrl()}/message/sendMedia/${instanceName}`,
+                    `${this.getBaseUrl()}/message/sendWhatsAppAudio/${instanceName}`,
                     {
                         number: to,
-                        mediatype: 'audio',
-                        media: audioUrl,
+                        audio: audioBase64,
+                        encoding: true, // Indicates base64 encoded
                     },
                     {
                         headers: {
                             apikey: this.getApiKey(),
                             'Content-Type': 'application/json',
                         },
-                        timeout: 30000,
-                        signal: AbortSignal.timeout(30000),
+                        timeout: 60000, // Audio may take longer
                     }
                 )
             );
 
+            console.log('[Evolution API] Audio sent successfully');
             return response.data;
         } catch (error) {
             console.error('Evolution API send audio error:', error);
@@ -241,7 +238,6 @@ export class EvolutionAPIService {
                             apikey: this.getApiKey(),
                         },
                         timeout: 30000,
-                        signal: AbortSignal.timeout(30000),
                     }
                 )
             );
@@ -250,6 +246,47 @@ export class EvolutionAPIService {
         } catch (error) {
             console.error('Evolution API status error:', error);
             throw error;
+        }
+    }
+
+    /**
+     * Get Base64 encoded media from a WhatsApp message
+     * This is needed because WhatsApp media URLs are encrypted and cannot be downloaded directly
+     */
+    async getBase64FromMediaMessage(instanceName: string, messageKeyId: string): Promise<{ base64: string; mimetype: string } | null> {
+        try {
+            console.log('[Evolution API] Getting base64 from media message, keyId:', messageKeyId);
+            const response = await firstValueFrom(
+                this.httpService.post(
+                    `${this.getBaseUrl()}/chat/getBase64FromMediaMessage/${instanceName}`,
+                    {
+                        "message": {
+                            "key": {
+                                "id": messageKeyId
+                            }
+                        },
+                        "convertToMp4": false,
+                    },
+                    {
+                        headers: {
+                            apikey: this.getApiKey(),
+                            'Content-Type': 'application/json',
+                        },
+                        timeout: 60000,
+                    }
+                )
+            );
+
+            console.log('[Evolution API] Got base64 response:', {
+                hasBase64: !!response.data?.base64,
+                base64Length: response.data?.base64?.length || 0,
+                mimetype: response.data?.mimetype,
+            });
+
+            return response.data;
+        } catch (error) {
+            console.error('Evolution API getBase64FromMediaMessage error:', error);
+            return null;
         }
     }
 }

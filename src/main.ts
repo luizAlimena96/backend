@@ -31,17 +31,17 @@ async function bootstrap() {
     origin: (origin, callback) => {
       const allowedOrigins = [
         configService.get<string>('FRONTEND_URL'),
-        'http://localhost:3001',
       ].filter(Boolean);
 
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        console.warn(`🚫 CORS blocked origin: ${origin}`);
+        callback(null, false);
       }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     exposedHeaders: ['Content-Range', 'X-Content-Range'],
     maxAge: 3600,

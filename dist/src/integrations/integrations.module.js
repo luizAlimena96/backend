@@ -14,6 +14,7 @@ const google_calendar_service_1 = require("./google/google-calendar.service");
 const zapsign_service_1 = require("./zapsign/zapsign.service");
 const evolution_api_service_1 = require("./evolution/evolution-api.service");
 const whatsapp_integration_service_1 = require("./whatsapp/whatsapp-integration.service");
+const meta_leads_service_1 = require("./meta/meta-leads.service");
 let IntegrationsModule = class IntegrationsModule {
 };
 exports.IntegrationsModule = IntegrationsModule;
@@ -26,6 +27,7 @@ exports.IntegrationsModule = IntegrationsModule = __decorate([
             zapsign_service_1.ZapSignService,
             evolution_api_service_1.EvolutionAPIService,
             whatsapp_integration_service_1.WhatsAppIntegrationService,
+            meta_leads_service_1.MetaLeadsService,
         ],
         exports: [
             elevenlabs_service_1.ElevenLabsService,
@@ -33,6 +35,7 @@ exports.IntegrationsModule = IntegrationsModule = __decorate([
             zapsign_service_1.ZapSignService,
             evolution_api_service_1.EvolutionAPIService,
             whatsapp_integration_service_1.WhatsAppIntegrationService,
+            meta_leads_service_1.MetaLeadsService,
         ],
     })
 ], IntegrationsModule);

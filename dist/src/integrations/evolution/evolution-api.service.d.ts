@@ -11,6 +11,10 @@ export declare class EvolutionAPIService {
     sendImage(instanceName: string, to: string, imageUrl: string, caption?: string): Promise<any>;
     sendVideo(instanceName: string, to: string, videoUrl: string, caption?: string): Promise<any>;
     sendDocument(instanceName: string, to: string, documentUrl: string, fileName?: string, caption?: string): Promise<any>;
-    sendAudio(instanceName: string, to: string, audioUrl: string): Promise<any>;
+    sendAudio(instanceName: string, to: string, audioBase64: string): Promise<any>;
     getInstanceStatus(instanceName: string): Promise<any>;
+    getBase64FromMediaMessage(instanceName: string, messageKeyId: string): Promise<{
+        base64: string;
+        mimetype: string;
+    } | null>;
 }

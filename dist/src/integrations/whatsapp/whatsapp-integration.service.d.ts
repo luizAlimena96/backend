@@ -11,4 +11,8 @@ export declare class WhatsAppIntegrationService {
     sendVideo(instanceName: string, to: string, videoUrl: string, caption?: string): Promise<any>;
     sendDocument(instanceName: string, to: string, documentUrl: string, fileName?: string, caption?: string): Promise<any>;
     sendAudio(instanceName: string, to: string, audioUrl: string): Promise<any>;
+    getBase64FromMediaMessage(instanceName: string, messageKeyId: string): Promise<{
+        base64: string;
+        mimetype: string;
+    } | null>;
 }

@@ -116,6 +116,7 @@ export declare class AgentsService {
             email: string | null;
             phoneWith9: string | null;
             phoneNo9: string | null;
+            metaLeadgenId: string | null;
             address: string | null;
             contractDate: Date | null;
             extractedData: import("@prisma/client/runtime/library").JsonValue | null;
@@ -145,6 +146,7 @@ export declare class AgentsService {
             email: string | null;
             phoneWith9: string | null;
             phoneNo9: string | null;
+            metaLeadgenId: string | null;
             address: string | null;
             contractDate: Date | null;
             extractedData: import("@prisma/client/runtime/library").JsonValue | null;
@@ -486,6 +488,7 @@ export declare class AgentsService {
             email: string | null;
             phoneWith9: string | null;
             phoneNo9: string | null;
+            metaLeadgenId: string | null;
             address: string | null;
             contractDate: Date | null;
             extractedData: import("@prisma/client/runtime/library").JsonValue | null;
@@ -708,10 +711,10 @@ export declare class AgentsService {
             googleTokenExpiry: Date | null;
             workingHours: import("@prisma/client/runtime/library").JsonValue | null;
             slug: string;
+            evolutionInstanceName: string | null;
             settings: import("@prisma/client/runtime/library").JsonValue | null;
             evolutionApiUrl: string | null;
             evolutionApiKey: string | null;
-            evolutionInstanceName: string | null;
             whatsappConnected: boolean;
             whatsappQrCode: string | null;
             whatsappPhone: string | null;
@@ -749,6 +752,17 @@ export declare class AgentsService {
             whatsappLastConnected: Date | null;
             whatsappLastDisconnected: Date | null;
             whatsappMonitoringEnabled: boolean;
+            metaAccessToken: string | null;
+            metaVerifyToken: string | null;
+            metaGraphApiVersion: string | null;
+            metaPageId: string | null;
+            metaWelcomeMessage: string | null;
+            metaIntegrationEnabled: boolean;
+            datacrazyApiUrl: string | null;
+            datacrazyApiToken: string | null;
+            datacrazyTenantId: string | null;
+            datacrazyTagId: string | null;
+            datacrazyWebhookUrl: string | null;
         };
         user: {
             id: string;

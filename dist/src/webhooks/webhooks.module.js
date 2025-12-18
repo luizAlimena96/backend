@@ -11,7 +11,9 @@ const common_1 = require("@nestjs/common");
 const whatsapp_webhook_controller_1 = require("./whatsapp/whatsapp-webhook.controller");
 const ai_control_webhook_controller_1 = require("./ai-control/ai-control-webhook.controller");
 const zapsign_webhook_controller_1 = require("./zapsign/zapsign-webhook.controller");
+const meta_leads_webhook_controller_1 = require("./meta-leads/meta-leads-webhook.controller");
 const whatsapp_message_service_1 = require("./whatsapp/whatsapp-message.service");
+const meta_leads_processor_service_1 = require("./meta-leads/meta-leads-processor.service");
 const prisma_service_1 = require("../database/prisma.service");
 const ai_module_1 = require("../ai/ai.module");
 const integrations_module_1 = require("../integrations/integrations.module");
@@ -28,8 +30,9 @@ exports.WebhooksModule = WebhooksModule = __decorate([
             whatsapp_webhook_controller_1.WhatsAppWebhookController,
             ai_control_webhook_controller_1.AIControlWebhookController,
             zapsign_webhook_controller_1.ZapSignWebhookController,
+            meta_leads_webhook_controller_1.MetaLeadsWebhookController,
         ],
-        providers: [whatsapp_message_service_1.WhatsAppMessageService, prisma_service_1.PrismaService],
+        providers: [whatsapp_message_service_1.WhatsAppMessageService, meta_leads_processor_service_1.MetaLeadsProcessorService, prisma_service_1.PrismaService],
     })
 ], WebhooksModule);
 //# sourceMappingURL=webhooks.module.js.map

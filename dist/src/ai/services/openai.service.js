@@ -49,7 +49,7 @@ let OpenAIService = class OpenAIService {
     async transcribeAudio(apiKey, audioBase64) {
         const openai = new openai_1.default({ apiKey });
         const audioBuffer = Buffer.from(audioBase64, 'base64');
-        const file = new File([audioBuffer], 'audio.ogg', { type: 'audio/ogg' });
+        const file = await openai_1.default.toFile(audioBuffer, 'audio.ogg', { type: 'audio/ogg' });
         const transcription = await openai.audio.transcriptions.create({
             file,
             model: 'whisper-1',

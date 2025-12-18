@@ -18,8 +18,8 @@ export declare class OrganizationsService {
         googleCalendarEnabled: boolean;
         googleTokenExpiry: Date | null;
         slug: string;
-        evolutionApiUrl: string | null;
         evolutionInstanceName: string | null;
+        evolutionApiUrl: string | null;
         whatsappConnected: boolean;
         crmEnabled: boolean;
         crmType: string | null;
@@ -62,10 +62,10 @@ export declare class OrganizationsService {
         googleTokenExpiry: Date | null;
         workingHours: import("@prisma/client/runtime/library").JsonValue | null;
         slug: string;
+        evolutionInstanceName: string | null;
         settings: import("@prisma/client/runtime/library").JsonValue | null;
         evolutionApiUrl: string | null;
         evolutionApiKey: string | null;
-        evolutionInstanceName: string | null;
         whatsappConnected: boolean;
         whatsappQrCode: string | null;
         whatsappPhone: string | null;
@@ -103,6 +103,17 @@ export declare class OrganizationsService {
         whatsappLastConnected: Date | null;
         whatsappLastDisconnected: Date | null;
         whatsappMonitoringEnabled: boolean;
+        metaAccessToken: string | null;
+        metaVerifyToken: string | null;
+        metaGraphApiVersion: string | null;
+        metaPageId: string | null;
+        metaWelcomeMessage: string | null;
+        metaIntegrationEnabled: boolean;
+        datacrazyApiUrl: string | null;
+        datacrazyApiToken: string | null;
+        datacrazyTenantId: string | null;
+        datacrazyTagId: string | null;
+        datacrazyWebhookUrl: string | null;
     }>;
     create(data: any): Promise<{
         number: string | null;
@@ -121,10 +132,10 @@ export declare class OrganizationsService {
         googleTokenExpiry: Date | null;
         workingHours: import("@prisma/client/runtime/library").JsonValue | null;
         slug: string;
+        evolutionInstanceName: string | null;
         settings: import("@prisma/client/runtime/library").JsonValue | null;
         evolutionApiUrl: string | null;
         evolutionApiKey: string | null;
-        evolutionInstanceName: string | null;
         whatsappConnected: boolean;
         whatsappQrCode: string | null;
         whatsappPhone: string | null;
@@ -162,6 +173,17 @@ export declare class OrganizationsService {
         whatsappLastConnected: Date | null;
         whatsappLastDisconnected: Date | null;
         whatsappMonitoringEnabled: boolean;
+        metaAccessToken: string | null;
+        metaVerifyToken: string | null;
+        metaGraphApiVersion: string | null;
+        metaPageId: string | null;
+        metaWelcomeMessage: string | null;
+        metaIntegrationEnabled: boolean;
+        datacrazyApiUrl: string | null;
+        datacrazyApiToken: string | null;
+        datacrazyTenantId: string | null;
+        datacrazyTagId: string | null;
+        datacrazyWebhookUrl: string | null;
     }>;
     update(id: string, data: any, userRole: string): Promise<{
         number: string | null;
@@ -180,10 +202,10 @@ export declare class OrganizationsService {
         googleTokenExpiry: Date | null;
         workingHours: import("@prisma/client/runtime/library").JsonValue | null;
         slug: string;
+        evolutionInstanceName: string | null;
         settings: import("@prisma/client/runtime/library").JsonValue | null;
         evolutionApiUrl: string | null;
         evolutionApiKey: string | null;
-        evolutionInstanceName: string | null;
         whatsappConnected: boolean;
         whatsappQrCode: string | null;
         whatsappPhone: string | null;
@@ -221,6 +243,17 @@ export declare class OrganizationsService {
         whatsappLastConnected: Date | null;
         whatsappLastDisconnected: Date | null;
         whatsappMonitoringEnabled: boolean;
+        metaAccessToken: string | null;
+        metaVerifyToken: string | null;
+        metaGraphApiVersion: string | null;
+        metaPageId: string | null;
+        metaWelcomeMessage: string | null;
+        metaIntegrationEnabled: boolean;
+        datacrazyApiUrl: string | null;
+        datacrazyApiToken: string | null;
+        datacrazyTenantId: string | null;
+        datacrazyTagId: string | null;
+        datacrazyWebhookUrl: string | null;
     }>;
     remove(id: string): Promise<{
         success: boolean;
@@ -246,10 +279,10 @@ export declare class OrganizationsService {
         googleTokenExpiry: Date | null;
         workingHours: import("@prisma/client/runtime/library").JsonValue | null;
         slug: string;
+        evolutionInstanceName: string | null;
         settings: import("@prisma/client/runtime/library").JsonValue | null;
         evolutionApiUrl: string | null;
         evolutionApiKey: string | null;
-        evolutionInstanceName: string | null;
         whatsappConnected: boolean;
         whatsappQrCode: string | null;
         whatsappPhone: string | null;
@@ -287,6 +320,17 @@ export declare class OrganizationsService {
         whatsappLastConnected: Date | null;
         whatsappLastDisconnected: Date | null;
         whatsappMonitoringEnabled: boolean;
+        metaAccessToken: string | null;
+        metaVerifyToken: string | null;
+        metaGraphApiVersion: string | null;
+        metaPageId: string | null;
+        metaWelcomeMessage: string | null;
+        metaIntegrationEnabled: boolean;
+        datacrazyApiUrl: string | null;
+        datacrazyApiToken: string | null;
+        datacrazyTenantId: string | null;
+        datacrazyTagId: string | null;
+        datacrazyWebhookUrl: string | null;
     }>;
     testZapSignConnection(apiToken: string): Promise<{
         success: boolean;

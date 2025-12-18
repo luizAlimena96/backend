@@ -81,7 +81,11 @@ export class OrganizationsService {
     }
 
     async create(data: any) {
-        const { name, slug, email, phone, settings } = data;
+        const { name, slug, email, phone, settings,
+            openaiApiKey, openaiProjectId,
+            elevenLabsApiKey, elevenLabsVoiceId,
+            evolutionApiUrl, evolutionInstanceName,
+            zapSignApiToken, zapSignTemplateId } = data;
 
         if (!name || !slug) {
             throw new ForbiddenException('Nome e slug são obrigatórios');
@@ -96,15 +100,28 @@ export class OrganizationsService {
             throw new ForbiddenException('Slug já está em uso');
         }
 
+        // Build data object, excluding undefined values
+        const createData: any = {
+            name,
+            slug: slug.toLowerCase(),
+            email: email || null,
+            phone: phone || null,
+            settings,
+            isActive: true,
+        };
+
+        // Add optional API keys if provided
+        if (openaiApiKey) createData.openaiApiKey = openaiApiKey;
+        if (openaiProjectId) createData.openaiProjectId = openaiProjectId;
+        if (elevenLabsApiKey) createData.elevenLabsApiKey = elevenLabsApiKey;
+        if (elevenLabsVoiceId) createData.elevenLabsVoiceId = elevenLabsVoiceId;
+        if (evolutionApiUrl) createData.evolutionApiUrl = evolutionApiUrl;
+        if (evolutionInstanceName) createData.evolutionInstanceName = evolutionInstanceName;
+        if (zapSignApiToken) createData.zapSignApiToken = zapSignApiToken;
+        if (zapSignTemplateId) createData.zapSignTemplateId = zapSignTemplateId;
+
         return this.prisma.organization.create({
-            data: {
-                name,
-                slug: slug.toLowerCase(),
-                email,
-                phone,
-                settings,
-                isActive: true,
-            },
+            data: createData,
         });
     }
 
@@ -127,10 +144,45 @@ export class OrganizationsService {
                 settings: data.settings,
             };
 
-        return this.prisma.organization.update({
-            where: { id },
-            data: allowedFields,
-        });
+        // Remove undefined values to avoid Prisma errors
+        const cleanData = Object.entries(allowedFields).reduce((acc, [key, value]) => {
+            if (value !== undefined) {
+                acc[key] = value;
+            }
+            return acc;
+        }, {} as Record<string, any>);
+
+        try {
+            return await this.prisma.organization.update({
+                where: { id },
+                data: cleanData,
+            });
+        } catch (error: any) {
+            // Handle unknown field errors gracefully (e.g., Meta fields before migration)
+            if (error?.code === 'P2025' || error?.message?.includes('Unknown argument')) {
+                console.warn('[Organizations] Some fields may not exist in DB yet:', error.message);
+                // Try again with only known safe fields
+                const safeFields = {
+                    name: cleanData.name,
+                    email: cleanData.email,
+                    phone: cleanData.phone,
+                    niche: cleanData.niche,
+                    settings: cleanData.settings,
+                };
+                const safeCleaned = Object.entries(safeFields).reduce((acc, [key, value]) => {
+                    if (value !== undefined) acc[key] = value;
+                    return acc;
+                }, {} as Record<string, any>);
+
+                if (Object.keys(safeCleaned).length > 0) {
+                    return this.prisma.organization.update({
+                        where: { id },
+                        data: safeCleaned,
+                    });
+                }
+            }
+            throw error;
+        }
     }
 
     async remove(id: string) {

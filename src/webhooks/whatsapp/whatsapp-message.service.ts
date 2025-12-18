@@ -31,7 +31,41 @@ export class WhatsAppMessageService {
         try {
             const data = webhookData.data;
             const instanceName = webhookData.instance;
-            const phone = data.key.remoteJid.replace("@s.whatsapp.net", "");
+            const remoteJid = data.key.remoteJid;
+
+            // Ignore group messages (groups end with @g.us)
+            if (remoteJid.endsWith('@g.us')) {
+                console.log('[WhatsApp] Ignoring group message from:', remoteJid);
+                return;
+            }
+
+            const phone = remoteJid.replace("@s.whatsapp.net", "");
+
+            // 1. Find organization FIRST (needed for OpenAI API key for transcription)
+            const organization: any = await this.prisma.organization.findFirst({
+                where: { evolutionInstanceName: instanceName },
+                include: {
+                    agents: {
+                        include: {
+                            states: { orderBy: { order: 'asc' } },
+                            knowledge: true,
+                        },
+                        take: 1,
+                    },
+                },
+            });
+
+            if (!organization || !organization.agents || organization.agents.length === 0) {
+                console.error('[WhatsApp] No agent found for organization with instance:', instanceName);
+                return;
+            }
+
+            const agent: any = organization.agents[0];
+            agent.organization = organization;
+
+            // Get OpenAI API key from organization
+            const organizationApiKey = organization.openaiApiKey;
+
 
             // Extract message content from different message types
             let messageContent =
@@ -61,36 +95,25 @@ export class WhatsAppMessageService {
                         hasUrl: !!audioMessage.url
                     });
 
-                    const audioUrl = audioMessage.url;
-                    console.log('[WhatsApp] Audio URL:', audioUrl);
+                    // Use Evolution API to get decrypted base64 audio
+                    const messageKeyId = data.key.id;
+                    console.log('[WhatsApp] Getting decrypted audio from Evolution API, keyId:', messageKeyId);
+                    const mediaResult = await this.whatsappService.getBase64FromMediaMessage(instanceName, messageKeyId);
 
-                    if (audioUrl) {
-                        // Download audio
-                        console.log('[WhatsApp] Downloading audio...');
-                        const response = await firstValueFrom(
-                            this.httpService.get(audioUrl, {
-                                responseType: 'arraybuffer',
-                                timeout: 30000,
-                                signal: AbortSignal.timeout(30000),
-                            })
-                        );
-                        const audioBuffer = Buffer.from(response.data);
-                        console.log('[WhatsApp] ✅ Audio downloaded, size:', audioBuffer.length, 'bytes');
+                    if (mediaResult?.base64) {
+                        console.log('[WhatsApp] ✅ Got decrypted audio, size:', mediaResult.base64.length, 'chars');
+                        console.log('[WhatsApp] Audio mimetype:', mediaResult.mimetype);
 
-                        // Save audio
+                        // Save audio from base64
+                        const audioBuffer = Buffer.from(mediaResult.base64, 'base64');
                         const fileName = `${data.key.id}.ogg`;
-                        const savedPath = await this.storageService.saveFile(audioBuffer, fileName, 'audio/ogg');
+                        const savedPath = await this.storageService.saveFile(audioBuffer, fileName, mediaResult.mimetype || 'audio/ogg');
                         console.log('[WhatsApp] 💾 Audio saved to:', savedPath);
-                        console.log('[WhatsApp] 📁 Full path for inspection:', `${process.cwd()}/${savedPath}`);
 
-                        // Transcribe audio using Whisper
-                        const apiKey = process.env.OPENAI_API_KEY;
-                        if (apiKey) {
+                        // Transcribe audio using Whisper (using organization's API key)
+                        if (organizationApiKey) {
                             console.log('[WhatsApp] 🔄 Starting Whisper transcription...');
-
-                            // Convert to base64 as expected by transcribeAudio (legacy approach)
-                            const base64Audio = audioBuffer.toString('base64');
-                            const transcription = await this.openaiService.transcribeAudio(apiKey, base64Audio);
+                            const transcription = await this.openaiService.transcribeAudio(organizationApiKey, mediaResult.base64);
                             console.log('[WhatsApp] ✅ Transcription completed:', transcription);
                             console.log('[WhatsApp] Transcription length:', transcription.length, 'characters');
 
@@ -99,6 +122,9 @@ export class WhatsAppMessageService {
                             console.log('[WhatsApp] ⚠️ No OpenAI API key for transcription');
                             messageContent += '\n\n[ÁUDIO RECEBIDO - Transcrição não disponível]';
                         }
+                    } else {
+                        console.log('[WhatsApp] ⚠️ Could not get base64 from Evolution API');
+                        messageContent += '\n\n[ÁUDIO RECEBIDO - Não foi possível processar]';
                     }
                 } catch (error) {
                     console.error('[WhatsApp] ❌ Error processing audio:', error);
@@ -117,7 +143,6 @@ export class WhatsAppMessageService {
                             this.httpService.get(imageUrl, {
                                 responseType: 'arraybuffer',
                                 timeout: 30000,
-                                signal: AbortSignal.timeout(30000),
                             })
                         );
                         const imageBuffer = Buffer.from(response.data);
@@ -126,11 +151,10 @@ export class WhatsAppMessageService {
                         const fileName = `${data.key.id}.jpg`;
                         const savedPath = await this.storageService.saveFile(imageBuffer, fileName, 'image/jpeg');
 
-                        // Use OpenAI Vision to describe the image
-                        const apiKey = process.env.OPENAI_API_KEY;
-                        if (apiKey) {
+                        // Use OpenAI Vision to describe the image (using organization's API key)
+                        if (organizationApiKey) {
                             const imageDescription = await this.openaiService.analyzeImage(
-                                apiKey,
+                                organizationApiKey,
                                 imageBuffer,
                                 'Descreva esta imagem em detalhes para que eu possa entender o contexto.'
                             );
@@ -157,7 +181,6 @@ export class WhatsAppMessageService {
                             this.httpService.get(documentUrl, {
                                 responseType: 'arraybuffer',
                                 timeout: 30000,
-                                signal: AbortSignal.timeout(30000),
                             })
                         );
                         const pdfBuffer = Buffer.from(response.data);
@@ -184,20 +207,7 @@ export class WhatsAppMessageService {
                 return;
             }
 
-            // 1. Find agent by instance
-            const agent = await this.prisma.agent.findUnique({
-                where: { instance: instanceName },
-                include: {
-                    organization: true,
-                    states: { orderBy: { order: 'asc' } },
-                    knowledge: true,
-                },
-            });
-
-            if (!agent) {
-                console.error('[WhatsApp] Agent not found for instance:', instanceName);
-                return;
-            }
+            // Organization and agent already loaded at the start of the function
 
             // 2. Find or create lead
             let lead = await this.prisma.lead.findFirst({
@@ -415,17 +425,17 @@ export class WhatsAppMessageService {
                                 agent.organization.elevenLabsVoiceId!
                             );
 
-                            // Save audio file
+                            // Save audio file (optional, for logging/debugging)
                             const audioFileName = `response-${crypto.randomUUID()}.mp3`;
-                            const audioPath = await this.storageService.saveFile(audioBuffer, audioFileName, 'audio/mpeg');
+                            await this.storageService.saveFile(audioBuffer, audioFileName, 'audio/mpeg');
+                            console.log('[WhatsApp] Audio saved locally:', audioFileName);
 
-                            // Build full URL for WhatsApp (Evolution API needs accessible URL)
-                            const fullAudioUrl = process.env.BACKEND_URL
-                                ? `${process.env.BACKEND_URL}${audioPath}`
-                                : audioPath;
+                            // Convert audio to base64 for Evolution API
+                            const audioBase64 = audioBuffer.toString('base64');
+                            console.log('[WhatsApp] Audio base64 length:', audioBase64.length);
 
-                            // Send ONLY audio via WhatsApp
-                            await this.whatsappService.sendMedia(instanceName, phone, fullAudioUrl, trimmedPart);
+                            // Send audio via WhatsApp using base64
+                            await this.whatsappService.sendAudio(instanceName, phone, audioBase64);
 
                             // Save audio message to database
                             await this.prisma.message.create({

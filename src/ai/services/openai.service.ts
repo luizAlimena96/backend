@@ -66,7 +66,8 @@ export class OpenAIService {
         const openai = new OpenAI({ apiKey });
 
         const audioBuffer = Buffer.from(audioBase64, 'base64');
-        const file = new File([audioBuffer], 'audio.ogg', { type: 'audio/ogg' });
+
+        const file = await OpenAI.toFile(audioBuffer, 'audio.ogg', { type: 'audio/ogg' });
 
         const transcription = await openai.audio.transcriptions.create({
             file,

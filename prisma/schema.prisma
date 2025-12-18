@@ -22,7 +22,7 @@ model Organization {
   updatedAt                 DateTime           @updatedAt
   evolutionApiUrl           String?
   evolutionApiKey           String?
-  evolutionInstanceName     String?
+  evolutionInstanceName     String?            @unique
   whatsappConnected         Boolean            @default(false)
   whatsappQrCode            String?
   whatsappPhone             String?
@@ -68,6 +68,18 @@ model Organization {
   whatsappLastConnected     DateTime?
   whatsappLastDisconnected  DateTime?
   whatsappMonitoringEnabled Boolean            @default(false)
+  metaAccessToken           String?
+  metaVerifyToken           String?
+  metaGraphApiVersion       String?            @default("v24.0")
+  metaPageId                String?
+  metaWelcomeMessage        String?            @default("Olá, falo com {{nome}}?")
+  metaIntegrationEnabled    Boolean            @default(false)
+  // Datacrazy CRM Integration
+  datacrazyApiUrl           String?
+  datacrazyApiToken         String?
+  datacrazyTenantId         String?
+  datacrazyTagId            String?
+  datacrazyWebhookUrl       String?
   agents                    Agent[]
   appointments              Appointment[]      @relation("OrganizationAppointments")
   blockedSlots              BlockedSlot[]
@@ -326,6 +338,7 @@ model Lead {
   phoneNo9          String?
   status            LeadStatus     @default(NEW)
   source            String?
+  metaLeadgenId     String?            // Facebook Lead Ads leadgen_id
   notes             String?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
@@ -752,7 +765,7 @@ model FollowupLog {
   followupId String
   sentAt     DateTime @default(now())
   message    String
-  followup   Followup @relation(fields: [followupId], references: [id])
+  followup   Followup @relation(fields: [followupId], references: [id], onDelete: Cascade)
   lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([leadId])

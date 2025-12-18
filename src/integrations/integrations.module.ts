@@ -5,6 +5,7 @@ import { GoogleCalendarService } from './google/google-calendar.service';
 import { ZapSignService } from './zapsign/zapsign.service';
 import { EvolutionAPIService } from './evolution/evolution-api.service';
 import { WhatsAppIntegrationService } from './whatsapp/whatsapp-integration.service';
+import { MetaLeadsService } from './meta/meta-leads.service';
 
 @Module({
     imports: [HttpModule],
@@ -14,6 +15,7 @@ import { WhatsAppIntegrationService } from './whatsapp/whatsapp-integration.serv
         ZapSignService,
         EvolutionAPIService,
         WhatsAppIntegrationService,
+        MetaLeadsService,
     ],
     exports: [
         ElevenLabsService,
@@ -21,7 +23,9 @@ import { WhatsAppIntegrationService } from './whatsapp/whatsapp-integration.serv
         ZapSignService,
         EvolutionAPIService,
         WhatsAppIntegrationService,
+        MetaLeadsService,
     ],
 })
 export class IntegrationsModule { }
+
 

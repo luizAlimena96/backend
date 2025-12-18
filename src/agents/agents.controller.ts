@@ -27,7 +27,9 @@ export class AgentsController {
 
   @Post()
   async create(@Body() data: any, @Request() req) {
-    return this.agentsService.create(data, req.user.id, req.user.organizationId);
+    // Use organizationId from body (frontend sends it) or fallback to user's org
+    const organizationId = data.organizationId || req.user.organizationId;
+    return this.agentsService.create(data, req.user.id, organizationId);
   }
 
   @Put(":id")

@@ -42,7 +42,6 @@ let CRMProxyController = class CRMProxyController {
                 headers: data.headers,
                 data: data.body,
                 timeout: 30000,
-                signal: AbortSignal.timeout(30000),
             }));
             const responseTime = Date.now() - startTime;
             return {

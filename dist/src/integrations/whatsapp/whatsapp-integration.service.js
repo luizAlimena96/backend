@@ -44,6 +44,9 @@ let WhatsAppIntegrationService = class WhatsAppIntegrationService {
     async sendAudio(instanceName, to, audioUrl) {
         return this.evolutionAPI.sendAudio(instanceName, to, audioUrl);
     }
+    async getBase64FromMediaMessage(instanceName, messageKeyId) {
+        return this.evolutionAPI.getBase64FromMediaMessage(instanceName, messageKeyId);
+    }
 };
 exports.WhatsAppIntegrationService = WhatsAppIntegrationService;
 exports.WhatsAppIntegrationService = WhatsAppIntegrationService = __decorate([

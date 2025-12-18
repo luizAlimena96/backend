@@ -69,6 +69,7 @@ export declare class FeedbackController {
                 email: string | null;
                 phoneWith9: string | null;
                 phoneNo9: string | null;
+                metaLeadgenId: string | null;
                 address: string | null;
                 contractDate: Date | null;
                 extractedData: import("@prisma/client/runtime/library").JsonValue | null;
