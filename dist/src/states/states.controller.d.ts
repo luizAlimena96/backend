@@ -2,7 +2,7 @@ import { StatesService } from "./states.service";
 export declare class StatesController {
     private statesService;
     constructor(statesService: StatesService);
-    findAll(agentId: string): Promise<{
+    findAll(agentId: string, req: any): Promise<{
         id: string;
         organizationId: string;
         agentId: string;

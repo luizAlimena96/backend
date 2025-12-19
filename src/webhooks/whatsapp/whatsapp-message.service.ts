@@ -327,12 +327,18 @@ export class WhatsAppMessageService {
                         try {
                             const { url, type, caption, fileName } = mediaItem;
 
-                            // Process URL (convert Google Drive if needed)
+                            // Process URL (convert Google Drive if needed) AND convert to Base64
                             const processedMedia = await this.mediaProcessor.processMediaUrl(url, {
-                                type: type || undefined
+                                type: type || undefined,
+                                convertToBase64: true // Validamos que queremos enviar como base64
                             });
 
                             console.log(`[WhatsApp] 📤 Sending ${processedMedia.type}: ${processedMedia.fileName}`);
+
+                            // Construct Data URI if base64 is available
+                            const mediaPayload = processedMedia.base64
+                                ? `data:${processedMedia.mimeType};base64,${processedMedia.base64}`
+                                : processedMedia.url;
 
                             // Send based on media type
                             switch (processedMedia.type) {
@@ -340,7 +346,7 @@ export class WhatsAppMessageService {
                                     await this.whatsappService.sendImage(
                                         instanceName,
                                         phone,
-                                        processedMedia.url,
+                                        mediaPayload,
                                         caption
                                     );
                                     break;
@@ -348,7 +354,7 @@ export class WhatsAppMessageService {
                                     await this.whatsappService.sendVideo(
                                         instanceName,
                                         phone,
-                                        processedMedia.url,
+                                        mediaPayload,
                                         caption
                                     );
                                     break;
@@ -356,7 +362,7 @@ export class WhatsAppMessageService {
                                     await this.whatsappService.sendDocument(
                                         instanceName,
                                         phone,
-                                        processedMedia.url,
+                                        mediaPayload,
                                         fileName || processedMedia.fileName,
                                         caption
                                     );
@@ -365,12 +371,12 @@ export class WhatsAppMessageService {
                                     await this.whatsappService.sendAudio(
                                         instanceName,
                                         phone,
-                                        processedMedia.url
+                                        mediaPayload
                                     );
                                     break;
                             }
 
-                            console.log(`[WhatsApp] ✅ Sent ${processedMedia.type} successfully`);
+                            console.log(`[WhatsApp] ✅ Sent ${processedMedia.type} successfully (Base64: ${!!processedMedia.base64})`);
                         } catch (error) {
                             console.error('[WhatsApp] ❌ Error sending media item:', error);
                             // Continue with next media item even if one fails

@@ -95,4 +95,92 @@ export class FeedbackService {
       },
     });
   }
+
+  async respond(id: string, response: string, userId: string = "system", userName: string = "System") {
+    return this.prisma.feedbackResponse.create({
+      data: {
+        feedbackId: id,
+        message: response,
+        userId,
+        userName,
+      },
+    });
+  }
+
+  async remove(id: string) {
+    return this.prisma.feedback.delete({ where: { id } });
+  }
+
+  async getResponses(id: string) {
+    const feedback = await this.prisma.feedback.findUnique({
+      where: { id },
+      include: {
+        responses: {
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+
+    return feedback?.responses || [];
+  }
+
+  async getDebugLogs(id: string) {
+    const feedback = await this.prisma.feedback.findUnique({
+      where: { id },
+      select: { conversationId: true },
+    });
+
+    if (!feedback || !feedback.conversationId) {
+      return [];
+    }
+
+    const messages = await this.prisma.message.findMany({
+      where: {
+        conversationId: feedback.conversationId,
+      },
+      orderBy: { timestamp: "asc" },
+    });
+
+    // Group messages into turn-based logs (User -> AI)
+    const logs: any[] = [];
+    let currentLog: any = null;
+
+    for (const msg of messages) {
+      if (!msg.fromMe) {
+        // User message starts a new turn
+        if (currentLog) {
+          logs.push(currentLog);
+        }
+        currentLog = {
+          id: msg.id,
+          phone: "", // Will be filled if needed, or ignored by frontend type
+          clientMessage: msg.content,
+          aiResponse: "",
+          currentState: "", // Not stored directly in message yet, unless added to schema. 
+          // For now, only Feedback has snapshot of state. But messages might have `thought`.
+          aiThinking: null,
+          createdAt: msg.timestamp,
+        };
+      } else if (currentLog) {
+        // AI message completes the turn
+        if (currentLog.aiResponse) {
+          currentLog.aiResponse += "\n" + msg.content;
+        } else {
+          currentLog.aiResponse = msg.content;
+        }
+
+        // If this message has thought trace, attach it
+        if (msg.thought) {
+          currentLog.aiThinking = msg.thought;
+        }
+      }
+    }
+
+    // Push the last one
+    if (currentLog) {
+      logs.push(currentLog);
+    }
+
+    return logs.reverse(); // Newest first for the UI usually, or match frontend expectation
+  }
 }

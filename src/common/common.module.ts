@@ -15,9 +15,11 @@ import { StorageService } from './services/storage.service';
 import { PdfService } from './services/pdf.service';
 import { MediaProcessorService } from './services/media-processor.service';
 
+import { ToolsModule } from '../ai/tools/tools.module';
+
 @Global()
 @Module({
-    imports: [HttpModule, AIModule, IntegrationsModule],
+    imports: [HttpModule, AIModule, IntegrationsModule, ToolsModule],
     providers: [
         DebugService,
         CRMWebhookService,

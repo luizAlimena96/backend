@@ -21,8 +21,8 @@ let StatesController = class StatesController {
     constructor(statesService) {
         this.statesService = statesService;
     }
-    async findAll(agentId) {
-        return this.statesService.findAll(agentId);
+    async findAll(agentId, req) {
+        return this.statesService.findAll(agentId, req.user);
     }
     async create(data) {
         return this.statesService.create(data);
@@ -41,8 +41,9 @@ exports.StatesController = StatesController;
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)("agentId")),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], StatesController.prototype, "findAll", null);
 __decorate([

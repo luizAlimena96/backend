@@ -2,7 +2,7 @@ import { PrismaService } from "../database/prisma.service";
 export declare class StatesService {
     private prisma;
     constructor(prisma: PrismaService);
-    findAll(agentId: string): Promise<{
+    findAll(agentId: string, user?: any): Promise<{
         id: string;
         organizationId: string;
         agentId: string;

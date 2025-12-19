@@ -96,6 +96,78 @@ let FeedbackService = class FeedbackService {
             },
         });
     }
+    async respond(id, response, userId = "system", userName = "System") {
+        return this.prisma.feedbackResponse.create({
+            data: {
+                feedbackId: id,
+                message: response,
+                userId,
+                userName,
+            },
+        });
+    }
+    async remove(id) {
+        return this.prisma.feedback.delete({ where: { id } });
+    }
+    async getResponses(id) {
+        const feedback = await this.prisma.feedback.findUnique({
+            where: { id },
+            include: {
+                responses: {
+                    orderBy: { createdAt: "asc" },
+                },
+            },
+        });
+        return feedback?.responses || [];
+    }
+    async getDebugLogs(id) {
+        const feedback = await this.prisma.feedback.findUnique({
+            where: { id },
+            select: { conversationId: true },
+        });
+        if (!feedback || !feedback.conversationId) {
+            return [];
+        }
+        const messages = await this.prisma.message.findMany({
+            where: {
+                conversationId: feedback.conversationId,
+            },
+            orderBy: { timestamp: "asc" },
+        });
+        const logs = [];
+        let currentLog = null;
+        for (const msg of messages) {
+            if (!msg.fromMe) {
+                if (currentLog) {
+                    logs.push(currentLog);
+                }
+                currentLog = {
+                    id: msg.id,
+                    phone: "",
+                    clientMessage: msg.content,
+                    aiResponse: "",
+                    currentState: "",
+                    aiThinking: null,
+                    createdAt: msg.timestamp,
+                };
+            }
+            else if (currentLog) {
+                if (currentLog.aiResponse) {
+                    currentLog.aiResponse += "\n" + msg.content;
+                }
+                else {
+                    currentLog.aiResponse = msg.content;
+                }
+                if (msg.thought) {
+                    currentLog.aiThinking = msg.thought;
+                }
+            }
+        }
+        if (currentLog) {
+            logs.push(currentLog);
+        }
+        return logs.reverse();
+    }
 };
 exports.FeedbackService = FeedbackService;
 exports.FeedbackService = FeedbackService = __decorate([

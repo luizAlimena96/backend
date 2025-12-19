@@ -18,6 +18,17 @@ export declare class DashboardController {
             WON: number;
             LOST: number;
         };
+        crmFunnel: {
+            id: string;
+            name: string;
+            value: number;
+            order: number;
+            color: string;
+        }[];
+        statesFunnel: {
+            name: any;
+            value: any;
+        }[];
     }>;
     getPerformance(organizationId: string): Promise<{
         messagesPerDay: any[];

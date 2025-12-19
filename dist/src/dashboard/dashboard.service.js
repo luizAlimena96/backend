@@ -24,7 +24,7 @@ let DashboardService = class DashboardService {
         weekAgo.setDate(weekAgo.getDate() - 7);
         const monthAgo = new Date(today);
         monthAgo.setMonth(monthAgo.getMonth() - 1);
-        const [totalLeads, activeConversations, leadsToday, leadsThisWeek, leadsThisMonth, leadsByStatus, wonLeads,] = await Promise.all([
+        const [totalLeads, activeConversations, leadsToday, leadsThisWeek, leadsThisMonth, leadsByStatus, wonLeads, leadsByCrmStage, leadsByState, crmStages,] = await Promise.all([
             this.prisma.lead.count({ where: { organizationId } }),
             this.prisma.conversation.count({
                 where: { organizationId, aiEnabled: true }
@@ -46,6 +46,20 @@ let DashboardService = class DashboardService {
             this.prisma.lead.count({
                 where: { organizationId, status: 'WON' }
             }),
+            this.prisma.lead.groupBy({
+                by: ['crmStageId'],
+                where: { organizationId },
+                _count: true,
+            }),
+            this.prisma.lead.groupBy({
+                by: ['currentState'],
+                where: { organizationId },
+                _count: true,
+            }),
+            this.prisma.cRMStage.findMany({
+                where: { organizationId },
+                orderBy: { order: 'asc' },
+            }),
         ]);
         const statusCounts = {
             NEW: 0,
@@ -60,6 +74,23 @@ let DashboardService = class DashboardService {
                 statusCounts[item.status] = item._count;
             }
         });
+        const crmFunnel = crmStages.map(stage => {
+            const match = leadsByCrmStage.find(l => l.crmStageId === stage.id);
+            return {
+                id: stage.id,
+                name: stage.name,
+                value: match ? match._count : 0,
+                order: stage.order,
+                color: stage.color || '#6366f1'
+            };
+        });
+        const statesFunnel = leadsByState
+            .filter((l) => l.currentState)
+            .map((l) => ({
+            name: l.currentState,
+            value: l._count,
+        }))
+            .sort((a, b) => b.value - a.value);
         const conversionRate = totalLeads > 0
             ? Math.round((wonLeads / totalLeads) * 100)
             : 0;
@@ -73,6 +104,8 @@ let DashboardService = class DashboardService {
             leadsThisWeek,
             leadsThisMonth,
             leadsByStatus: statusCounts,
+            crmFunnel,
+            statesFunnel,
         };
     }
     async getPerformance(organizationId) {

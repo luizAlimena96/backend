@@ -17,14 +17,35 @@ let StatesService = class StatesService {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    async findAll(agentId) {
+    async findAll(agentId, user) {
+        if (!agentId) {
+            throw new common_1.BadRequestException("Agent ID is required");
+        }
+        const agent = await this.prisma.agent.findUnique({
+            where: { id: agentId },
+            select: { organizationId: true }
+        });
+        if (!agent) {
+            throw new common_1.NotFoundException("Agent not found");
+        }
+        if (user && user.role !== 'SUPER_ADMIN' && agent.organizationId !== user.organizationId) {
+            throw new common_1.ForbiddenException("You do not have permission to access states for this agent");
+        }
         return this.prisma.state.findMany({
             where: { agentId },
             orderBy: { order: "asc" },
         });
     }
     async create(data) {
-        return this.prisma.state.create({ data });
+        try {
+            return await this.prisma.state.create({ data });
+        }
+        catch (error) {
+            if (error.code === 'P2002') {
+                throw new common_1.BadRequestException('Já existe um estado com este nome para este agente.');
+            }
+            throw error;
+        }
     }
     async update(id, data) {
         try {

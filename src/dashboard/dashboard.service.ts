@@ -21,6 +21,9 @@ export class DashboardService {
       leadsThisMonth,
       leadsByStatus,
       wonLeads,
+      leadsByCrmStage,
+      leadsByState,
+      crmStages,
     ] = await Promise.all([
       this.prisma.lead.count({ where: { organizationId } }),
       this.prisma.conversation.count({
@@ -43,6 +46,20 @@ export class DashboardService {
       this.prisma.lead.count({
         where: { organizationId, status: 'WON' }
       }),
+      this.prisma.lead.groupBy({
+        by: ['crmStageId'],
+        where: { organizationId },
+        _count: true,
+      }),
+      this.prisma.lead.groupBy({
+        by: ['currentState'],
+        where: { organizationId },
+        _count: true,
+      }),
+      this.prisma.cRMStage.findMany({
+        where: { organizationId },
+        orderBy: { order: 'asc' },
+      }),
     ]);
 
     const statusCounts = {
@@ -60,6 +77,29 @@ export class DashboardService {
       }
     });
 
+    // CRM Funnel
+    // We explicitly cast DB result to avoid type errors if properties are nullable
+    const crmFunnel = crmStages.map(stage => {
+      const match = leadsByCrmStage.find(l => l.crmStageId === stage.id);
+      return {
+        id: stage.id,
+        name: stage.name,
+        value: match ? match._count : 0,
+        order: stage.order,
+        color: stage.color || '#6366f1'
+      };
+    });
+
+    // States Funnel
+    const statesFunnel = leadsByState
+      .filter((l: any) => l.currentState)
+      .map((l: any) => ({
+        name: l.currentState,
+        value: l._count,
+      }))
+      .sort((a: any, b: any) => b.value - a.value);
+
+    // Calculate total for conversion rate (using only WON/LOST/OPEN logic if needed, or totalLeads)
     const conversionRate = totalLeads > 0
       ? Math.round((wonLeads / totalLeads) * 100)
       : 0;
@@ -75,6 +115,8 @@ export class DashboardService {
       leadsThisWeek,
       leadsThisMonth,
       leadsByStatus: statusCounts,
+      crmFunnel,
+      statesFunnel,
     };
   }
 

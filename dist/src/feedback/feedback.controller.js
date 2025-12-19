@@ -36,6 +36,22 @@ let FeedbackController = class FeedbackController {
     async reopen(id) {
         return this.feedbackService.reopen(id);
     }
+    async respond(id, body, req) {
+        const responseText = body.response;
+        const user = req?.user;
+        const userId = user?.id || "admin";
+        const userName = user?.name || "Admin";
+        return this.feedbackService.respond(id, responseText, userId, userName);
+    }
+    async getResponses(id) {
+        return this.feedbackService.getResponses(id);
+    }
+    async getDebugLogs(id) {
+        return this.feedbackService.getDebugLogs(id);
+    }
+    async remove(id) {
+        return this.feedbackService.remove(id);
+    }
 };
 exports.FeedbackController = FeedbackController;
 __decorate([
@@ -74,6 +90,36 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], FeedbackController.prototype, "reopen", null);
+__decorate([
+    (0, common_1.Post)(":id/respond"),
+    __param(0, (0, common_1.Param)("id")),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], FeedbackController.prototype, "respond", null);
+__decorate([
+    (0, common_1.Get)(":id/responses"),
+    __param(0, (0, common_1.Param)("id")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], FeedbackController.prototype, "getResponses", null);
+__decorate([
+    (0, common_1.Get)(":id/debug-logs"),
+    __param(0, (0, common_1.Param)("id")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], FeedbackController.prototype, "getDebugLogs", null);
+__decorate([
+    (0, common_1.Delete)(":id"),
+    __param(0, (0, common_1.Param)("id")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], FeedbackController.prototype, "remove", null);
 exports.FeedbackController = FeedbackController = __decorate([
     (0, common_1.Controller)("feedback"),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

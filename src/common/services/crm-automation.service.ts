@@ -1,12 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { ZapSignService } from '../../integrations/zapsign/zapsign.service';
+import { SchedulingToolsService } from '../../ai/tools/scheduling-tools.service';
+import { WhatsAppIntegrationService } from '../../integrations/whatsapp/whatsapp-integration.service';
+import { OpenAIService } from '../../ai/services/openai.service';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class CRMAutomationService {
     constructor(
         private prisma: PrismaService,
-        private zapSignService: ZapSignService
+        private zapSignService: ZapSignService,
+        private schedulingToolsService: SchedulingToolsService,
+        private whatsappService: WhatsAppIntegrationService,
+        private openaiService: OpenAIService
     ) { }
 
     async executeAutomationsForState(leadId: string, stageId: string): Promise<void> {
@@ -34,11 +41,98 @@ export class CRMAutomationService {
                 await this.handleZapSignTrigger(lead, stageId);
             }
 
-            // 2. Check Generic Actions (Future Implementation)
-            // const automations = await this.prisma.cRMAutomation.findMany({ ... })
+            // 2. Check Auto Scheduling Trigger
+            await this.handleAutoScheduling(lead, stageId);
 
         } catch (error) {
             console.error('[CRM Automation] Error executing automations:', error);
+        }
+    }
+
+    private async handleAutoScheduling(lead: any, stageId: string) {
+        try {
+            const config = await this.prisma.autoSchedulingConfig.findFirst({
+                where: {
+                    agentId: lead.agentId,
+                    crmStageId: stageId,
+                    isActive: true
+                }
+            });
+
+            if (!config) return;
+
+            console.log(`[CRM Automation] Auto Scheduling triggered for lead ${lead.id}`);
+
+            const extractedData = lead.extractedData as any || {};
+            const periodoDia = extractedData.periodo_dia || undefined;
+
+            // 1. Fetch available slots
+            const slotsResult = await this.schedulingToolsService.gerenciarAgenda('sugerir_iniciais', {
+                organizationId: lead.organizationId,
+                leadId: lead.id,
+                periodo_dia: periodoDia
+            });
+
+            if (!slotsResult.success || !slotsResult.horarios) {
+                console.log('[CRM Automation] No slots available to offer.');
+                return;
+            }
+
+            // 2. Prepare context for AI
+            const slotsText = slotsResult.horarios.map(h => `- ${h.dia} às ${h.horario}`).join('\n');
+            const systemPrompt = `Você é ${lead.agent.name}.
+O lead ${lead.name} acabou de entrar na etapa de Agendamento.
+Sua tarefa é convidar o lead para uma reunião, oferecendo os seguintes horários disponíveis:
+
+${slotsText}
+
+Use este modelo de mensagem configurado pelo usuário como BASE (adapte para soar natural):
+"${config.messageTemplate || ''}"
+
+Responda diretamente ao lead. Seja cordial e breve.`;
+
+            // 3. Generate AI Message
+            if (!lead.agent.organization.openaiApiKey) {
+                console.error('[CRM Automation] No OpenAI API Key found');
+                return;
+            }
+
+            const aiResponse = await this.openaiService.createChatCompletion(
+                lead.agent.organization.openaiApiKey,
+                lead.agent.organization.openaiModel || 'gpt-4o-mini',
+                [{ role: 'system', content: systemPrompt }],
+                { maxTokens: 300 }
+            );
+
+            // 4. Send Message via WhatsApp
+            const conversation = await this.prisma.conversation.findFirst({
+                where: { leadId: lead.id, organizationId: lead.organizationId }
+            });
+
+            if (conversation) {
+                // Save to DB
+                await this.prisma.message.create({
+                    data: {
+                        conversationId: conversation.id,
+                        content: aiResponse,
+                        fromMe: true,
+                        type: 'TEXT',
+                        messageId: crypto.randomUUID(),
+                        thought: 'Disparo Automático de Agendamento (Stage Trigger)'
+                    }
+                });
+
+                // Send to WhatsApp
+                await this.whatsappService.sendMessage(
+                    lead.agent.organization.evolutionInstanceName,
+                    lead.phone,
+                    aiResponse
+                );
+                console.log('[CRM Automation] Auto scheduling message sent.');
+            }
+
+        } catch (error) {
+            console.error('[CRM Automation] Error in auto scheduling:', error);
         }
     }
 
@@ -60,51 +154,21 @@ export class CRMAutomationService {
         }
 
         // Map fields
-        const signersData = {
-            name: lead.name || 'Sem Nome', // Required by ZapSign? Usually yes.
-            email: lead.email || '', // Optional?
-            // ZapSign usually requires 'signers' array.
-            // But 'createDocument' might abstract it or we send raw payload.
-            // Let's assume we map custom fields into a flat object or nested as per config.
-            // The mapping generally maps Template Variable -> Lead Value.
-        };
-
-        // Construct the full payload for ZapSign
-        // ZapSign V1 usually needs:
-        // {
-        //   template_id: ...,
-        //   signer_name: ..., 
-        //   email: ...,
-        //   data: [ { de: "variable", para: "value" } ]
-        // }
-        // OR if using the map directly.
-        // Let's check how the mapping is structured in frontend:
-        // { templateField: '{{ $json.nome }}', leadField: '{{ lead.name }}' }
-
-        // We need to resolve values.
         const customData = mapping.map(m => {
             const value = this.resolveValue(m.leadField, lead);
-            // templateField usually is like "{{ $json.nome }}". We need just "nome"?
-            // Or ZapSign API takes the full object?
-            // Re-checking ZapSignService... it sends `...data`.
-            // Standard ZapSign create from template uses `signers` array.
             return {
                 variable: m.templateField.replace('{{ $json.', '').replace(' }}', '').trim(),
                 value: value
             };
         });
 
-        // Simplified payload assuming standard single signer flow often used
-        // We might need to adjust based on exact ZapSign API requirements for the template.
-        // Usually: data: [ { de: "nome", para: "John" } ]
-
-        // Let's construct a safe payload
+        // Construct payload
         const payload = {
             signers: [{
                 name: lead.name,
                 email: lead.email,
                 send_automatic_email: false,
-                send_automatic_whatsapp: false // We send via our own bot usually
+                send_automatic_whatsapp: false
             }],
             data: customData.map(d => ({
                 de: d.variable,
@@ -115,7 +179,6 @@ export class CRMAutomationService {
         try {
             const doc = await this.zapSignService.createDocument(org.zapSignApiToken, org.zapSignTemplateId, payload);
             console.log('[CRM Automation] ZapSign document created:', doc.uuid);
-            // Optionally save doc link to lead or notify
         } catch (err) {
             console.error('[CRM Automation] Failed to create ZapSign doc:', err);
         }
@@ -131,7 +194,7 @@ export class CRMAutomationService {
             if (cleanPath === 'lead.name') return context.name || '';
             if (cleanPath === 'lead.email') return context.email || '';
             if (cleanPath === 'lead.phone') return context.phone || '';
-            if (cleanPath === 'lead.cpf') return context.cpf || ''; // Assuming extracted/root
+            if (cleanPath === 'lead.cpf') return context.cpf || '';
             if (cleanPath === 'lead.rg') return context.rg || '';
 
             // Handle lead.extractedData.field

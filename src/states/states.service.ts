@@ -1,11 +1,30 @@
-﻿import { Injectable } from "@nestjs/common";
+﻿import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
 
 @Injectable()
 export class StatesService {
   constructor(private prisma: PrismaService) { }
 
-  async findAll(agentId: string) {
+  async findAll(agentId: string, user?: any) {
+    if (!agentId) {
+      throw new BadRequestException("Agent ID is required");
+    }
+
+    // Verify if agent exists and belongs to user's organization (if not super admin)
+    // We fetch the agent to ensure it exists and check organization
+    const agent = await this.prisma.agent.findUnique({
+      where: { id: agentId },
+      select: { organizationId: true }
+    });
+
+    if (!agent) {
+      throw new NotFoundException("Agent not found");
+    }
+
+    if (user && user.role !== 'SUPER_ADMIN' && agent.organizationId !== user.organizationId) {
+      throw new ForbiddenException("You do not have permission to access states for this agent");
+    }
+
     return this.prisma.state.findMany({
       where: { agentId },
       orderBy: { order: "asc" },
@@ -13,7 +32,14 @@ export class StatesService {
   }
 
   async create(data: any) {
-    return this.prisma.state.create({ data });
+    try {
+      return await this.prisma.state.create({ data });
+    } catch (error: any) {
+      if (error.code === 'P2002') {
+        throw new BadRequestException('Já existe um estado com este nome para este agente.');
+      }
+      throw error;
+    }
   }
 
   async update(id: string, data: any) {

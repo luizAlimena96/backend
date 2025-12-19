@@ -235,4 +235,43 @@ export declare class FeedbackService {
         respondedBy: string | null;
         rating: number | null;
     }>;
+    respond(id: string, response: string, userId?: string, userName?: string): Promise<{
+        message: string;
+        id: string;
+        createdAt: Date;
+        userId: string;
+        feedbackId: string;
+        userName: string;
+    }>;
+    remove(id: string): Promise<{
+        message: string;
+        id: string;
+        phone: string | null;
+        conversationId: string | null;
+        currentState: string | null;
+        aiThinking: string | null;
+        organizationId: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        response: string | null;
+        status: import(".prisma/client").$Enums.FeedbackStatus;
+        extractedData: import("@prisma/client/runtime/library").JsonValue | null;
+        category: string | null;
+        customer: string;
+        severity: import(".prisma/client").$Enums.Severity;
+        images: string[];
+        resolvedAt: Date | null;
+        respondedAt: Date | null;
+        respondedBy: string | null;
+        rating: number | null;
+    }>;
+    getResponses(id: string): Promise<{
+        message: string;
+        id: string;
+        createdAt: Date;
+        userId: string;
+        feedbackId: string;
+        userName: string;
+    }[]>;
+    getDebugLogs(id: string): Promise<any[]>;
 }
