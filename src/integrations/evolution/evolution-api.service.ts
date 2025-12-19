@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import * as QRCode from 'qrcode';
 
 @Injectable()
 export class EvolutionAPIService {
@@ -14,12 +15,17 @@ export class EvolutionAPIService {
         return process.env.EVOLUTION_API_KEY || '';
     }
 
-    async createInstance(instanceName: string): Promise<any> {
+    async createInstance(instanceName: string): Promise<{ existed: boolean }> {
         try {
+            console.log(`[Evolution API] Creating instance: ${instanceName}`);
             const response = await firstValueFrom(
                 this.httpService.post(
                     `${this.getBaseUrl()}/instance/create`,
-                    { instanceName },
+                    {
+                        instanceName,
+                        qrcode: true,
+                        integration: 'WHATSAPP-BAILEYS'
+                    },
                     {
                         headers: {
                             apikey: this.getApiKey(),
@@ -30,15 +36,36 @@ export class EvolutionAPIService {
                 )
             );
 
-            return response.data;
-        } catch (error) {
-            console.error('Evolution API create instance error:', error);
+            console.log('[Evolution API] Instance created successfully');
+            return { existed: false };
+        } catch (error: any) {
+            const status = error.response?.status;
+            const errorData = error.response?.data;
+            const errorMessage = typeof errorData === 'string' ? errorData : JSON.stringify(errorData);
+
+            // Check if instance already exists
+            const isConflict = status === 409;
+            const isForbidden = status === 403;
+            const isAlreadyInUse = errorMessage?.includes('already exists') ||
+                errorMessage?.includes('already in use') ||
+                errorMessage?.includes('This name');
+
+            if (isConflict || (isForbidden && isAlreadyInUse)) {
+                console.log(`[Evolution API] Instance ${instanceName} already exists, continuing...`);
+                return { existed: true };
+            }
+
+            console.error('[Evolution API] Create instance error:', errorMessage || error.message);
             throw error;
         }
     }
 
     async getQRCode(instanceName: string): Promise<string> {
         try {
+            // First ensure instance exists
+            const { existed } = await this.createInstance(instanceName);
+
+            console.log(`[Evolution API] Fetching QR Code for ${instanceName}`);
             const response = await firstValueFrom(
                 this.httpService.get(
                     `${this.getBaseUrl()}/instance/connect/${instanceName}`,
@@ -51,9 +78,45 @@ export class EvolutionAPIService {
                 )
             );
 
-            return response.data.qrcode?.base64 || '';
-        } catch (error) {
-            console.error('Evolution API QR code error:', error);
+            const data = response.data;
+            // Check all possible locations for QR code
+            const qrCode = data.qrcode?.base64 || data.qrcode || data.qr || data.code || data.base64 || '';
+
+            if (!qrCode) {
+                // If instance is already connected, it might not return QR
+                if (data.instance?.state === 'open' || data.state === 'open') {
+                    console.log('[Evolution API] Instance already connected');
+                    return 'CONNECTED';
+                }
+                console.warn('[Evolution API] No QR code found in response:', data);
+                throw new Error('QR Code not found in API response');
+            }
+
+            // Ensure it's a proper data URI
+            if (!qrCode.startsWith('http') && !qrCode.startsWith('data:')) {
+                // If it's a pairing code or raw string, convert to image
+                if (qrCode.startsWith('2@') || !qrCode.match(/^[A-Za-z0-9+/=]+$/)) {
+                    try {
+                        console.log('[Evolution API] Converting raw code to QR image...');
+                        return await QRCode.toDataURL(qrCode);
+                    } catch (err) {
+                        console.error('[Evolution API] Error converting QR code:', err);
+                        throw new Error('Failed to generate QR code image');
+                    }
+                }
+                return `data:image/png;base64,${qrCode}`;
+            }
+
+            return qrCode;
+
+        } catch (error: any) {
+            // Handle specific case where name is taken by another account
+            if (error.response?.status === 401) {
+                console.error('[Evolution API] Unauthorized / Name in use');
+                throw new Error('This name is already in use by another account (Unauthorized)');
+            }
+
+            console.error('[Evolution API] Get QR code error:', error.message);
             throw error;
         }
     }
