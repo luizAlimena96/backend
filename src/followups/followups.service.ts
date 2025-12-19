@@ -234,6 +234,11 @@ export class FollowupsService {
       where: {
         agentId: followup.agentId,
         aiEnabled: true,
+        whatsapp: {
+          not: {
+            endsWith: '@g.us'
+          }
+        },
         lead: {
           ...(eligibleStates && eligibleStates.length > 0 && {
             currentState: {
@@ -273,6 +278,12 @@ export class FollowupsService {
     conversation: any,
     followup: any
   ): Promise<boolean> {
+    // SECURITY: Never send follow-ups to groups anywhere
+    if (conversation.whatsapp?.endsWith('@g.us')) {
+      console.log(`[Followups] 🚫 Skipping: Target is a Group (${conversation.whatsapp})`);
+      return false;
+    }
+
     const lastMessage = conversation.messages[0];
     if (!lastMessage) {
       console.log(`[Followups] No messages in conversation ${conversation.id}`);

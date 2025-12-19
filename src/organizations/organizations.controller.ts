@@ -116,8 +116,8 @@ export class OrganizationsController {
             // Save alert phones if provided
             if (data.alertPhone1 || data.alertPhone2) {
                 await this.organizationsService.update(id, {
-                    alertPhone1: data.alertPhone1 || undefined,
-                    alertPhone2: data.alertPhone2 || process.env.LEXA_PHONE || undefined,
+                    whatsappAlertPhone1: data.alertPhone1 || undefined,
+                    whatsappAlertPhone2: data.alertPhone2 || process.env.LEXA_PHONE || undefined,
                 }, role);
             }
 

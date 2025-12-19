@@ -142,6 +142,8 @@ export class OrganizationsService {
                 city: data.city,
                 state: data.state,
                 settings: data.settings,
+                whatsappAlertPhone1: data.whatsappAlertPhone1,
+                whatsappAlertPhone2: data.whatsappAlertPhone2,
             };
 
         // Remove undefined values to avoid Prisma errors

@@ -208,35 +208,39 @@ export class AgentsController {
     @Param("id") id: string,
     @Body() data: any
   ) {
+    const teamPhones = typeof data.teamPhones === 'string'
+      ? data.teamPhones.split(',').map(p => p.trim()).filter(p => p)
+      : (Array.isArray(data.teamPhones) ? data.teamPhones : []);
+
     return this.prisma.autoSchedulingConfig.create({
       data: {
         agentId: id,
         crmStageId: data.crmStageId,
-        duration: data.duration,
-        minAdvanceHours: data.minAdvanceHours,
+        duration: Number(data.duration),
+        minAdvanceHours: Number(data.minAdvanceHours),
         preferredTime: data.preferredTime,
         daysOfWeek: data.daysOfWeek,
         messageTemplate: data.messageTemplate,
-        autoConfirm: data.autoConfirm,
-        moveToStageId: data.moveToStageId,
-        sendConfirmation: data.sendConfirmation,
+        autoConfirm: Boolean(data.autoConfirm),
+        moveToStageId: data.moveToStageId || null,
+        sendConfirmation: data.sendConfirmation !== undefined ? Boolean(data.sendConfirmation) : true,
         confirmationTemplate: data.confirmationTemplate,
-        notifyTeam: data.notifyTeam,
-        teamPhones: data.teamPhones,
+        notifyTeam: Boolean(data.notifyTeam),
+        teamPhones: teamPhones,
         cancellationTemplate: data.cancellationTemplate,
         reschedulingTemplate: data.reschedulingTemplate,
-        isActive: data.isActive,
+        isActive: data.isActive !== undefined ? Boolean(data.isActive) : true,
         reminderWindowStart: data.reminderWindowStart,
         reminderWindowEnd: data.reminderWindowEnd,
         reminders: {
           create: data.reminders?.map((r: any) => ({
-            minutesBefore: r.minutesBefore,
-            sendToLead: r.sendToLead,
-            sendToTeam: r.sendToTeam,
-            additionalPhones: r.additionalPhones,
+            minutesBefore: Number(r.minutesBefore),
+            sendToLead: Boolean(r.sendToLead),
+            sendToTeam: Boolean(r.sendToTeam),
+            additionalPhones: [],
             leadMessageTemplate: r.leadMessageTemplate,
             teamMessageTemplate: r.teamMessageTemplate,
-            isActive: r.isActive
+            isActive: r.isActive !== undefined ? Boolean(r.isActive) : true
           }))
         }
       },
@@ -251,24 +255,28 @@ export class AgentsController {
   ) {
     // Transaction to handle reminders replacement
     return this.prisma.$transaction(async (tx) => {
+      const teamPhones = typeof data.teamPhones === 'string'
+        ? data.teamPhones.split(',').map(p => p.trim()).filter(p => p)
+        : (Array.isArray(data.teamPhones) ? data.teamPhones : []);
+
       // 1. Update main config
       const updated = await tx.autoSchedulingConfig.update({
         where: { id: configId },
         data: {
-          duration: data.duration,
-          minAdvanceHours: data.minAdvanceHours,
+          duration: Number(data.duration),
+          minAdvanceHours: Number(data.minAdvanceHours),
           preferredTime: data.preferredTime,
           daysOfWeek: data.daysOfWeek,
           messageTemplate: data.messageTemplate,
-          autoConfirm: data.autoConfirm,
-          moveToStageId: data.moveToStageId,
-          sendConfirmation: data.sendConfirmation,
+          autoConfirm: Boolean(data.autoConfirm),
+          moveToStageId: data.moveToStageId || null,
+          sendConfirmation: data.sendConfirmation !== undefined ? Boolean(data.sendConfirmation) : true,
           confirmationTemplate: data.confirmationTemplate,
-          notifyTeam: data.notifyTeam,
-          teamPhones: data.teamPhones,
+          notifyTeam: Boolean(data.notifyTeam),
+          teamPhones: teamPhones,
           cancellationTemplate: data.cancellationTemplate,
           reschedulingTemplate: data.reschedulingTemplate,
-          isActive: data.isActive,
+          isActive: data.isActive !== undefined ? Boolean(data.isActive) : true,
           reminderWindowStart: data.reminderWindowStart,
           reminderWindowEnd: data.reminderWindowEnd,
         },
@@ -284,13 +292,13 @@ export class AgentsController {
           await tx.appointmentReminderConfig.createMany({
             data: data.reminders.map((r: any) => ({
               autoSchedulingConfigId: configId,
-              minutesBefore: r.minutesBefore,
-              sendToLead: r.sendToLead,
-              sendToTeam: r.sendToTeam,
-              additionalPhones: r.additionalPhones || [],
+              minutesBefore: Number(r.minutesBefore),
+              sendToLead: Boolean(r.sendToLead),
+              sendToTeam: Boolean(r.sendToTeam),
+              additionalPhones: [],
               leadMessageTemplate: r.leadMessageTemplate,
               teamMessageTemplate: r.teamMessageTemplate,
-              isActive: r.isActive
+              isActive: r.isActive !== undefined ? Boolean(r.isActive) : true
             }))
           });
         }
