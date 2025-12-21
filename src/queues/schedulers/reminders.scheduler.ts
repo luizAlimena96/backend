@@ -60,7 +60,20 @@ export class RemindersScheduler {
     private async processReminder(reminder: any) {
         try {
             const { appointment } = reminder;
+
+            // DEBUG: Log reminder processing details
+            console.log('[Reminders Scheduler] 🔍 DEBUG - Processing reminder:');
+            console.log('[Reminders Scheduler]   - reminderId:', reminder.id);
+            console.log('[Reminders Scheduler]   - type:', reminder.type);
+            console.log('[Reminders Scheduler]   - recipient:', reminder.recipient);
+            console.log('[Reminders Scheduler]   - scheduledFor:', reminder.scheduledFor);
+            console.log('[Reminders Scheduler]   - message preview:', reminder.message?.substring(0, 50) + '...');
+            console.log('[Reminders Scheduler]   - appointmentId:', appointment?.id);
+            console.log('[Reminders Scheduler]   - leadId:', appointment?.lead?.id);
+            console.log('[Reminders Scheduler]   - leadName:', appointment?.lead?.name);
+
             if (!appointment || !appointment.lead || !appointment.lead.organization) {
+                console.log('[Reminders Scheduler] ❌ Missing appointment, lead or organization');
                 await this.updateStatus(reminder.id, 'FAILED', 'Appointment, Lead or Organization not found');
                 return;
             }
@@ -68,37 +81,48 @@ export class RemindersScheduler {
             const organization = appointment.lead.organization;
             const instanceName = organization.evolutionInstanceName;
 
+            console.log('[Reminders Scheduler]   - instanceName:', instanceName);
+
             if (!instanceName) {
+                console.log('[Reminders Scheduler] ❌ No Evolution instance configured');
                 await this.updateStatus(reminder.id, 'FAILED', 'Evolution Instance Name not configured for organization');
                 return;
             }
 
             // 2. Check Sending Window
-            if (!await this.isWithinWindow(appointment.lead.agentId)) {
+            const isWithin = await this.isWithinWindow(appointment.lead.agentId);
+            console.log('[Reminders Scheduler]   - isWithinWindow:', isWithin);
+
+            if (!isWithin) {
                 // If it's "late night" (outside window), we skip sending NOW but keep it PENDING.
                 // It will be picked up again when the window opens (and scheduledFor matches "lte now" rule).
                 // "No primeiro momento libera tudo": Since scheduledFor < now, it will be sent immediately once window opens.
-                console.log(`[Reminders Scheduler] Reminder ${reminder.id} skipped - Outside sending window.`);
+                console.log(`[Reminders Scheduler] ⏰ Reminder ${reminder.id} skipped - Outside sending window.`);
                 return;
             }
 
             // 3. Send Message
-            console.log(`[Reminders Scheduler] Sending reminder ${reminder.id} to ${reminder.recipient}...`);
+            console.log(`[Reminders Scheduler] 📤 Sending reminder ${reminder.id} to ${reminder.recipient}...`);
 
             // Format phone (remove non-digits)
             const phone = reminder.recipient.replace(/\D/g, '');
 
-            await this.evolutionService.sendMessage(
+            const sendResult = await this.evolutionService.sendMessage(
                 instanceName,
                 phone,
                 reminder.message
             );
 
+            console.log('[Reminders Scheduler] ✅ Message sent, result:', JSON.stringify(sendResult).substring(0, 200));
+
             // 4. Update Status
             await this.updateStatus(reminder.id, 'SENT');
+            console.log('[Reminders Scheduler] ✅ Reminder status updated to SENT');
 
         } catch (error: any) {
-            console.error(`[Reminders Scheduler] Failed to process reminder ${reminder.id}:`, error);
+            console.error(`[Reminders Scheduler] ❌ Failed to process reminder ${reminder.id}:`, error);
+            console.error('[Reminders Scheduler]   - Error message:', error.message);
+            console.error('[Reminders Scheduler]   - Error stack:', error.stack?.substring(0, 200));
             await this.updateStatus(reminder.id, 'FAILED', error.message);
         }
     }

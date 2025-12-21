@@ -3,6 +3,7 @@ import { PrismaService } from "../database/prisma.service";
 import { OpenAIService } from "../ai/services/openai.service";
 
 import { CRMAutomationService } from "../common/services/crm-automation.service";
+import { CrmAutomationsService } from "../crm-automations/crm-automations.service";
 
 @Injectable()
 export class LeadsService {
@@ -10,6 +11,7 @@ export class LeadsService {
     private prisma: PrismaService,
     private openaiService: OpenAIService,
     private crmAutomationService: CRMAutomationService,
+    private crmEngine: CrmAutomationsService,
   ) { }
 
   async findAll(organizationId: string, agentId?: string) {
@@ -21,6 +23,13 @@ export class LeadsService {
       include: {
         agent: { select: { id: true, name: true } },
         appointments: true,
+        conversations: {
+          take: 1,
+          select: {
+            id: true,
+            tags: true,
+          },
+        },
         _count: { select: { conversations: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -39,10 +48,19 @@ export class LeadsService {
   }
 
   async create(data: any) {
-    return this.prisma.lead.create({
+    const lead = await this.prisma.lead.create({
       data,
       include: { agent: true },
     });
+
+    // Trigger LEAD_CREATED automation
+    this.crmEngine.trigger('LEAD_CREATED', {
+      organizationId: lead.organizationId,
+      leadId: lead.id,
+      data: lead
+    });
+
+    return lead;
   }
 
   async update(id: string, data: any) {
@@ -57,8 +75,21 @@ export class LeadsService {
     if (data.crmStageId && startLead?.crmStageId !== data.crmStageId) {
       console.log(`[LeadsService] Stage changed for lead ${id}: ${startLead?.crmStageId} -> ${data.crmStageId}`);
       // Run async to not block response
+
+      // Legacy Automation
       this.crmAutomationService.executeAutomationsForState(id, data.crmStageId).catch(err => {
         console.error(`[LeadsService] Error executing automations:`, err);
+      });
+
+      // New Automation Engine
+      this.crmEngine.trigger('STAGE_CHANGE', {
+        organizationId: updatedLead.organizationId,
+        leadId: updatedLead.id,
+        data: {
+          oldStageId: startLead?.crmStageId,
+          newStageId: data.crmStageId,
+          stageId: data.crmStageId // For simpler matching logic
+        }
       });
     }
 

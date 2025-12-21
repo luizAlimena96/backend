@@ -14,6 +14,7 @@ import { IntegrationsModule } from '../integrations/integrations.module';
 import { StorageService } from './services/storage.service';
 import { PdfService } from './services/pdf.service';
 import { MediaProcessorService } from './services/media-processor.service';
+import { ConversationSummaryService } from './services/conversation-summary.service';
 
 import { ToolsModule } from '../ai/tools/tools.module';
 
@@ -33,6 +34,7 @@ import { ToolsModule } from '../ai/tools/tools.module';
         StorageService,
         PdfService,
         MediaProcessorService,
+        ConversationSummaryService,
     ],
     exports: [
         DebugService,
@@ -47,6 +49,7 @@ import { ToolsModule } from '../ai/tools/tools.module';
         StorageService,
         PdfService,
         MediaProcessorService,
+        ConversationSummaryService,
     ],
 })
 export class CommonModule { }

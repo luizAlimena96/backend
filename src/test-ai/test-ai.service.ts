@@ -250,6 +250,13 @@ ${knowledgeContext}
 DADOS EXTRAÍDOS DO LEAD:
 ${JSON.stringify(fsmDecision.extractedData || {}, null, 2)}
 
+DIRETRIZ DE FLUXO E BASE DE CONHECIMENTO:
+1. Se o usuário fez uma pergunta, verifique a BASE DE CONHECIMENTO para responder.
+2. IMPORTANTE: Se você respondeu uma dúvida usando a Base de Conhecimento, você DEVE, na mesma mensagem, retomar o fluxo da conversa.
+3. Não encerre a mensagem apenas com a resposta da dúvida. Sempre termine sua mensagem direcionando o usuário para cumprir a MISSÃO NESTE ESTADO (${nextStateInfo?.missionPrompt}).
+
+Exemplo: "O preço é R$100 (Resposta da dúvida). Agora, sobre seu interesse, qual plano prefere? (Retomada da Missão)"
+
 Responda de forma natural e ajude o usuário conforme a missão do estado atual.`;
 
         // Get AI response using the Logic-Driven context
@@ -398,15 +405,55 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
             orderBy: { createdAt: 'desc' },
         });
 
-        const messagesWithThoughts = conversation.messages.map((msg) => ({
-            id: msg.id,
-            content: msg.content,
-            fromMe: msg.fromMe,
-            timestamp: msg.timestamp,
-            thinking: msg.thought,
-            state: msg.fromMe ? lead?.currentState : undefined,
-            type: msg.type,
-        }));
+        // Create a map of debug logs by timestamp for efficient lookup
+        // Each debug log corresponds to an AI response, so we can match by AI message content
+        const debugLogMap = new Map<string, typeof debugLogs[0]>();
+        debugLogs.forEach(log => {
+            // Map by response content (first line) for matching
+            const responseKey = log.aiResponse?.substring(0, 100) || '';
+            debugLogMap.set(responseKey, log);
+        });
+
+        const messagesWithThoughts = conversation.messages.map((msg) => {
+            let msgState: string | undefined;
+            let msgThinking: string | undefined;
+
+            if (msg.fromMe) {
+                // For AI messages, find matching debug log by content
+                const contentKey = msg.content?.substring(0, 100) || '';
+                const matchingLog = debugLogMap.get(contentKey);
+
+                if (matchingLog) {
+                    msgState = matchingLog.currentState || lead?.currentState || undefined;
+                    msgThinking = msg.thought || matchingLog.aiThinking || undefined;
+                } else {
+                    // Fallback: try to find by timestamp proximity
+                    const msgTime = msg.timestamp.getTime();
+                    const closestLog = debugLogs.find(log => {
+                        const logTime = log.createdAt.getTime();
+                        return Math.abs(logTime - msgTime) < 60000; // Within 1 minute
+                    });
+
+                    if (closestLog) {
+                        msgState = closestLog.currentState || lead?.currentState || undefined;
+                        msgThinking = msg.thought || closestLog.aiThinking || undefined;
+                    } else {
+                        msgState = lead?.currentState || undefined;
+                        msgThinking = msg.thought || undefined;
+                    }
+                }
+            }
+
+            return {
+                id: msg.id,
+                content: msg.content,
+                fromMe: msg.fromMe,
+                timestamp: msg.timestamp,
+                thinking: msgThinking,
+                state: msgState,
+                type: msg.type,
+            };
+        });
 
         return {
             messages: messagesWithThoughts,

@@ -9,6 +9,7 @@ import { StorageService } from '../../common/services/storage.service';
 import { PdfService } from '../../common/services/pdf.service';
 import { ElevenLabsService } from '../../integrations/elevenlabs/elevenlabs.service';
 import { MediaProcessorService } from '../../common/services/media-processor.service';
+import { CrmAutomationsService } from '../../crm-automations/crm-automations.service';
 import { firstValueFrom } from 'rxjs';
 import * as crypto from 'crypto';
 
@@ -25,6 +26,7 @@ export class WhatsAppMessageService {
         private pdfService: PdfService,
         private elevenLabsService: ElevenLabsService,
         private mediaProcessor: MediaProcessorService,
+        private crmEngine: CrmAutomationsService,
     ) { }
 
     async processIncomingMessage(webhookData: any): Promise<void> {
@@ -263,6 +265,16 @@ export class WhatsAppMessageService {
                 },
             });
 
+            // Trigger MESSAGE_RECEIVED Automation
+            this.crmEngine.trigger('MESSAGE_RECEIVED', {
+                organizationId: agent.organizationId,
+                leadId: lead.id,
+                data: {
+                    content: messageContent,
+                    conversationId: conversation.id
+                }
+            });
+
             // 5. Generate conversation summary in background
             this.leadsService.updateConversationSummary(lead.id).catch(err => {
                 console.error('[WhatsApp] Failed to update conversation summary:', err);
@@ -294,6 +306,18 @@ export class WhatsAppMessageService {
             // 9. Get next state details
             const nextState = agent.states?.find(s => s.name === fsmDecision.nextState);
 
+            // DEBUG: Log state media info
+            console.log('[WhatsApp] 🔍 DEBUG - State media check:', {
+                nextStateName: fsmDecision.nextState,
+                stateFound: !!nextState,
+                stateId: nextState?.id,
+                hasMediaItems: !!nextState?.mediaItems,
+                mediaItemsType: typeof nextState?.mediaItems,
+                mediaItemsRaw: nextState?.mediaItems,
+                mediaTiming: nextState?.mediaTiming,
+                allStatesCount: agent.states?.length,
+            });
+
             // 10. Build system prompt
             const systemPrompt = this.buildSystemPrompt(agent, nextState, fsmDecision);
 
@@ -315,8 +339,29 @@ export class WhatsAppMessageService {
             );
 
             // 12. Process and send state media items (if any)
-            const stateMediaItems = nextState?.mediaItems as any[] || [];
+            // Parse mediaItems - it might be a string if stored as JSON
+            let stateMediaItems: any[] = [];
+            if (nextState?.mediaItems) {
+                if (typeof nextState.mediaItems === 'string') {
+                    try {
+                        stateMediaItems = JSON.parse(nextState.mediaItems);
+                    } catch (e) {
+                        console.error('[WhatsApp] ❌ Failed to parse mediaItems as JSON:', e);
+                    }
+                } else if (Array.isArray(nextState.mediaItems)) {
+                    stateMediaItems = nextState.mediaItems;
+                } else {
+                    console.warn('[WhatsApp] ⚠️ mediaItems is neither string nor array:', typeof nextState.mediaItems);
+                }
+            }
+
             const mediaTiming = nextState?.mediaTiming || 'after'; // default to 'after'
+
+            console.log('[WhatsApp] 📎 DEBUG - Media items to process:', {
+                count: stateMediaItems.length,
+                items: stateMediaItems,
+                timing: mediaTiming,
+            });
 
             // Helper function to send media items
             const sendMediaItems = async () => {
@@ -556,6 +601,13 @@ ${knowledgeContext}
 
 DADOS EXTRAÍDOS DO LEAD:
 ${JSON.stringify(fsmDecision.extractedData || {}, null, 2)}
+
+DIRETRIZ DE FLUXO E BASE DE CONHECIMENTO:
+1. Se o usuário fez uma pergunta, verifique a BASE DE CONHECIMENTO para responder.
+2. IMPORTANTE: Se você respondeu uma dúvida usando a Base de Conhecimento, você DEVE, na mesma mensagem, retomar o fluxo da conversa.
+3. Não encerre a mensagem apenas com a resposta da dúvida. Sempre termine sua mensagem direcionando o usuário para cumprir a MISSÃO NESTE ESTADO (${state?.missionPrompt}).
+
+Exemplo: "O preço é R$100 (Resposta da dúvida). Agora, sobre seu interesse, qual plano prefere? (Retomada da Missão)"
 
 Responda de forma natural e ajude o usuário conforme a missão do estado atual.`;
     }

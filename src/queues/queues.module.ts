@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -14,6 +14,8 @@ import { CRMSyncScheduler } from './schedulers/crm-sync.scheduler';
 import { FollowupScheduler } from './schedulers/followup.scheduler';
 import { PrismaModule } from '../database/prisma.module';
 import { FollowupsModule } from '../followups/followups.module';
+import { LeadsModule } from '../leads/leads.module';
+import { ConversationsModule } from '../conversations/conversations.module';
 
 @Module({
     imports: [
@@ -21,6 +23,8 @@ import { FollowupsModule } from '../followups/followups.module';
         PrismaModule,
         HttpModule,
         FollowupsModule,
+        forwardRef(() => LeadsModule),
+        forwardRef(() => ConversationsModule),
         BullModule.forRootAsync({
             imports: [ConfigModule],
             useFactory: async (configService: ConfigService) => {

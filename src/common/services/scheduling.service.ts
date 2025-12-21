@@ -18,6 +18,15 @@ export class SchedulingService {
         notes?: string;
         organizationId: string;
     }): Promise<any> {
+        // DEBUG: Log incoming appointment data
+        console.log('[Scheduling] 🔍 DEBUG - Creating appointment:');
+        console.log('[Scheduling]   - leadId:', data.leadId);
+        console.log('[Scheduling]   - title:', data.title);
+        console.log('[Scheduling]   - scheduledAt:', data.scheduledAt);
+        console.log('[Scheduling]   - duration:', data.duration || 60);
+        console.log('[Scheduling]   - type:', data.type || 'MEETING');
+        console.log('[Scheduling]   - organizationId:', data.organizationId);
+
         let appointment = await this.prisma.appointment.create({
             data: {
                 leadId: data.leadId,
@@ -30,6 +39,8 @@ export class SchedulingService {
                 status: 'SCHEDULED',
             },
         });
+
+        console.log('[Scheduling] ✅ Appointment created:', appointment.id);
 
         // 1. Google Calendar Sync
         try {

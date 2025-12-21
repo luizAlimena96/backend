@@ -352,4 +352,26 @@ export class EvolutionAPIService {
             return null;
         }
     }
+
+    async logoutInstance(instanceName: string): Promise<any> {
+        try {
+            console.log(`[Evolution API] Logging out instance: ${instanceName}`);
+            const response = await firstValueFrom(
+                this.httpService.delete(
+                    `${this.getBaseUrl()}/instance/logout/${instanceName}`,
+                    {
+                        headers: {
+                            apikey: this.getApiKey(),
+                        },
+                        timeout: 30000,
+                    }
+                )
+            );
+            return response.data;
+        } catch (error) {
+            console.error('Evolution API logout error:', error);
+            // Ignore error if instance is already logged out or not found
+            return null;
+        }
+    }
 }

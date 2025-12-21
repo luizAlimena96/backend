@@ -44,4 +44,8 @@ export class WhatsAppIntegrationService {
     async getBase64FromMediaMessage(instanceName: string, messageKeyId: string): Promise<{ base64: string; mimetype: string } | null> {
         return this.evolutionAPI.getBase64FromMediaMessage(instanceName, messageKeyId);
     }
+
+    async logoutInstance(instanceName: string): Promise<any> {
+        return this.evolutionAPI.logoutInstance(instanceName);
+    }
 }

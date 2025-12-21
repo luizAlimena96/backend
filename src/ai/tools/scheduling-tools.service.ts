@@ -225,8 +225,16 @@ export class SchedulingToolsService {
         data_especifica?: string;
         horario_especifico?: string;
     }) {
+        // DEBUG: Log confirmation attempt
+        console.log('[Scheduling Tools] 🔍 DEBUG - confirmarAgendamento:');
+        console.log('[Scheduling Tools]   - organizationId:', params.organizationId);
+        console.log('[Scheduling Tools]   - leadId:', params.leadId);
+        console.log('[Scheduling Tools]   - data_especifica:', params.data_especifica);
+        console.log('[Scheduling Tools]   - horario_especifico:', params.horario_especifico);
+
         try {
             if (!params.data_especifica || !params.horario_especifico) {
+                console.log('[Scheduling Tools] ❌ Missing date or time');
                 return {
                     success: false,
                     mensagem: 'Data e horário são obrigatórios para confirmar o agendamento.'
@@ -238,7 +246,13 @@ export class SchedulingToolsService {
                 include: { agent: true }
             });
 
+            console.log('[Scheduling Tools]   - lead found:', !!lead);
+            console.log('[Scheduling Tools]   - lead.name:', lead?.name);
+            console.log('[Scheduling Tools]   - lead.agent.id:', lead?.agent?.id);
+            console.log('[Scheduling Tools]   - lead.crmStageId:', lead?.crmStageId);
+
             if (!lead?.agent) {
+                console.log('[Scheduling Tools] ❌ Lead or agent not found');
                 return {
                     success: false,
                     mensagem: 'Agente não encontrado.'
@@ -246,6 +260,7 @@ export class SchedulingToolsService {
             }
 
             if (!lead.crmStageId) {
+                console.log('[Scheduling Tools] ❌ Lead not in any CRM stage');
                 return {
                     success: false,
                     mensagem: 'Lead não está em nenhuma etapa do CRM.'
@@ -260,9 +275,14 @@ export class SchedulingToolsService {
                 }
             });
 
+            console.log('[Scheduling Tools]   - autoSchedulingConfig found:', !!config);
+            console.log('[Scheduling Tools]   - config.duration:', config?.duration);
+
             const [hours, minutes] = params.horario_especifico.split(':').map(Number);
             const scheduledAt = new Date(params.data_especifica);
             scheduledAt.setHours(hours, minutes, 0, 0);
+
+            console.log('[Scheduling Tools]   - scheduledAt (parsed):', scheduledAt);
 
             const appointment = await this.schedulingService.createAppointment({
                 leadId: params.leadId,
@@ -273,6 +293,8 @@ export class SchedulingToolsService {
                 organizationId: params.organizationId,
             });
 
+            console.log('[Scheduling Tools] ✅ Appointment created successfully:', appointment.id);
+
             return {
                 success: true,
                 agendamento: appointment,
@@ -280,7 +302,8 @@ export class SchedulingToolsService {
             };
 
         } catch (error: any) {
-            console.error('[Scheduling Tools] Erro ao confirmar agendamento:', error);
+            console.error('[Scheduling Tools] ❌ Erro ao confirmar agendamento:', error);
+            console.error('[Scheduling Tools]   - Error message:', error.message);
             return {
                 success: false,
                 mensagem: 'Erro ao criar agendamento.'

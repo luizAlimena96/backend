@@ -10,10 +10,11 @@ import { AIModule } from '../ai/ai.module';
 import { IntegrationsModule } from '../integrations/integrations.module';
 import { LeadsModule } from '../leads/leads.module';
 import { HttpModule } from '@nestjs/axios';
+import { CrmAutomationsModule } from '../crm-automations/crm-automations.module';
 import { CommonModule } from '../common/common.module';
 
 @Module({
-  imports: [AIModule, IntegrationsModule, LeadsModule, HttpModule, CommonModule],
+  imports: [AIModule, IntegrationsModule, LeadsModule, HttpModule, CommonModule, CrmAutomationsModule],
   controllers: [
     WhatsAppWebhookController,
     AIControlWebhookController,

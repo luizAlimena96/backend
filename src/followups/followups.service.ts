@@ -369,6 +369,12 @@ export class FollowupsService {
     console.log(`  - Agent ID: ${followup.agentId}`);
     console.log(`  - Follow-up ID: ${followup.id}`);
 
+    // DEBUG: Log media configuration
+    console.log(`[Followups] 🔍 DEBUG - Media configuration:`);
+    console.log(`  - mediaType: ${followup.mediaType}`);
+    console.log(`  - mediaUrl: ${followup.mediaUrl}`);
+    console.log(`  - hasMedia: ${!!(followup.mediaType === 'media' && followup.mediaUrl)}`);
+
     let messageToSend = followup.message;
 
     try {
@@ -481,10 +487,17 @@ Gere uma mensagem de follow-up personalizada baseada neste contexto.`;
         try {
           if (followup.mediaType === 'text' || !followup.mediaType) {
             console.log(`[Followups] 📨 Sending text message via Evolution API...`);
-            await this.whatsappService.sendMessage(instanceName, recipient, messageToSend);
+            const textResult = await this.whatsappService.sendMessage(instanceName, recipient, messageToSend);
+            console.log(`[Followups] ✅ Text message sent, result:`, JSON.stringify(textResult).substring(0, 200));
           } else if (followup.mediaType === 'media' && followup.mediaUrl) {
             console.log(`[Followups] 📷 Sending media message via Evolution API...`);
-            await this.whatsappService.sendMedia(instanceName, recipient, followup.mediaUrl, messageToSend);
+            console.log(`[Followups]   - Media URL: ${followup.mediaUrl}`);
+            console.log(`[Followups]   - Caption: ${messageToSend?.substring(0, 50)}...`);
+            const mediaResult = await this.whatsappService.sendMedia(instanceName, recipient, followup.mediaUrl, messageToSend);
+            console.log(`[Followups] ✅ Media message sent, result:`, JSON.stringify(mediaResult).substring(0, 200));
+          } else {
+            console.log(`[Followups] ⚠️ Unknown mediaType or missing mediaUrl, skipping media send`);
+            console.log(`[Followups]   - mediaType: ${followup.mediaType}, mediaUrl: ${followup.mediaUrl ? 'EXISTS' : 'MISSING'}`);
           }
 
           console.log(`[Followups Service] ✅ Sent follow-up to ${recipient} via Evolution API`);

@@ -16,7 +16,12 @@ export class AgentsController {
   // ============================================
 
   @Get()
-  async findAll(@Query("organizationId") organizationId?: string) {
+  async findAll(@Query("organizationId") queryOrgId?: string, @Request() req?) {
+    // Use query param if provided, otherwise use user's organizationId
+    const organizationId = queryOrgId || req?.user?.organizationId;
+
+    console.log(`[AgentsController] findAll - queryOrgId: ${queryOrgId}, user.organizationId: ${req?.user?.organizationId}, using: ${organizationId}`);
+
     return this.agentsService.findAll(organizationId);
   }
 
@@ -399,5 +404,72 @@ export class AgentsController {
     return this.prisma.appointmentReminderConfig.delete({
       where: { id: reminderId },
     });
+  }
+
+  // ============================================
+  // SCHEDULING RULES
+  // ============================================
+
+  @Get(":id/scheduling-rules")
+  async getSchedulingRules(@Param("id") id: string) {
+    console.log('[Agents] 📅 Getting scheduling rules for agent:', id);
+
+    const agent = await this.agentsService.findOne(id);
+
+    // Return scheduling-related settings from agent and organization
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: agent.organizationId },
+      select: { workingHours: true },
+    });
+
+    return {
+      workingHours: organization?.workingHours || null,
+      googleCalendarEnabled: agent.googleCalendarEnabled || false,
+      googleCalendarId: agent.googleCalendarId || null,
+      meetingDuration: agent.meetingDuration || 60,
+      minMeetingDuration: agent.minMeetingDuration || 30,
+      maxMeetingDuration: agent.maxMeetingDuration || 120,
+      minAdvanceHours: agent.minAdvanceHours || 0,
+      useCustomTimeWindows: agent.useCustomTimeWindows || false,
+    };
+  }
+
+  @Put(":id/scheduling-rules")
+  async updateSchedulingRules(
+    @Param("id") id: string,
+    @Body() data: {
+      workingHours?: any;
+      meetingDuration?: number;
+      minMeetingDuration?: number;
+      maxMeetingDuration?: number;
+      minAdvanceHours?: number;
+      useCustomTimeWindows?: boolean;
+    }
+  ) {
+    console.log('[Agents] 📅 Updating scheduling rules for agent:', id, data);
+
+    const agent = await this.agentsService.findOne(id);
+
+    // Update agent scheduling settings
+    const agentUpdates: any = {};
+    if (data.meetingDuration !== undefined) agentUpdates.meetingDuration = data.meetingDuration;
+    if (data.minMeetingDuration !== undefined) agentUpdates.minMeetingDuration = data.minMeetingDuration;
+    if (data.maxMeetingDuration !== undefined) agentUpdates.maxMeetingDuration = data.maxMeetingDuration;
+    if (data.minAdvanceHours !== undefined) agentUpdates.minAdvanceHours = data.minAdvanceHours;
+    if (data.useCustomTimeWindows !== undefined) agentUpdates.useCustomTimeWindows = data.useCustomTimeWindows;
+
+    if (Object.keys(agentUpdates).length > 0) {
+      await this.agentsService.update(id, agentUpdates);
+    }
+
+    // Update organization working hours if provided
+    if (data.workingHours !== undefined) {
+      await this.prisma.organization.update({
+        where: { id: agent.organizationId },
+        data: { workingHours: data.workingHours },
+      });
+    }
+
+    return { success: true, message: 'Scheduling rules updated successfully' };
   }
 }

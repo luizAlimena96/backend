@@ -70,6 +70,29 @@ async function bootstrap() {
 
   console.log(`✅ Backend is running on: http://localhost:${port}/api`);
   console.log(`🏥 Health check available at: http://localhost:${port}/api/health`);
+
+  // Sinaliza ao PM2 que o app está pronto
+  if (process.send) {
+    process.send('ready');
+    console.log('📡 PM2 ready signal sent');
+  }
+
+  // Graceful shutdown handlers
+  const gracefulShutdown = async (signal: string) => {
+    console.log(`\n🛑 Received ${signal}. Starting graceful shutdown...`);
+
+    try {
+      await app.close();
+      console.log('✅ Application closed gracefully');
+      process.exit(0);
+    } catch (error) {
+      console.error('❌ Error during shutdown:', error);
+      process.exit(1);
+    }
+  };
+
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 }
 
 bootstrap();

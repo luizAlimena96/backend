@@ -21,8 +21,28 @@ export class StatesService {
       throw new NotFoundException("Agent not found");
     }
 
-    if (user && user.role !== 'SUPER_ADMIN' && agent.organizationId !== user.organizationId) {
-      throw new ForbiddenException("You do not have permission to access states for this agent");
+    // Debug logging
+    console.log(`[StatesService] findAll - agentId: ${agentId}`);
+    console.log(`[StatesService] findAll - user:`, {
+      id: user?.id,
+      role: user?.role,
+      organizationId: user?.organizationId
+    });
+    console.log(`[StatesService] findAll - agent.organizationId: ${agent.organizationId}`);
+
+    // Check permissions: SUPER_ADMIN can access all, others only their own organization
+    if (user && user.role !== 'SUPER_ADMIN') {
+      // If user has no organizationId, deny access
+      if (!user.organizationId) {
+        console.log(`[StatesService] Access denied - user has no organizationId`);
+        throw new ForbiddenException("User is not associated with any organization");
+      }
+
+      // If user's org doesn't match agent's org, deny access
+      if (agent.organizationId !== user.organizationId) {
+        console.log(`[StatesService] Access denied - org mismatch: ${agent.organizationId} !== ${user.organizationId}`);
+        throw new ForbiddenException("You do not have permission to access states for this agent");
+      }
     }
 
     return this.prisma.state.findMany({

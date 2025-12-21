@@ -1,9 +1,14 @@
 ﻿import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
+import { CrmAutomationsService } from "../crm-automations/crm-automations.service";
+import * as crypto from 'crypto';
 
 @Injectable()
 export class ConversationsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private crmEngine: CrmAutomationsService,
+  ) { }
 
   async findAll(organizationId: string) {
     return this.prisma.conversation.findMany({
@@ -145,7 +150,7 @@ export class ConversationsService {
       return conversation;
     }
 
-    return this.prisma.conversation.update({
+    const updated = await this.prisma.conversation.update({
       where: { id: conversationId },
       data: {
         tags: {
@@ -154,6 +159,17 @@ export class ConversationsService {
       },
       include: { tags: true },
     });
+
+    // Trigger TAG_ADDED
+    if (conversation.leadId) {
+      this.crmEngine.trigger('TAG_ADDED', {
+        organizationId: conversation.organizationId,
+        leadId: conversation.leadId,
+        data: { tagId, conversationId }
+      });
+    }
+
+    return updated;
   }
 
   async removeTag(conversationId: string, tagId: string) {

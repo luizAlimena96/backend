@@ -36,6 +36,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { TestAIModule } from './test-ai/test-ai.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { HealthModule } from './health/health.module';
+import { GoogleModule } from './google/google.module';
 
 @Module({
   imports: [
@@ -91,6 +92,7 @@ import { HealthModule } from './health/health.module';
     TestAIModule,
     CalendarModule,
     HealthModule,
+    GoogleModule,
   ],
   controllers: [AppController],
   providers: [

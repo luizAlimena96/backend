@@ -80,6 +80,75 @@ export class OrganizationsController {
     // WHATSAPP CONNECTION
     // ============================================
 
+    @Get(':id/whatsapp')
+    async getWhatsAppStatus(@Param('id') id: string, @Request() req) {
+        const { role, organizationId } = req.user;
+
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new ForbiddenException('Sem permissão para ver status desta organização');
+        }
+
+        try {
+            const org = await this.organizationsService.findOne(id);
+
+            // If no instance name, not connected
+            if (!org.evolutionInstanceName) {
+                return {
+                    connected: false,
+                    instanceName: null,
+                    alertPhone1: org.whatsappAlertPhone1 || null,
+                    alertPhone2: org.whatsappAlertPhone2 || null,
+                };
+            }
+
+            // Check status with Evolution API
+            try {
+                const status = await this.whatsappService.getInstanceStatus(org.evolutionInstanceName);
+
+                // Evolution API returns { instance: { state: 'open' | 'close' | ... } } or { state: 'open' | ... }
+                const connectionState = status?.instance?.state || status?.state || 'unknown';
+                const isConnected = connectionState === 'open';
+
+                // Update organization whatsappConnected field if status changed
+                if (org.whatsappConnected !== isConnected) {
+                    await this.organizationsService.update(id, {
+                        whatsappConnected: isConnected,
+                        whatsappConnectedAt: isConnected ? new Date() : null,
+                    }, role);
+                }
+
+                return {
+                    connected: isConnected,
+                    connectionState,
+                    instanceName: org.evolutionInstanceName,
+                    phone: org.whatsappPhone || null,
+                    alertPhone1: org.whatsappAlertPhone1 || null,
+                    alertPhone2: org.whatsappAlertPhone2 || null,
+                    lastConnected: org.whatsappConnectedAt || null,
+                };
+            } catch (apiError: any) {
+                console.error('[WhatsApp Status] Evolution API error:', apiError?.message);
+                // Return cached status if API fails
+                return {
+                    connected: org.whatsappConnected || false,
+                    connectionState: 'unknown',
+                    instanceName: org.evolutionInstanceName,
+                    phone: org.whatsappPhone || null,
+                    alertPhone1: org.whatsappAlertPhone1 || null,
+                    alertPhone2: org.whatsappAlertPhone2 || null,
+                    lastConnected: org.whatsappConnectedAt || null,
+                    error: 'Não foi possível verificar status em tempo real',
+                };
+            }
+        } catch (error: any) {
+            console.error('WhatsApp status error:', error);
+            return {
+                connected: false,
+                error: error.message || 'Erro ao verificar status',
+            };
+        }
+    }
+
     @Post(':id/whatsapp')
     async connectWhatsApp(
         @Param('id') id: string,
@@ -113,11 +182,14 @@ export class OrganizationsController {
                 await this.organizationsService.update(id, { evolutionInstanceName: instanceName }, role);
             }
 
-            // Save alert phones if provided
-            if (data.alertPhone1 || data.alertPhone2) {
+            // Save alert phones if provided (or update with existing if already set)
+            const alertPhone1 = data.alertPhone1 || org.whatsappAlertPhone1;
+            const alertPhone2 = data.alertPhone2 || org.whatsappAlertPhone2 || process.env.LEXA_PHONE;
+
+            if (alertPhone1 || alertPhone2) {
                 await this.organizationsService.update(id, {
-                    whatsappAlertPhone1: data.alertPhone1 || undefined,
-                    whatsappAlertPhone2: data.alertPhone2 || process.env.LEXA_PHONE || undefined,
+                    whatsappAlertPhone1: alertPhone1 || undefined,
+                    whatsappAlertPhone2: alertPhone2 || undefined,
                 }, role);
             }
 
@@ -134,6 +206,38 @@ export class OrganizationsController {
             return {
                 success: false,
                 error: error?.response?.data?.message || error.message || 'Erro ao conectar WhatsApp',
+            };
+        }
+    }
+
+    @Delete(':id/whatsapp')
+    async disconnectWhatsApp(@Param('id') id: string, @Request() req) {
+        const { role, organizationId } = req.user;
+
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new ForbiddenException('Sem permissão para desconectar WhatsApp desta organização');
+        }
+
+        try {
+            const org = await this.organizationsService.findOne(id);
+            if (org.evolutionInstanceName) {
+                // Logout from Evolution API
+                await this.whatsappService.logoutInstance(org.evolutionInstanceName);
+            }
+
+            // Update organization
+            await this.organizationsService.update(id, {
+                whatsappConnected: false,
+                whatsappConnectedAt: null,
+                // We keep instance name and alert phones for easier reconnection
+            }, role);
+
+            return { success: true };
+        } catch (error: any) {
+            console.error('WhatsApp disconnect error:', error);
+            return {
+                success: false,
+                error: error.message || 'Erro ao desconectar WhatsApp',
             };
         }
     }
