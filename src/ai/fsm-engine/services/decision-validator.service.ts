@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { OpenAIService } from '../../services/openai.service';
 import { DecisionResult, AvailableRoutes } from './state-decider.service';
+import { VALIDATOR_SYSTEM_PROMPT } from '../prompts/system-prompts';
 
 export interface ValidationInput {
     currentState: string;
@@ -142,10 +143,8 @@ export class DecisionValidatorService {
     }
 
     private buildValidatorPrompt(input: any, customPrompt?: string | null): string {
-        // Use custom prompt from agent database (required)
-        if (!customPrompt) {
-            throw new Error('Validator prompt not configured for this agent. Please configure fsmValidatorPrompt in agent settings.');
-        }
+        // Use custom prompt from agent database or default system prompt
+        const basePrompt = (customPrompt && customPrompt.trim()) || VALIDATOR_SYSTEM_PROMPT;
 
         const conversationText = input.conversationHistory
             .slice(-10)
@@ -153,7 +152,7 @@ export class DecisionValidatorService {
             .join('\n');
 
         // Build prompt exactly like frontend (prompts.ts line 112-151)
-        return `${customPrompt}
+        return `${basePrompt}
 
 # CONTEXTO DO AGENTE
 

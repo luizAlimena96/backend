@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { OpenAIService } from '../../services/openai.service';
 import { AgentContext } from '../types/common.types';
+import { DATA_EXTRACTOR_SYSTEM_PROMPT } from '../prompts/system-prompts';
 
 export interface ExtractionInput {
     message: string;
@@ -296,20 +297,18 @@ FORMATO DE SAÍDA (JSON):
     }
 
     private buildDataExtractorPrompt(input: ExtractionInput, customPrompt?: string | null): string {
-        // Use custom prompt from agent database (required)
-        if (!customPrompt) {
-            throw new Error('Data Extractor prompt not configured for this agent. Please configure fsmDataExtractorPrompt in agent settings.');
-        }
+        // Use custom prompt from agent database or default system prompt
+        const basePrompt = (customPrompt && customPrompt.trim()) || DATA_EXTRACTOR_SYSTEM_PROMPT;
 
         if (!input.dataKey || input.dataKey === 'vazio') {
-            return customPrompt || `Você é um extrator de dados. O estado atual não requer extração (dataKey: "${input.dataKey || 'vazio'}"). Retorne JSON vazio.`;
+            return basePrompt || `Você é um extrator de dados. O estado atual não requer extração (dataKey: "${input.dataKey || 'vazio'}"). Retorne JSON vazio.`;
         }
 
         const conversationText = input.conversationHistory
             .map(msg => `${msg.role === 'user' ? 'Cliente' : 'Atendente'}: ${msg.content}`)
             .join('\n');
 
-        return `${customPrompt}
+        return `${basePrompt}
 
 # DIRETRIZ SUPREMA (LEI ZERO) - INTELIGÊNCIA SEMÂNTICA
 Você deve usar RACIOCÍNIO CONTEXTUAL para determinar se algo é um dado real ou não.

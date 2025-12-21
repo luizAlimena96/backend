@@ -98,6 +98,18 @@ export class FSMEngineService {
             const openaiApiKey = agent.organization.openaiApiKey;
             const openaiModel = agent.organization.openaiModel || 'gpt-4o-mini';
 
+            // DEBUG: Log FSM prompts from database
+            console.log('[FSM Engine] 🔍 DEBUG - Prompts from database:', {
+                agentId: agent.id,
+                agentName: agent.name,
+                hasDataExtractorPrompt: !!agent.fsmDataExtractorPrompt,
+                dataExtractorPromptLength: agent.fsmDataExtractorPrompt?.length || 0,
+                hasStateDeciderPrompt: !!agent.fsmStateDeciderPrompt,
+                stateDeciderPromptLength: agent.fsmStateDeciderPrompt?.length || 0,
+                hasValidatorPrompt: !!agent.fsmValidatorPrompt,
+                validatorPromptLength: agent.fsmValidatorPrompt?.length || 0,
+            });
+
             const agentContext: AgentContext = {
                 name: agent.name,
                 personality: agent.personality,
@@ -579,6 +591,35 @@ export class FSMEngineService {
                     await delay(backoffMs);
                     continue; // Retry
                 }
+
+                // ==================== AUTO-SKIP STATES ====================
+                // Pular estados cujos dataKeys já foram coletados
+                if (validationResult.approved && finalNextState !== state.name) {
+                    const allStates = await this.prisma.state.findMany({
+                        where: { agentId: input.agentId },
+                        select: {
+                            name: true,
+                            dataKey: true,
+                            availableRoutes: true,
+                        },
+                    });
+
+                    const skipResult = await this.stateDecider.findNextStateWithMissingData(
+                        finalNextState,
+                        allStates,
+                        updatedExtractedData
+                    );
+
+                    if (skipResult.skippedStates.length > 0) {
+                        console.log(`[FSM Engine] 🚀 Auto-skip: pulando ${skipResult.skippedStates.length} estados →`, skipResult.skippedStates);
+                        decisionResult.pensamento.push(
+                            `🚀 AUTO-SKIP: Estados pulados (dataKeys já coletados): ${skipResult.skippedStates.join(' → ')}`
+                        );
+                        decisionResult.pensamento.push(`📍 Novo destino: ${skipResult.nextState}`);
+                        finalNextState = skipResult.nextState;
+                    }
+                }
+
 
                 // ==================== RESULTADO FINAL ====================
                 metrics.totalTime = Date.now() - startTime;

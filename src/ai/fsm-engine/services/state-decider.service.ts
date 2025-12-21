@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { OpenAIService } from '../../services/openai.service';
 import { Route, AvailableRoutes, AgentContext } from '../types/common.types';
+import { STATE_DECIDER_SYSTEM_PROMPT } from '../prompts/system-prompts';
 
 export type Veredito = 'SUCESSO' | 'FALHA' | 'PENDENTE' | 'ERRO';
 export type TipoRota = 'rota_de_sucesso' | 'rota_de_persistencia' | 'rota_de_escape';
@@ -157,10 +158,8 @@ export class StateDeciderService {
             customPromptValue: customPrompt === null ? 'null' : customPrompt === undefined ? 'undefined' : 'string',
         });
 
-        // Use custom prompt from agent database (required)
-        if (!customPrompt) {
-            throw new Error('State Decider prompt not configured for this agent. Please configure fsmStateDeciderPrompt in agent settings.');
-        }
+        // Use custom prompt from agent database or default system prompt
+        const basePrompt = (customPrompt && customPrompt.trim()) || STATE_DECIDER_SYSTEM_PROMPT;
 
         const conversationText = input.conversationHistory
             .slice(-10)
@@ -172,7 +171,7 @@ export class StateDeciderService {
             : '';
 
         // Build prompt exactly like frontend (prompts.ts line 62-99)
-        return `${customPrompt}
+        return `${basePrompt}
 
 # CONTEXTO DO AGENTE
 
@@ -211,5 +210,87 @@ ${input.prohibitions ? `**PROIBIÇÕES DO ESTADO ATUAL**:\n${input.prohibitions}
 
 ## EXECUTE O MOTOR DE DECISÃO AGORA
 Retorne APENAS o objeto JSON conforme LEI UM.`;
+    }
+
+    /**
+     * Verifica se um estado deve ser pulado porque seu dataKey já foi coletado
+     */
+    shouldSkipState(
+        stateName: string,
+        stateDataKey: string | null,
+        extractedData: Record<string, any>
+    ): boolean {
+        // Se o estado não tem dataKey, não pode ser pulado
+        if (!stateDataKey || stateDataKey === 'vazio') {
+            return false;
+        }
+
+        // Se o dataKey já existe em extractedData com valor válido, pular
+        const value = extractedData[stateDataKey];
+
+        // Verificar se o valor existe e não é null/undefined/empty
+        if (value === null || value === undefined || value === '') {
+            return false;
+        }
+
+        // Se chegou aqui, o dado foi coletado e o estado pode ser pulado
+        console.log(`[State Decider] Estado '${stateName}' será pulado - dataKey '${stateDataKey}' já coletado:`, value);
+        return true;
+    }
+
+    /**
+     * Encontra o próximo estado que ainda precisa de dados
+     * Pula estados cujos dataKeys já foram coletados
+     */
+    async findNextStateWithMissingData(
+        proposedState: string,
+        allStates: Array<{ name: string; dataKey: string | null; availableRoutes: any }>,
+        extractedData: Record<string, any>,
+        maxDepth: number = 10
+    ): Promise<{ nextState: string; skippedStates: string[] }> {
+        const skippedStates: string[] = [];
+        let currentState = proposedState;
+        let depth = 0;
+
+        while (depth < maxDepth) {
+            // Encontrar informações do estado atual
+            const stateInfo = allStates.find(s => s.name === currentState);
+
+            if (!stateInfo) {
+                // Estado não encontrado, retornar como está
+                break;
+            }
+
+            // Verificar se este estado deve ser pulado
+            if (this.shouldSkipState(currentState, stateInfo.dataKey, extractedData)) {
+                skippedStates.push(currentState);
+
+                // Tentar encontrar próximo estado na rota de sucesso
+                const routes = stateInfo.availableRoutes as any;
+                const successRoute = routes?.rota_de_sucesso;
+
+                if (successRoute && successRoute.length > 0) {
+                    // Ir para o primeiro estado da rota de sucesso
+                    currentState = successRoute[0].estado;
+                    depth++;
+                } else {
+                    // Sem rota de sucesso, não pode pular
+                    break;
+                }
+            } else {
+                // Estado não deve ser pulado, este é o próximo estado válido
+                break;
+            }
+        }
+
+        if (skippedStates.length > 0) {
+            console.log(`[State Decider] Pulados ${skippedStates.length} estados:`, skippedStates);
+            console.log(`[State Decider] Próximo estado válido: ${currentState}`);
+        }
+
+        return {
+            nextState: currentState,
+            skippedStates,
+        };
     }
 }
