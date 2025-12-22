@@ -113,7 +113,6 @@ export class TestAIService {
                     processedMessage = `[Arquivo de áudio enviado]${message ? `\n${message}` : ''}`;
                 }
             } else if (file.type.startsWith('image/') && apiKey) {
-                // NEW: Image analysis
                 try {
                     console.log('[Test AI] Analyzing image...');
                     const imageAnalysis = await this.mediaAnalysisService.analyzeImage(
@@ -350,6 +349,8 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
             thinking: fsmDecision.reasoning.join('\n'),
             state: fsmDecision.nextState,
             extractedData: fsmDecision.extractedData,
+            mediaItems: nextStateInfo?.mediaItems || [],
+            mediaTiming: nextStateInfo?.mediaTiming || 'after',
             newDebugLog: {
                 id: debugLog.id,
                 clientMessage: processedMessage,
