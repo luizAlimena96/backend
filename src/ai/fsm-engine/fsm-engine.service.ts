@@ -406,6 +406,21 @@ export class FSMEngineService {
                     confianca: decisionResult.confianca,
                 });
 
+                // ==================== INJETAR CONTEXTO NO PENSAMENTO ====================
+                const contextLog = [
+                    '📥 --- CONTEXTO DE ENTRADA (STATE DECIDER) ---',
+                    `Estado: ${decisionInput.currentState}`,
+                    `Missão: ${decisionInput.missionPrompt}`,
+                    `Chave de Validação: ${decisionInput.dataKey}`,
+                    `Valor na Memória: ${decisionInput.dataKey ? (decisionInput.extractedData[decisionInput.dataKey] || 'null') : 'N/A'}`,
+                    `Dados Extraídos (Entrada): ${JSON.stringify(decisionInput.extractedData)}`,
+                    `Mensagem Usuário: "${decisionInput.lastMessage}"`,
+                    `Rotas Disponíveis: ${Object.keys(decisionInput.availableRoutes).filter(k => (decisionInput.availableRoutes as any)[k]?.length > 0).join(', ')}`,
+                    '🧠 --- RACIOCÍNIO DA IA ---'
+                ];
+
+                decisionResult.pensamento = [...contextLog, ...decisionResult.pensamento];
+
                 const rulesValidation = this.stateDecider.validateDecisionRules(decisionResult, decisionInput);
                 if (!rulesValidation.valid) {
                     console.warn('[FSM Engine] Decision rules violated:', rulesValidation.errors);
