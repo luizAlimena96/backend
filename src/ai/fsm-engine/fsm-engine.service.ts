@@ -371,15 +371,16 @@ export class FSMEngineService {
                 const isDataMissing = state.dataKey &&
                     (!extractionResult.data[state.dataKey] || extractionResult.data[state.dataKey] === null);
 
+                let dynamicMissionPrompt = state.missionPrompt;
                 if (isDataMissing) {
                     const forceAskMsg = `\nIMPORTANTE: O dado '${state.dataKey}' ainda não foi coletado. SUA ÚNICA MISSÃO AGORA É PERGUNTAR ISSO AO USUÁRIO. NÃO AVANCE DE ESTADO SEM ISSO.`;
                     dynamicProhibitions += forceAskMsg;
-                    state.missionPrompt += forceAskMsg;
+                    dynamicMissionPrompt += forceAskMsg;
                 }
 
                 const decisionInput: DecisionInputForAI = {
                     currentState: state.name,
-                    missionPrompt: state.missionPrompt,
+                    missionPrompt: dynamicMissionPrompt,
                     dataKey: state.dataKey,
                     extractedData: extractionResult.data,
                     lastMessage: input.lastMessage,
