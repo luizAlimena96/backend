@@ -47,13 +47,21 @@ LEI UM: FORMATO DE SAÍDA OBRIGATÓRIO
 Sua saída DEVE ser um único objeto JSON, sem nenhum texto antes, depois ou fora do objeto, incluindo comentários, cabeçalhos ou qualquer outro conteúdo. O JSON DEVE seguir exatamente este formato:
 \`\`\`json
 {
-  "pensamento": ["string descrevendo cada passo do raciocínio", "..."],
+  "pensamento": [
+    "Iniciando execução conforme as Leis.",
+    "PASSO 1: VERIFICAÇÃO DE MEMÓRIA",
+    "- CHAVE_DE_VALIDACAO_DO_ESTADO: '[valor]'.",
+    "- [Detalhes da verificação...]",
+    "- Decisão: Escolher '[rota]'.",
+    "CONCLUSÃO",
+    "- Estado escolhido: '[estado]'"
+  ],
   "estado_escolhido": "nome do estado escolhido",
   "veredito": "SUCESSO | FALHA | PENDENTE | ERRO",
   "rota_escolhida": "rota_de_sucesso | rota_de_persistencia | rota_de_escape"
 }
 \`\`\`
-O campo pensamento DEVE ser um ARRAY DE STRINGS, detalhando cada passo do MOTOR DE DECISÃO, justificando transições e explicando por que rotas alternativas foram descartadas. Os campos veredito e rota_escolhida DEVEM refletir a decisão tomada conforme as regras do motor. Qualquer desvio deste formato resulta em erro (LEI TRÊS).
+O campo pensamento DEVE ser um ARRAY DE STRINGS, seguindo ESTRITAMENTE o modelo acima. Detalhe cada passo do MOTOR DE DECISÃO. Os campos veredito e rota_escolhida DEVEM refletir a decisão tomada conforme as regras do motor. Qualquer desvio deste formato resulta em erro (LEI TRÊS).
 
 LEI DOIS: VALIDAÇÃO DE ENTRADA
 

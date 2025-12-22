@@ -86,13 +86,41 @@ export class StateDeciderService {
             if (!parsed.veredito) parsed.veredito = 'PENDENTE';
             if (!parsed.rota_escolhida) parsed.rota_escolhida = 'rota_de_persistencia';
 
+            // Validar e Corrigir Rota (Smart Route Correction)
+            // Se o estado escolhido existe em alguma rota, forçar a rota correta
+            if (input.availableRoutes && parsed.estado_escolhido && parsed.estado_escolhido !== 'ERRO') {
+                const sucessStates = input.availableRoutes.rota_de_sucesso?.map(r => r.estado) || [];
+                const persistenciaStates = input.availableRoutes.rota_de_persistencia?.map(r => r.estado) || [];
+                const escapeStates = input.availableRoutes.rota_de_escape?.map(r => r.estado) || [];
+
+                let foundRoute: TipoRota | null = null;
+
+                if (sucessStates.includes(parsed.estado_escolhido)) {
+                    foundRoute = 'rota_de_sucesso';
+                } else if (persistenciaStates.includes(parsed.estado_escolhido)) {
+                    foundRoute = 'rota_de_persistencia';
+                } else if (escapeStates.includes(parsed.estado_escolhido)) {
+                    foundRoute = 'rota_de_escape';
+                }
+
+                if (foundRoute && foundRoute !== parsed.rota_escolhida) {
+                    console.log(`[State Decider] 🛠️ Smart Correction: Route updated from '${parsed.rota_escolhida}' to '${foundRoute}' for state '${parsed.estado_escolhido}'`);
+                    parsed.rota_escolhida = foundRoute;
+
+                    // Ajustar veredito se necessário (ex: se foi corrigido para sucesso, veredito deve ser sucesso)
+                    if (foundRoute === 'rota_de_sucesso') {
+                        parsed.veredito = 'SUCESSO';
+                    }
+                }
+            }
+
             // Validar veredito
             const vereditosValidos: Veredito[] = ['SUCESSO', 'FALHA', 'PENDENTE', 'ERRO'];
             if (!vereditosValidos.includes(parsed.veredito as Veredito)) {
                 parsed.veredito = 'PENDENTE';
             }
 
-            // Validar rota
+            // Validar rota (fallback final)
             const rotasValidas: TipoRota[] = ['rota_de_sucesso', 'rota_de_persistencia', 'rota_de_escape'];
             if (!rotasValidas.includes(parsed.rota_escolhida as TipoRota)) {
                 parsed.rota_escolhida = 'rota_de_persistencia';
