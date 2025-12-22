@@ -77,6 +77,81 @@ export class WhatsAppMessageService {
                 data.message?.videoMessage?.caption ||
                 '';
 
+            // ==========================================
+            // #RESET COMMAND - Reset conversation state
+            // ==========================================
+            if (messageContent.trim().toLowerCase() === '#reset') {
+                console.log(`[WhatsApp] 🔄 Reset command received from ${phone}`);
+
+                try {
+                    // Find existing conversation and lead for this phone
+                    const existingConversation = await this.prisma.conversation.findFirst({
+                        where: {
+                            whatsapp: phone,
+                            organizationId: organization.id,
+                        },
+                    });
+
+                    if (existingConversation) {
+                        // Delete all messages from this conversation
+                        await this.prisma.message.deleteMany({
+                            where: { conversationId: existingConversation.id },
+                        });
+
+                        // Delete debug logs if exists
+                        await this.prisma.debugLog.deleteMany({
+                            where: { conversationId: existingConversation.id },
+                        });
+
+                        // Delete the conversation itself
+                        await this.prisma.conversation.delete({
+                            where: { id: existingConversation.id },
+                        });
+
+                        console.log(`[WhatsApp] ✅ Deleted conversation ${existingConversation.id}`);
+                    }
+
+                    // Find and reset lead
+                    const existingLead = await this.prisma.lead.findFirst({
+                        where: {
+                            phone,
+                            organizationId: organization.id,
+                        },
+                    });
+
+                    if (existingLead) {
+                        // Reset lead state to initial
+                        const initialState = agent.states?.[0]?.name || 'INICIO';
+                        await this.prisma.lead.update({
+                            where: { id: existingLead.id },
+                            data: {
+                                currentState: initialState,
+                                extractedData: {},
+                            },
+                        });
+                        console.log(`[WhatsApp] ✅ Reset lead ${existingLead.id} to state: ${initialState}`);
+                    }
+
+                    // Send confirmation message
+                    await this.whatsappService.sendMessage(
+                        instanceName,
+                        phone,
+                        '🔄 Conversa reiniciada! Envie uma mensagem para começar novamente.'
+                    );
+
+                    console.log(`[WhatsApp] ✅ Reset complete for ${phone}`);
+                } catch (error) {
+                    console.error('[WhatsApp] ❌ Error processing reset:', error);
+                    await this.whatsappService.sendMessage(
+                        instanceName,
+                        phone,
+                        '❌ Erro ao reiniciar conversa. Tente novamente.'
+                    );
+                }
+
+                return; // Stop processing - don't continue with normal flow
+            }
+
             // Process media for AI context
             const hasImage = !!data.message?.imageMessage;
             const hasAudio = !!data.message?.audioMessage;

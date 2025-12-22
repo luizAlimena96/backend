@@ -179,6 +179,50 @@ Responda diretamente ao lead. Seja cordial e breve.`;
         try {
             const doc = await this.zapSignService.createDocument(org.zapSignApiToken, org.zapSignTemplateId, payload);
             console.log('[CRM Automation] ZapSign document created:', doc.uuid);
+
+            // 1. Update Lead with Document ID
+            await this.prisma.lead.update({
+                where: { id: lead.id },
+                data: {
+                    zapSignDocumentId: doc.uuid,
+                    zapSignStatus: 'CREATED'
+                }
+            });
+
+            // 2. Find signer link for this lead
+            // ZapSign returns 'signers' array. We match by email/phone or just take the first one if logic implies 1-1
+            const signer = doc.signers.find((s: any) => s.email === lead.email || s.phone_number === lead.phone);
+            const signUrl = signer ? signer.sign_url : doc.signers[0]?.sign_url;
+
+            if (signUrl) {
+                const message = `Olá ${lead.name}, aqui está o seu contrato para assinatura: ${signUrl}`;
+
+                // Get conversation
+                const conversation = await this.prisma.conversation.findFirst({
+                    where: { leadId: lead.id, organizationId: lead.organizationId }
+                });
+
+                if (conversation) {
+                    await this.prisma.message.create({
+                        data: {
+                            conversationId: conversation.id,
+                            content: message,
+                            fromMe: true,
+                            type: 'TEXT',
+                            messageId: crypto.randomUUID(),
+                            thought: 'Envio Automático de Contrato (ZapSign)'
+                        }
+                    });
+
+                    await this.whatsappService.sendMessage(
+                        lead.agent.organization.evolutionInstanceName,
+                        lead.phone,
+                        message
+                    );
+                    console.log('[CRM Automation] ZapSign link sent to WhatsApp');
+                }
+            }
+
         } catch (err) {
             console.error('[CRM Automation] Failed to create ZapSign doc:', err);
         }

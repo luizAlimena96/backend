@@ -9,10 +9,10 @@ export class CalendarService {
         private googleCalendarService: GoogleCalendarService,
     ) { }
 
-    async getGoogleEvents(agentId: string) {
-        // Get agent with Google Calendar credentials
-        const agent = await this.prisma.agent.findUnique({
-            where: { id: agentId },
+    async getGoogleEvents(organizationId: string) {
+        // Get organization with Google Calendar credentials
+        const organization = await this.prisma.organization.findUnique({
+            where: { id: organizationId },
             select: {
                 googleCalendarId: true,
                 googleAccessToken: true,
@@ -20,7 +20,7 @@ export class CalendarService {
             },
         });
 
-        if (!agent?.googleAccessToken || !agent?.googleCalendarId) {
+        if (!organization?.googleAccessToken || !organization?.googleCalendarId) {
             return [];
         }
 
@@ -31,8 +31,8 @@ export class CalendarService {
             timeMax.setDate(timeMax.getDate() + 30);
 
             const events = await this.googleCalendarService.listEvents(
-                agent.googleAccessToken,
-                agent.googleCalendarId,
+                organization.googleAccessToken,
+                organization.googleCalendarId,
                 timeMin,
                 timeMax,
             );

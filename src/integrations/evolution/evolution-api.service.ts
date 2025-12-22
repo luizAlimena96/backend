@@ -149,14 +149,33 @@ export class EvolutionAPIService {
 
     async sendMedia(instanceName: string, to: string, mediaUrl: string, caption?: string): Promise<any> {
         try {
+            const body: any = {
+                number: to,
+                caption,
+            };
+
+            // Check if it's a Data URI
+            if (mediaUrl.startsWith('data:')) {
+                const matches = mediaUrl.match(/^data:(.+?);base64,(.+)$/);
+                if (matches) {
+                    body.mimetype = matches[1];
+                    body.media = matches[2]; // Raw base64
+                } else {
+                    body.media = mediaUrl;
+                }
+            } else {
+                body.media = mediaUrl; // Use media for everything consistency, or keep mediaUrl?
+                // To be safe and consistent with other methods, we use 'media' fallback if we change logic,
+                // but strictly speaking, if 'mediaUrl' was working for URLs, we could keep it.
+                // However, Evolution v2 prefers 'media'. Let's keep 'mediaUrl' for URLs to minimize regression risk if relying on legacy param.
+                // Actually, let's use the code's existing pattern:
+                body.mediaUrl = mediaUrl;
+            }
+
             const response = await firstValueFrom(
                 this.httpService.post(
                     `${this.getBaseUrl()}/message/sendMedia/${instanceName}`,
-                    {
-                        number: to,
-                        mediaUrl,
-                        caption,
-                    },
+                    body,
                     {
                         headers: {
                             apikey: this.getApiKey(),
@@ -176,15 +195,29 @@ export class EvolutionAPIService {
 
     async sendImage(instanceName: string, to: string, imageUrl: string, caption?: string): Promise<any> {
         try {
+            const body: any = {
+                number: to,
+                mediatype: 'image',
+                caption,
+            };
+
+            // Check if it's a Data URI
+            if (imageUrl.startsWith('data:')) {
+                const matches = imageUrl.match(/^data:(.+?);base64,(.+)$/);
+                if (matches) {
+                    body.mimetype = matches[1];
+                    body.media = matches[2]; // Raw base64
+                } else {
+                    body.media = imageUrl;
+                }
+            } else {
+                body.media = imageUrl;
+            }
+
             const response = await firstValueFrom(
                 this.httpService.post(
                     `${this.getBaseUrl()}/message/sendMedia/${instanceName}`,
-                    {
-                        number: to,
-                        mediatype: 'image',
-                        media: imageUrl,
-                        caption,
-                    },
+                    body,
                     {
                         headers: {
                             apikey: this.getApiKey(),
@@ -204,21 +237,36 @@ export class EvolutionAPIService {
 
     async sendVideo(instanceName: string, to: string, videoUrl: string, caption?: string): Promise<any> {
         try {
+            const body: any = {
+                number: to,
+                mediatype: 'video',
+                caption,
+            };
+
+            // Check if it's a Data URI
+            if (videoUrl.startsWith('data:')) {
+                const matches = videoUrl.match(/^data:(.+?);base64,(.+)$/);
+                if (matches) {
+                    body.mimetype = matches[1];
+                    body.media = matches[2]; // Raw base64
+                } else {
+                    // Fallback or error if invalid data URI
+                    body.media = videoUrl;
+                }
+            } else {
+                body.media = videoUrl;
+            }
+
             const response = await firstValueFrom(
                 this.httpService.post(
                     `${this.getBaseUrl()}/message/sendMedia/${instanceName}`,
-                    {
-                        number: to,
-                        mediatype: 'video',
-                        media: videoUrl,
-                        caption,
-                    },
+                    body,
                     {
                         headers: {
                             apikey: this.getApiKey(),
                             'Content-Type': 'application/json',
                         },
-                        timeout: 30000,
+                        timeout: 60000, // Increased timeout for videos
                     }
                 )
             );
@@ -232,22 +280,36 @@ export class EvolutionAPIService {
 
     async sendDocument(instanceName: string, to: string, documentUrl: string, fileName?: string, caption?: string): Promise<any> {
         try {
+            const body: any = {
+                number: to,
+                mediatype: 'document',
+                fileName: fileName || 'document',
+                caption,
+            };
+
+            // Check if it's a Data URI
+            if (documentUrl.startsWith('data:')) {
+                const matches = documentUrl.match(/^data:(.+?);base64,(.+)$/);
+                if (matches) {
+                    body.mimetype = matches[1];
+                    body.media = matches[2]; // Raw base64
+                } else {
+                    body.media = documentUrl;
+                }
+            } else {
+                body.media = documentUrl;
+            }
+
             const response = await firstValueFrom(
                 this.httpService.post(
                     `${this.getBaseUrl()}/message/sendMedia/${instanceName}`,
-                    {
-                        number: to,
-                        mediatype: 'document',
-                        media: documentUrl,
-                        fileName: fileName || 'document',
-                        caption,
-                    },
+                    body,
                     {
                         headers: {
                             apikey: this.getApiKey(),
                             'Content-Type': 'application/json',
                         },
-                        timeout: 30000,
+                        timeout: 60000,
                     }
                 )
             );

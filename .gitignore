@@ -3,6 +3,7 @@
 
 # Production
 /dist
+*.tsbuildinfo
 /build
 
 # Misc

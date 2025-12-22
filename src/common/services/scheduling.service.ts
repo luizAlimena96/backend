@@ -42,30 +42,41 @@ export class SchedulingService {
 
         console.log('[Scheduling] ✅ Appointment created:', appointment.id);
 
-        // 1. Google Calendar Sync
+        // 1. Google Calendar Sync - Now uses Organization credentials
         try {
-            // Fetch Lead + Agent to get Google Credentials
-            const lead = await this.prisma.lead.findUnique({
-                where: { id: data.leadId },
-                include: { agent: true }
+            // Fetch Organization to get Google Calendar credentials
+            const organization = await this.prisma.organization.findUnique({
+                where: { id: data.organizationId },
+                select: {
+                    googleAccessToken: true,
+                    googleCalendarId: true,
+                    googleRefreshToken: true,
+                    name: true,
+                }
             });
 
-            if (lead?.agent?.googleAccessToken && lead?.agent?.googleCalendarId) {
-                console.log(`[Scheduling] Syncing appointment ${appointment.id} to Google Calendar of agent ${lead.agent.name}`);
+            // Also get lead name for the event
+            const lead = await this.prisma.lead.findUnique({
+                where: { id: data.leadId },
+                select: { name: true, phone: true }
+            });
+
+            if (organization?.googleAccessToken && organization?.googleCalendarId) {
+                console.log(`[Scheduling] Syncing appointment ${appointment.id} to Google Calendar of organization ${organization.name}`);
 
                 const startTime = new Date(data.scheduledAt);
                 const endTime = new Date(startTime.getTime() + (appointment.duration * 60000));
 
                 const eventPayload = {
-                    summary: `${appointment.title} - ${lead.name}`,
-                    description: `Agendamento via LEXA.\nLead: ${lead.name} (${lead.phone})\nNotas: ${data.notes || ''}`,
+                    summary: `${appointment.title} - ${lead?.name || 'Cliente'}`,
+                    description: `Agendamento via LEXA.\nLead: ${lead?.name || 'N/A'} (${lead?.phone || 'N/A'})\nNotas: ${data.notes || ''}`,
                     start: { dateTime: startTime.toISOString() },
                     end: { dateTime: endTime.toISOString() },
                 };
 
                 const googleEvent = await this.googleCalendarService.createEvent(
-                    lead.agent.googleAccessToken,
-                    lead.agent.googleCalendarId,
+                    organization.googleAccessToken,
+                    organization.googleCalendarId,
                     eventPayload
                 );
 
@@ -74,8 +85,10 @@ export class SchedulingService {
                         where: { id: appointment.id },
                         data: { googleEventId: googleEvent.id }
                     });
-                    console.log(`[Scheduling] Google Event created: ${googleEvent.id}`);
+                    console.log(`[Scheduling] ✅ Google Event created: ${googleEvent.id}`);
                 }
+            } else {
+                console.log(`[Scheduling] ⚠️ Google Calendar not configured for organization ${data.organizationId}`);
             }
         } catch (error) {
             console.error('[Scheduling] Google Calendar Sync Failed:', error);
@@ -262,19 +275,34 @@ export class SchedulingService {
     async cancelAppointment(id: string): Promise<any> {
         const appointment = await this.prisma.appointment.findUnique({
             where: { id },
-            include: { lead: { include: { agent: true } } }
+            select: {
+                id: true,
+                googleEventId: true,
+                organizationId: true,
+            }
         });
 
-        if (appointment && appointment.googleEventId && appointment.lead?.agent?.googleAccessToken && appointment.lead?.agent?.googleCalendarId) {
-            try {
-                console.log(`[Scheduling] Cancelling Google Event ${appointment.googleEventId}`);
-                await this.googleCalendarService.deleteEvent(
-                    appointment.lead.agent.googleAccessToken,
-                    appointment.lead.agent.googleCalendarId,
-                    appointment.googleEventId
-                );
-            } catch (error) {
-                console.error('[Scheduling] Google Calendar Cancel Failed:', error);
+        if (appointment?.googleEventId && appointment.organizationId) {
+            const organization = await this.prisma.organization.findUnique({
+                where: { id: appointment.organizationId },
+                select: {
+                    googleAccessToken: true,
+                    googleCalendarId: true,
+                }
+            });
+
+            if (organization?.googleAccessToken && organization?.googleCalendarId) {
+                try {
+                    console.log(`[Scheduling] Cancelling Google Event ${appointment.googleEventId}`);
+                    await this.googleCalendarService.deleteEvent(
+                        organization.googleAccessToken,
+                        organization.googleCalendarId,
+                        appointment.googleEventId
+                    );
+                    console.log(`[Scheduling] ✅ Google Event cancelled`);
+                } catch (error) {
+                    console.error('[Scheduling] Google Calendar Cancel Failed:', error);
+                }
             }
         }
 
@@ -287,26 +315,42 @@ export class SchedulingService {
     async rescheduleAppointment(id: string, newDate: Date): Promise<any> {
         const appointment = await this.prisma.appointment.findUnique({
             where: { id },
-            include: { lead: { include: { agent: true } } }
+            select: {
+                id: true,
+                googleEventId: true,
+                organizationId: true,
+                duration: true,
+            }
         });
 
-        if (appointment && appointment.googleEventId && appointment.lead?.agent?.googleAccessToken && appointment.lead?.agent?.googleCalendarId) {
-            try {
-                console.log(`[Scheduling] Updating Google Event ${appointment.googleEventId} to ${newDate}`);
-                const startTime = new Date(newDate);
-                const endTime = new Date(startTime.getTime() + (appointment.duration * 60000));
+        if (appointment?.googleEventId && appointment.organizationId) {
+            const organization = await this.prisma.organization.findUnique({
+                where: { id: appointment.organizationId },
+                select: {
+                    googleAccessToken: true,
+                    googleCalendarId: true,
+                }
+            });
 
-                await this.googleCalendarService.updateEvent(
-                    appointment.lead.agent.googleAccessToken,
-                    appointment.lead.agent.googleCalendarId,
-                    appointment.googleEventId,
-                    {
-                        start: { dateTime: startTime.toISOString() },
-                        end: { dateTime: endTime.toISOString() },
-                    }
-                );
-            } catch (error) {
-                console.error('[Scheduling] Google Calendar Update Failed:', error);
+            if (organization?.googleAccessToken && organization?.googleCalendarId) {
+                try {
+                    console.log(`[Scheduling] Updating Google Event ${appointment.googleEventId} to ${newDate}`);
+                    const startTime = new Date(newDate);
+                    const endTime = new Date(startTime.getTime() + (appointment.duration * 60000));
+
+                    await this.googleCalendarService.updateEvent(
+                        organization.googleAccessToken,
+                        organization.googleCalendarId,
+                        appointment.googleEventId,
+                        {
+                            start: { dateTime: startTime.toISOString() },
+                            end: { dateTime: endTime.toISOString() },
+                        }
+                    );
+                    console.log(`[Scheduling] ✅ Google Event rescheduled`);
+                } catch (error) {
+                    console.error('[Scheduling] Google Calendar Update Failed:', error);
+                }
             }
         }
 

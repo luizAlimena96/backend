@@ -8,11 +8,11 @@ export class CalendarController {
     constructor(private calendarService: CalendarService) { }
 
     @Get('google-events')
-    async getGoogleEvents(@Query('agentId') agentId: string) {
-        if (!agentId) {
+    async getGoogleEvents(@Query('organizationId') organizationId: string) {
+        if (!organizationId) {
             return [];
         }
-        return this.calendarService.getGoogleEvents(agentId);
+        return this.calendarService.getGoogleEvents(organizationId);
     }
 
     // Blocked Slots Management

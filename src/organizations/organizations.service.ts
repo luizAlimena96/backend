@@ -26,6 +26,7 @@ export class OrganizationsService {
                 whatsappConnected: true,
                 googleCalendarEnabled: true,
                 googleTokenExpiry: true,
+                googleRefreshToken: true,
                 crmEnabled: true,
                 crmType: true,
                 openaiApiKey: true,

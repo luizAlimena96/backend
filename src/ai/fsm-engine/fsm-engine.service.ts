@@ -635,17 +635,39 @@ export class FSMEngineService {
                     knowledgeReasoningLines.push(`  Similaridade máxima: ${(knowledgeSearchInfo.topSimilarity * 100).toFixed(1)}%`);
                 }
 
-                const finalReasoning = [
-                    ...(knowledgeReasoningLines || []),
-                    '---',
+                // ==================== RESULTADO FINAL (Formatado Legado) ====================
+                metrics.totalTime = Date.now() - startTime;
+
+                const combinedReasoningSteps: string[] = [
+                    ...knowledgeReasoningLines,
                     ...(extractionResult?.reasoning || []),
-                    '---',
                     ...(decisionResult?.pensamento || []),
-                    '---',
                     `Validação: ${validationResult?.approved ? 'APROVADA' : 'REJEITADA'}`,
-                    validationResult?.justificativa || '',
-                    ...(validationResult?.alertas?.map(a => `⚠️ ${a}`) || []),
+                    ...(validationResult?.alertas?.map(a => `⚠️ ${a}`) || [])
                 ];
+
+                if (validationResult.justificativa) {
+                    combinedReasoningSteps.push(`Justificativa: ${validationResult.justificativa}`);
+                }
+
+                // Formata como JSON "fake" para visualização legado
+                const legacyFormattedOutput = [
+                    '==============================',
+                    'Pensamento 1',
+                    '',
+                    '',
+                    `Estado atual: ${state.name}`,
+                    '{',
+                    '"pensamento": [',
+                    ...combinedReasoningSteps.map((step, index) =>
+                        `"${step.replace(/"/g, '\\"')}"${index < combinedReasoningSteps.length - 1 ? ',' : ''}`
+                    ),
+                    '],',
+                    `"estado_escolhido": "${finalNextState}"`,
+                    '}'
+                ];
+
+                const finalReasoning = legacyFormattedOutput;
 
                 const output: DecisionOutput = {
                     nextState: finalNextState,

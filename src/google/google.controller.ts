@@ -11,15 +11,15 @@ export class GoogleController {
     ) { }
 
     /**
-     * Get Google OAuth URL for agent
+     * Get Google OAuth URL for organization
      */
     @Get('auth')
-    async getAuthUrl(@Query('agentId') agentId: string, @Res() res: Response) {
-        if (!agentId) {
-            return res.status(400).json({ error: 'agentId is required' });
+    async getAuthUrl(@Query('organizationId') organizationId: string, @Res() res: Response) {
+        if (!organizationId) {
+            return res.status(400).json({ error: 'organizationId is required' });
         }
 
-        console.log('[Google] 🔍 Auth request for agentId:', agentId);
+        console.log('[Google] 🔍 Auth request for organizationId:', organizationId);
 
         try {
             // Check if Google Calendar is configured
@@ -36,9 +36,9 @@ export class GoogleController {
                 });
             }
 
-            // Check if agent already has Google tokens
-            const agent = await this.prisma.agent.findUnique({
-                where: { id: agentId },
+            // Check if organization already has Google tokens
+            const organization = await this.prisma.organization.findUnique({
+                where: { id: organizationId },
                 select: {
                     id: true,
                     googleAccessToken: true,
@@ -49,17 +49,17 @@ export class GoogleController {
                 },
             });
 
-            if (!agent) {
-                return res.status(404).json({ error: 'Agent not found' });
+            if (!organization) {
+                return res.status(404).json({ error: 'Organization not found' });
             }
 
             // Check if already connected
-            if (agent.googleAccessToken && agent.googleRefreshToken) {
+            if (organization.googleAccessToken && organization.googleRefreshToken) {
                 return res.json({
                     configured: true,
                     connected: true,
-                    calendarId: agent.googleCalendarId,
-                    enabled: agent.googleCalendarEnabled,
+                    calendarId: organization.googleCalendarId,
+                    enabled: organization.googleCalendarEnabled,
                     message: 'Google Calendar conectado',
                 });
             }
@@ -70,7 +70,7 @@ export class GoogleController {
                 'https://www.googleapis.com/auth/calendar.events',
             ].join(' '));
 
-            const state = encodeURIComponent(JSON.stringify({ agentId }));
+            const state = encodeURIComponent(JSON.stringify({ organizationId }));
 
             const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
                 `client_id=${clientId}` +
@@ -110,7 +110,7 @@ export class GoogleController {
                 return res.status(400).send('Missing code or state');
             }
 
-            const { agentId } = JSON.parse(decodeURIComponent(state));
+            const { organizationId } = JSON.parse(decodeURIComponent(state));
 
             const clientId = process.env.GOOGLE_CLIENT_ID;
             const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -147,9 +147,9 @@ export class GoogleController {
             const calendar = await calendarResponse.json();
             const calendarId = calendar.id || 'primary';
 
-            // Save tokens to agent
-            await this.prisma.agent.update({
-                where: { id: agentId },
+            // Save tokens to organization
+            await this.prisma.organization.update({
+                where: { id: organizationId },
                 data: {
                     googleAccessToken: tokens.access_token,
                     googleRefreshToken: tokens.refresh_token,
@@ -159,11 +159,11 @@ export class GoogleController {
                 },
             });
 
-            console.log('[Google] ✅ Successfully connected Google Calendar for agent:', agentId);
+            console.log('[Google] ✅ Successfully connected Google Calendar for organization:', organizationId);
 
             // Redirect to frontend success page
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-            return res.redirect(`${frontendUrl}/agentes?googleConnected=true`);
+            return res.redirect(`${frontendUrl}/perfil?success=calendar_connected&organizationId=${organizationId}`);
 
         } catch (error: any) {
             console.error('[Google] ❌ Callback error:', error);
@@ -175,12 +175,12 @@ export class GoogleController {
      * Disconnect Google Calendar
      */
     @Post('disconnect')
-    async disconnect(@Body() data: { agentId: string }) {
-        console.log('[Google] 🔌 Disconnecting Google Calendar for agent:', data.agentId);
+    async disconnect(@Body() data: { organizationId: string }) {
+        console.log('[Google] 🔌 Disconnecting Google Calendar for organization:', data.organizationId);
 
         try {
-            const agent = await this.prisma.agent.update({
-                where: { id: data.agentId },
+            const organization = await this.prisma.organization.update({
+                where: { id: data.organizationId },
                 data: {
                     googleAccessToken: null,
                     googleRefreshToken: null,
