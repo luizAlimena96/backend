@@ -172,30 +172,72 @@ export class SchedulingService {
         return msg;
     }
 
-    async getAvailableSlots(organizationId: string, date: Date): Promise<Array<{ time: Date; available: boolean }>> {
+    async getAvailableSlots(organizationId: string, date: Date, agentId?: string): Promise<Array<{ time: Date; available: boolean }>> {
+        console.log('[Scheduling] 📅 getAvailableSlots called:', { organizationId, agentId, date: date.toISOString() });
+
         const startOfDay = new Date(date);
         startOfDay.setHours(0, 0, 0, 0);
 
         const endOfDay = new Date(date);
         endOfDay.setHours(23, 59, 59, 999);
 
-        // 1. Get organization working hours
-        const organization = await this.prisma.organization.findUnique({
-            where: { id: organizationId },
-            select: { workingHours: true },
-        });
+        // 1. Get working hours - from Agent if agentId provided, otherwise from Organization
+        let workingHours: any = null;
 
-        const workingHours = organization?.workingHours as any;
+        if (agentId) {
+            const agent = await this.prisma.agent.findUnique({
+                where: { id: agentId },
+                select: { workingHours: true },
+            });
+            workingHours = agent?.workingHours;
+            console.log('[Scheduling] 📅 Agent workingHours:', { found: !!agent, hasWorkingHours: !!workingHours });
+        }
+
+        // Fallback to organization if agent has no workingHours
         if (!workingHours) {
+            const organization = await this.prisma.organization.findUnique({
+                where: { id: organizationId },
+                select: { workingHours: true },
+            });
+            workingHours = organization?.workingHours;
+            console.log('[Scheduling] 📅 Organization workingHours fallback:', { hasWorkingHours: !!workingHours });
+        }
+
+        if (!workingHours) {
+            console.log('[Scheduling] ⚠️ No workingHours configured');
             return []; // No working hours configured
         }
 
-        // 2. Get day of week (MON, TUE, etc.)
-        const dayOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][date.getDay()];
-        const dayConfig = workingHours[dayOfWeek];
+        // 2. Get day of week - support both formats:
+        // Format 1 (Agent): { "monday": [...shifts], "tuesday": [...shifts] }
+        // Format 2 (Organization): { "MON": { enabled, shifts }, "TUE": { enabled, shifts } }
+        const dayAbbrev = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][date.getDay()];
+        const dayFullLowercase = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][date.getDay()];
 
-        if (!dayConfig || !dayConfig.enabled) {
-            return []; // Day is not enabled for appointments
+        // Try lowercase full name first (Agent format), then abbreviation (Organization format)
+        let dayConfig = workingHours[dayFullLowercase];
+        let shifts: Array<{ start: string; end: string }> = [];
+
+        if (Array.isArray(dayConfig)) {
+            // Agent format: dayConfig is already the shifts array
+            shifts = dayConfig;
+            console.log('[Scheduling] 📅 Agent format detected:', { day: dayFullLowercase, shifts: shifts.length });
+        } else if (dayConfig && dayConfig.enabled && Array.isArray(dayConfig.shifts)) {
+            // Organization format: { enabled: true, shifts: [...] }
+            shifts = dayConfig.shifts;
+            console.log('[Scheduling] 📅 Organization format detected:', { day: dayAbbrev, enabled: dayConfig.enabled, shifts: shifts.length });
+        } else {
+            // Try abbreviation format as fallback
+            dayConfig = workingHours[dayAbbrev];
+            if (dayConfig && dayConfig.enabled && Array.isArray(dayConfig.shifts)) {
+                shifts = dayConfig.shifts;
+                console.log('[Scheduling] 📅 Organization format (fallback):', { day: dayAbbrev, shifts: shifts.length });
+            }
+        }
+
+        if (shifts.length === 0) {
+            console.log('[Scheduling] ⚠️ No shifts configured for day:', dayFullLowercase);
+            return []; // No shifts configured for this day
         }
 
         // 3. Get blocked slots for this day
@@ -233,7 +275,7 @@ export class SchedulingService {
         // 5. Generate available slots based on working hours
         const slots: Array<{ time: Date; available: boolean }> = [];
 
-        for (const shift of dayConfig.shifts || []) {
+        for (const shift of shifts) {
             const [startHour, startMinute] = shift.start.split(':').map(Number);
             const [endHour, endMinute] = shift.end.split(':').map(Number);
 
@@ -260,7 +302,11 @@ export class SchedulingService {
                     Math.abs(apt.scheduledAt.getTime() - slotTime.getTime()) < 60000 // Within 1 minute
                 );
 
-                if (!isBlocked && !hasAppointment) {
+                // Skip slots that are in the past
+                const now = new Date();
+                const isPast = slotTime <= now;
+
+                if (!isBlocked && !hasAppointment && !isPast) {
                     slots.push({ time: slotTime, available: true });
                 }
 

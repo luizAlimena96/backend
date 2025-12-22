@@ -5,8 +5,10 @@ import { ElevenLabsService } from '../integrations/elevenlabs/elevenlabs.service
 import { FSMEngineService } from '../ai/fsm-engine/fsm-engine.service';
 import { LeadsService } from '../leads/leads.service';
 import { MediaAnalysisService } from '../ai/services/media-analysis.service';
+import { MediaProcessorService } from '../common/services/media-processor.service';
 import { PdfService } from '../common/services/pdf.service';
 import { FollowupsService } from '../followups/followups.service';
+import { SchedulingService } from '../common/services/scheduling.service';
 
 @Injectable()
 export class TestAIService {
@@ -17,8 +19,10 @@ export class TestAIService {
         private fsmEngineService: FSMEngineService,
         private leadsService: LeadsService,
         private mediaAnalysisService: MediaAnalysisService,
+        private mediaProcessor: MediaProcessorService,
         private pdfService: PdfService,
         private followupsService: FollowupsService,
+        private schedulingService: SchedulingService,
     ) { }
 
     async processMessage(data: any, userId: string, userRole: string) {
@@ -227,6 +231,14 @@ export class TestAIService {
             prohibitions: agent.prohibitions,
         };
 
+        // Fetch scheduling context if applicable (auto-scheduling)
+        const schedulingContext = await this.getSchedulingContext(
+            organizationId,
+            lead.id,
+            agent.id,
+            nextStateInfo?.crmStageId
+        );
+
         const systemPrompt = `${agent.systemPrompt || 'Você é um assistente virtual inteligente.'}
 
 # CONTEXTO DO AGENTE
@@ -239,6 +251,7 @@ ${agentContext.prohibitions ? `**PROIBIÇÕES GLOBAIS**: ${agentContext.prohibit
 
 ESTADO ATUAL: ${nextStateInfo?.name}
 MISSÃO NESTE ESTADO: ${nextStateInfo?.missionPrompt}${dataRequirement}
+${schedulingContext}
 
 DIRETRIZES DO MOTOR DE DECISÃO:
 ${fsmDirectives}
@@ -343,13 +356,31 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
             audioLength: audioBase64?.length || 0
         });
 
+        console.log('[Test AI] 📎 Media items from state:', {
+            stateName: nextStateInfo?.name,
+            hasMediaItems: !!nextStateInfo?.mediaItems,
+            mediaItemsCount: Array.isArray(nextStateInfo?.mediaItems) ? nextStateInfo?.mediaItems.length : 0,
+            mediaTiming: nextStateInfo?.mediaTiming,
+            mediaItemsRaw: nextStateInfo?.mediaItems,
+        });
+
+        // Process mediaItems to convert Google Drive URLs
+        let processedMediaItems: any[] = [];
+        if (nextStateInfo?.mediaItems && Array.isArray(nextStateInfo.mediaItems)) {
+            processedMediaItems = nextStateInfo.mediaItems.map((item: any) => ({
+                ...item,
+                url: this.mediaProcessor.convertGoogleDriveUrl(item.url || ''),
+            }));
+            console.log('[Test AI] 🔗 Converted media URLs:', processedMediaItems.map((m: any) => m.url));
+        }
+
         return {
             response: aiResponse,
             audioBase64,
             thinking: fsmDecision.reasoning.join('\n'),
             state: fsmDecision.nextState,
             extractedData: fsmDecision.extractedData,
-            mediaItems: nextStateInfo?.mediaItems || [],
+            mediaItems: processedMediaItems,
             mediaTiming: nextStateInfo?.mediaTiming || 'after',
             newDebugLog: {
                 id: debugLog.id,
@@ -527,6 +558,88 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
                 success: false,
                 message: 'Erro ao verificar follow-ups: ' + error.message,
             };
+        }
+    }
+
+    /**
+     * Fetches available scheduling slots for the lead if auto-scheduling is configured
+     * Returns formatted string with morning and afternoon slots, or empty string if not applicable
+     */
+    private async getSchedulingContext(organizationId: string, leadId: string, agentId: string, crmStageId?: string | null): Promise<string> {
+        try {
+            console.log('[Test AI] 📅 getSchedulingContext called with:', { organizationId, leadId, agentId, crmStageId });
+
+            if (!crmStageId) {
+                console.log('[Test AI] 📅 No crmStageId provided, skipping scheduling context');
+                return '';
+            }
+
+            // Check if this CRM stage has auto-scheduling configured
+            const config = await this.prisma.autoSchedulingConfig.findFirst({
+                where: {
+                    agentId: agentId,
+                    crmStageId: crmStageId,
+                    isActive: true,
+                }
+            });
+
+            if (!config) {
+                console.log('[Test AI] 📅 No AutoSchedulingConfig found for agentId:', agentId, 'crmStageId:', crmStageId);
+                return '';
+            }
+
+            console.log('[Test AI] 📅 Auto-scheduling config found, fetching available slots...');
+
+            // Calculate minimum date based on advance hours
+            const now = new Date();
+            const minAdvanceMs = config.minAdvanceHours * 60 * 60 * 1000;
+            const minDate = new Date(now.getTime() + minAdvanceMs);
+
+            // Fetch slots for the next 7 days
+            const morningSlots: string[] = [];
+            const afternoonSlots: string[] = [];
+
+            for (let i = 0; i < 7 && (morningSlots.length < 3 || afternoonSlots.length < 3); i++) {
+                const checkDate = new Date(minDate);
+                checkDate.setDate(checkDate.getDate() + i);
+
+                const slots = await this.schedulingService.getAvailableSlots(organizationId, checkDate, agentId);
+
+                for (const slot of slots) {
+                    if (!slot.available) continue;
+
+                    const hour = slot.time.getHours();
+                    const dayName = slot.time.toLocaleDateString('pt-BR', { weekday: 'long' });
+                    const dayNum = slot.time.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                    const timeStr = slot.time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    const formatted = `${dayName} (${dayNum}) às ${timeStr}`;
+
+                    if (hour >= 6 && hour < 12 && morningSlots.length < 3) {
+                        morningSlots.push(formatted);
+                    } else if (hour >= 12 && hour < 18 && afternoonSlots.length < 3) {
+                        afternoonSlots.push(formatted);
+                    }
+                }
+            }
+
+            if (morningSlots.length === 0 && afternoonSlots.length === 0) {
+                console.log('[Test AI] 📅 No available slots found');
+                return '';
+            }
+
+            const context = `
+HORÁRIOS DISPONÍVEIS PARA AGENDAMENTO (tempo real):
+${morningSlots.length > 0 ? `- MANHÃ: ${morningSlots.join(', ')}` : '- MANHÃ: Sem horários disponíveis'}
+${afternoonSlots.length > 0 ? `- TARDE: ${afternoonSlots.join(', ')}` : '- TARDE: Sem horários disponíveis'}
+
+Ao perguntar se o lead prefere "manhã ou tarde?", considere que estes são os horários reais disponíveis.`;
+
+            console.log('[Test AI] 📅 Scheduling context prepared:', { morningSlots, afternoonSlots });
+            return context;
+
+        } catch (error) {
+            console.error('[Test AI] Error fetching scheduling context:', error);
+            return '';
         }
     }
 }

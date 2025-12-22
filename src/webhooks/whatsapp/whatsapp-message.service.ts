@@ -10,6 +10,7 @@ import { PdfService } from '../../common/services/pdf.service';
 import { ElevenLabsService } from '../../integrations/elevenlabs/elevenlabs.service';
 import { MediaProcessorService } from '../../common/services/media-processor.service';
 import { CrmAutomationsService } from '../../crm-automations/crm-automations.service';
+import { SchedulingService } from '../../common/services/scheduling.service';
 import { firstValueFrom } from 'rxjs';
 import * as crypto from 'crypto';
 
@@ -27,6 +28,7 @@ export class WhatsAppMessageService {
         private elevenLabsService: ElevenLabsService,
         private mediaProcessor: MediaProcessorService,
         private crmEngine: CrmAutomationsService,
+        private schedulingService: SchedulingService,
     ) { }
 
     async processIncomingMessage(webhookData: any): Promise<void> {
@@ -393,8 +395,16 @@ export class WhatsAppMessageService {
                 allStatesCount: agent.states?.length,
             });
 
-            // 10. Build system prompt
-            const systemPrompt = this.buildSystemPrompt(agent, nextState, fsmDecision);
+            // 10. Fetch scheduling context if applicable (auto-scheduling)
+            const schedulingContext = await this.getSchedulingContext(
+                agent.organizationId,
+                lead.id,
+                agent.id,
+                nextState?.crmStageId
+            );
+
+            // 11. Build system prompt
+            const systemPrompt = this.buildSystemPrompt(agent, nextState, fsmDecision, schedulingContext);
 
             // 11. Generate AI response
             const apiKey = agent.organization.openaiApiKey || process.env.OPENAI_API_KEY;
@@ -635,7 +645,81 @@ export class WhatsAppMessageService {
         }));
     }
 
-    private buildSystemPrompt(agent: any, state: any, fsmDecision: any): string {
+    /**
+     * Fetches available scheduling slots for the lead if auto-scheduling is configured
+     * Returns formatted string with morning and afternoon slots, or empty string if not applicable
+     */
+    private async getSchedulingContext(organizationId: string, leadId: string, agentId: string, crmStageId?: string | null): Promise<string> {
+        try {
+            if (!crmStageId) return '';
+
+            // Check if this CRM stage has auto-scheduling configured
+            const config = await this.prisma.autoSchedulingConfig.findFirst({
+                where: {
+                    agentId: agentId,
+                    crmStageId: crmStageId,
+                    isActive: true,
+                }
+            });
+
+            if (!config) return '';
+
+            console.log('[WhatsApp] 📅 Auto-scheduling config found, fetching available slots...');
+
+            // Calculate minimum date based on advance hours
+            const now = new Date();
+            const minAdvanceMs = config.minAdvanceHours * 60 * 60 * 1000;
+            const minDate = new Date(now.getTime() + minAdvanceMs);
+
+            // Fetch slots for the next 7 days
+            const morningSlots: string[] = [];
+            const afternoonSlots: string[] = [];
+
+            for (let i = 0; i < 7 && (morningSlots.length < 3 || afternoonSlots.length < 3); i++) {
+                const checkDate = new Date(minDate);
+                checkDate.setDate(checkDate.getDate() + i);
+
+                const slots = await this.schedulingService.getAvailableSlots(organizationId, checkDate, agentId);
+
+                for (const slot of slots) {
+                    if (!slot.available) continue;
+
+                    const hour = slot.time.getHours();
+                    const dayName = slot.time.toLocaleDateString('pt-BR', { weekday: 'long' });
+                    const dayNum = slot.time.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                    const timeStr = slot.time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    const formatted = `${dayName} (${dayNum}) às ${timeStr}`;
+
+                    if (hour >= 6 && hour < 12 && morningSlots.length < 3) {
+                        morningSlots.push(formatted);
+                    } else if (hour >= 12 && hour < 18 && afternoonSlots.length < 3) {
+                        afternoonSlots.push(formatted);
+                    }
+                }
+            }
+
+            if (morningSlots.length === 0 && afternoonSlots.length === 0) {
+                console.log('[WhatsApp] 📅 No available slots found');
+                return '';
+            }
+
+            const context = `
+HORÁRIOS DISPONÍVEIS PARA AGENDAMENTO (tempo real):
+${morningSlots.length > 0 ? `- MANHÃ: ${morningSlots.join(', ')}` : '- MANHÃ: Sem horários disponíveis'}
+${afternoonSlots.length > 0 ? `- TARDE: ${afternoonSlots.join(', ')}` : '- TARDE: Sem horários disponíveis'}
+
+Ao perguntar se o lead prefere "manhã ou tarde?", considere que estes são os horários reais disponíveis.`;
+
+            console.log('[WhatsApp] 📅 Scheduling context prepared:', { morningSlots, afternoonSlots });
+            return context;
+
+        } catch (error) {
+            console.error('[WhatsApp] Error fetching scheduling context:', error);
+            return '';
+        }
+    }
+
+    private buildSystemPrompt(agent: any, state: any, fsmDecision: any, schedulingContext?: string): string {
         const knowledgeContext = agent.knowledge
             .map((k: any) => `${k.title}: ${k.content}`)
             .join('\n');
@@ -667,6 +751,7 @@ ${agentContext.prohibitions ? `**PROIBIÇÕES GLOBAIS**: ${agentContext.prohibit
 
 ESTADO ATUAL: ${state?.name}
 MISSÃO NESTE ESTADO: ${state?.missionPrompt}${dataRequirement}
+${schedulingContext}
 
 DIRETRIZES DO MOTOR DE DECISÃO:
 ${fsmDirectives}

@@ -113,13 +113,12 @@ export class SchedulingToolsService {
 
                 const slots = await this.schedulingService.getAvailableSlots(
                     params.organizationId,
-                    checkDate
+                    checkDate,
+                    lead.agent.id
                 );
 
-                // Filtrar por período do dia se especificado
                 const slotsFiltrados = this.filtrarPorPeriodo(slots, params.periodo_dia);
 
-                // Filtrar horários já oferecidos
                 const slotsNovos = slotsFiltrados.filter(slot => {
                     const horarioStr = `${slot.time.toLocaleDateString('pt-BR')} ${slot.time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
                     return !params.horarios_ja_oferecidos?.includes(horarioStr);
@@ -189,9 +188,16 @@ export class SchedulingToolsService {
             const dataHora = new Date(params.data_especifica);
             dataHora.setHours(hours, minutes, 0, 0);
 
+            // Fetch lead with agent info
+            const lead = await this.prisma.lead.findUnique({
+                where: { id: params.leadId },
+                include: { agent: true }
+            });
+
             const slots = await this.schedulingService.getAvailableSlots(
                 params.organizationId,
-                dataHora
+                dataHora,
+                lead?.agent?.id
             );
 
             const disponivel = slots.some(slot =>
