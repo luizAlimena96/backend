@@ -312,18 +312,22 @@ export class SchedulingService {
         });
 
         // 5. Generate available slots based on working hours
+        // IMPORTANT: Slots are generated in Brazil timezone (UTC-3) but stored as UTC
         const slots: Array<{ time: Date; available: boolean }> = [];
 
         for (const shift of shifts) {
             const [startHour, startMinute] = shift.start.split(':').map(Number);
             const [endHour, endMinute] = shift.end.split(':').map(Number);
 
-            // Generate 30-minute slots
-            let currentTime = new Date(date);
-            currentTime.setHours(startHour, startMinute, 0, 0);
+            // Generate 30-minute slots in UTC (converting from Brazil time)
+            // Brazil is UTC-3, so we add 3 hours to convert Brazil time to UTC
+            const year = date.getUTCFullYear();
+            const month = date.getUTCMonth();
+            const day = date.getUTCDate();
 
-            const shiftEnd = new Date(date);
-            shiftEnd.setHours(endHour, endMinute, 0, 0);
+            // Create slot times in UTC (Brazil time + 3 hours)
+            let currentTime = new Date(Date.UTC(year, month, day, startHour + 3, startMinute, 0, 0));
+            const shiftEnd = new Date(Date.UTC(year, month, day, endHour + 3, endMinute, 0, 0));
 
             while (currentTime < shiftEnd) {
                 const slotTime = new Date(currentTime);
@@ -342,7 +346,16 @@ export class SchedulingService {
                     const aptEnd = aptStart + (apt.duration * 60000); // duration in minutes -> ms
                     const slotMs = slotTime.getTime();
                     // Slot is occupied if it falls within [start, end) of any appointment
-                    return slotMs >= aptStart && slotMs < aptEnd;
+                    const isOccupied = slotMs >= aptStart && slotMs < aptEnd;
+                    if (isOccupied) {
+                        console.log('[Scheduling] 🚫 Slot blocked by appointment:', {
+                            slotTime: slotTime.toISOString(),
+                            aptStart: apt.scheduledAt.toISOString(),
+                            aptEnd: new Date(aptEnd).toISOString(),
+                            aptId: apt.id
+                        });
+                    }
+                    return isOccupied;
                 });
 
                 // Skip slots that are in the past
