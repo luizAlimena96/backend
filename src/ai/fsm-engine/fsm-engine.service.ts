@@ -486,7 +486,7 @@ export class FSMEngineService {
 
                                 let toolArgs: any = { ...toolStaticArgs };
 
-                                if (toolName === 'gerenciar_agenda') {
+                                if (toolName === 'gerenciar_agenda' || toolName === 'criar_evento') {
                                     // Merge extracted data into args
                                     if (updatedExtractedData.periodo_dia) toolArgs.periodo_dia = updatedExtractedData.periodo_dia;
 

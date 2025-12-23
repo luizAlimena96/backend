@@ -42,6 +42,25 @@ export async function executeFSMTool(
         case 'gerenciar_agenda':
             return await handleGerenciarAgenda(args, context, services.schedulingTools);
 
+        case 'criar_evento':
+            // criar_evento is an alias that confirms and creates the appointment
+            console.log('[FSM Tools] criar_evento called, delegating to gerenciar_agenda with acao=confirmar');
+            return await handleGerenciarAgenda(
+                { ...args, acao: 'confirmar' },
+                context,
+                services.schedulingTools
+            );
+
+        case 'cancelar_evento':
+            // Cancel the most recent future appointment
+            console.log('[FSM Tools] cancelar_evento called');
+            return await handleCancelarEvento(context, services.schedulingTools);
+
+        case 'reagendar_evento':
+            // Reschedule to a new date/time
+            console.log('[FSM Tools] reagendar_evento called');
+            return await handleReagendarEvento(args, context, services.schedulingTools);
+
         default:
             return {
                 success: false,
@@ -101,6 +120,90 @@ async function handleGerenciarAgenda(
             success: false,
             error: error.message,
             message: 'Erro ao executar ferramenta de agendamento.'
+        };
+    }
+}
+
+/**
+ * Handle cancelar_evento tool - cancels the next scheduled appointment
+ */
+async function handleCancelarEvento(
+    context: any,
+    schedulingTools: SchedulingToolsService
+): Promise<ToolExecutionResult> {
+    try {
+        if (!context.leadId) {
+            return {
+                success: false,
+                message: 'Lead ID não encontrado no contexto.'
+            };
+        }
+
+        const result = await schedulingTools.cancelarUltimoAgendamento({
+            organizationId: context.organizationId,
+            leadId: context.leadId,
+        });
+
+        return {
+            success: result.success,
+            data: result.agendamento,
+            message: result.mensagem
+        };
+
+    } catch (error) {
+        console.error('[FSM Tools] Error in cancelar_evento:', error);
+        return {
+            success: false,
+            error: error.message,
+            message: 'Erro ao cancelar agendamento.'
+        };
+    }
+}
+
+/**
+ * Handle reagendar_evento tool - reschedules to a new date/time
+ */
+async function handleReagendarEvento(
+    args: any,
+    context: any,
+    schedulingTools: SchedulingToolsService
+): Promise<ToolExecutionResult> {
+    try {
+        if (!context.leadId) {
+            return {
+                success: false,
+                message: 'Lead ID não encontrado no contexto.'
+            };
+        }
+
+        const { data_especifica, horario_especifico } = args;
+
+        if (!data_especifica || !horario_especifico) {
+            return {
+                success: false,
+                message: 'Preciso da nova data e horário para reagendar.'
+            };
+        }
+
+        const result = await schedulingTools.reagendarUltimoAgendamento({
+            organizationId: context.organizationId,
+            leadId: context.leadId,
+            data_especifica,
+            horario_especifico,
+        });
+
+        return {
+            success: result.success,
+            data: result.agendamento,
+            message: result.mensagem
+        };
+
+    } catch (error) {
+        console.error('[FSM Tools] Error in reagendar_evento:', error);
+        return {
+            success: false,
+            error: error.message,
+            message: 'Erro ao reagendar compromisso.'
         };
     }
 }
