@@ -477,16 +477,13 @@ export class FSMEngineService {
                 if (isSchedulingConfirmState) {
                     console.log('[FSM Engine] 🗓️ Auto-detected scheduling confirmation state');
 
-                    // Fetch fresh extractedData from database to avoid stale data issues
-                    const freshLead = await this.prisma.lead.findUnique({
-                        where: { id: input.leadId },
-                        select: { extractedData: true }
-                    });
-                    const freshExtractedData = (freshLead?.extractedData as Record<string, any>) || {};
-                    const horarioEscolhido = freshExtractedData.horario_escolhido || updatedExtractedData.horario_escolhido;
+                    // Get horario_escolhido from extraction result first (most recent),
+                    // then from updatedExtractedData (merged), then from DB as last resort
+                    const horarioFromExtraction = extractionResult?.data?.horario_escolhido;
+                    const horarioEscolhido = horarioFromExtraction || updatedExtractedData.horario_escolhido;
 
-                    console.log('[FSM Engine] 🗓️ horario_escolhido (fresh from DB):', horarioEscolhido);
-                    console.log('[FSM Engine] 🗓️ DEBUG - updatedExtractedData.horario_escolhido:', updatedExtractedData.horario_escolhido);
+                    console.log('[FSM Engine] 🗓️ horario_escolhido from extraction:', horarioFromExtraction);
+                    console.log('[FSM Engine] 🗓️ horario_escolhido final:', horarioEscolhido);
 
                     if (horarioEscolhido) {
                         // Parse horario_escolhido into data_especifica and horario_especifico
