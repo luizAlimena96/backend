@@ -529,6 +529,24 @@ export class FSMEngineService {
                         data_especifica = targetDate.toISOString().split('T')[0];
                     }
 
+                    // Check for DD/MM format (e.g., "23/12", "(23/12)")
+                    if (!data_especifica) {
+                        const dateMatch = diaHorario.match(/(\d{1,2})\/(\d{1,2})/);
+                        if (dateMatch) {
+                            const day = parseInt(dateMatch[1]);
+                            const month = parseInt(dateMatch[2]) - 1; // JS months are 0-indexed
+                            if (day >= 1 && day <= 31 && month >= 0 && month <= 11) {
+                                targetDate = new Date(now.getFullYear(), month, day);
+                                // If date is in the past, use next year
+                                if (targetDate < now) {
+                                    targetDate.setFullYear(now.getFullYear() + 1);
+                                }
+                                data_especifica = targetDate.toISOString().split('T')[0];
+                                console.log('[FSM Engine] 🗓️ Parsed DD/MM date:', data_especifica);
+                            }
+                        }
+                    }
+
                     // Fallback: if no date parsed but we have time, use today's date
                     if (!data_especifica && horario_especifico) {
                         data_especifica = new Date().toISOString().split('T')[0];
