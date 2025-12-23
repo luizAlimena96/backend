@@ -131,9 +131,11 @@ export class SchedulingToolsService {
                 for (const slot of slotsNovos) {
                     if (horariosSugeridos.length >= 2) break;
 
+                    // Convert UTC to Brazil time for display
+                    const brazilOptions = { timeZone: 'America/Sao_Paulo' };
                     horariosSugeridos.push({
-                        dia: slot.time.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' }),
-                        horario: slot.time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                        dia: slot.time.toLocaleDateString('pt-BR', { ...brazilOptions, weekday: 'long', day: '2-digit', month: 'long' }),
+                        horario: slot.time.toLocaleTimeString('pt-BR', { ...brazilOptions, hour: '2-digit', minute: '2-digit' }),
                         data_completa: slot.time
                     });
                 }

@@ -595,11 +595,11 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
             const minAdvanceMs = config.minAdvanceHours * 60 * 60 * 1000;
             const minDate = new Date(now.getTime() + minAdvanceMs);
 
-            // Fetch slots for the next 7 days
+            // Fetch slots for the next 7 days - show ALL available slots
             const morningSlots: string[] = [];
             const afternoonSlots: string[] = [];
 
-            for (let i = 0; i < 7 && (morningSlots.length < 3 || afternoonSlots.length < 3); i++) {
+            for (let i = 0; i < 7; i++) {
                 const checkDate = new Date(minDate);
                 checkDate.setDate(checkDate.getDate() + i);
 
@@ -609,15 +609,19 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
                 for (const slot of slots) {
                     if (!slot.available) continue;
 
-                    const hour = slot.time.getHours();
-                    const dayName = slot.time.toLocaleDateString('pt-BR', { weekday: 'long' });
-                    const dayNum = slot.time.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-                    const timeStr = slot.time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    // Convert UTC time to Brazil time for display (UTC-3)
+                    // Use timezone option to get Brazil time
+                    const brazilOptions = { timeZone: 'America/Sao_Paulo' };
+                    const hour = parseInt(slot.time.toLocaleTimeString('pt-BR', { ...brazilOptions, hour: '2-digit', hour12: false }));
+                    const dayName = slot.time.toLocaleDateString('pt-BR', { ...brazilOptions, weekday: 'long' });
+                    const dayNum = slot.time.toLocaleDateString('pt-BR', { ...brazilOptions, day: '2-digit', month: '2-digit' });
+                    const timeStr = slot.time.toLocaleTimeString('pt-BR', { ...brazilOptions, hour: '2-digit', minute: '2-digit' });
                     const formatted = `${dayName} (${dayNum}) às ${timeStr}`;
 
-                    if (hour >= 6 && hour < 12 && morningSlots.length < 3) {
+                    // Categorize by morning (6-12) or afternoon (12-18)
+                    if (hour >= 6 && hour < 12) {
                         morningSlots.push(formatted);
-                    } else if (hour >= 12 && hour < 18 && afternoonSlots.length < 3) {
+                    } else if (hour >= 12 && hour < 18) {
                         afternoonSlots.push(formatted);
                     }
                 }
