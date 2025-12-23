@@ -283,9 +283,11 @@ export class SchedulingToolsService {
 
             const [hours, minutes] = params.horario_especifico.split(':').map(Number);
             const scheduledAt = new Date(params.data_especifica);
-            scheduledAt.setHours(hours, minutes, 0, 0);
+            // Set the time as Brazilian time (UTC-3)
+            // We add 3 hours to convert from BRT to UTC for storage
+            scheduledAt.setUTCHours(hours + 3, minutes, 0, 0);
 
-            console.log('[Scheduling Tools]   - scheduledAt (parsed):', scheduledAt);
+            console.log('[Scheduling Tools]   - scheduledAt (parsed as BRT->UTC):', scheduledAt);
 
             const appointment = await this.schedulingService.createAppointment({
                 leadId: params.leadId,
