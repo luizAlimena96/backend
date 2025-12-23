@@ -463,9 +463,102 @@ export class FSMEngineService {
 
                 let finalNextState = validationResult.approved ? decisionResult.estado_escolhido : state.name;
 
-                // ==================== TOOL EXECUTION ====================
-                // ==================== TOOL EXECUTION ====================
-                // Execute tools if the current state has them configured
+                console.log(`[FSM Engine] Checking tools for state '${state.name}':`, {
+                    tools: state.tools,
+                    hasTools: toolsHandler.hasTools(state)
+                });
+
+                // ==================== AUTO-DETECT SCHEDULING ====================
+                // If state name suggests scheduling confirmation, auto-execute criar_evento
+                const stateNameUpper = state.name.toUpperCase();
+                const isSchedulingConfirmState = stateNameUpper.includes('AGENDAMENTO') &&
+                    (stateNameUpper.includes('CONFIRMAR') || stateNameUpper.includes('CRIAR'));
+
+                if (isSchedulingConfirmState && updatedExtractedData.horario_escolhido) {
+                    console.log('[FSM Engine] 🗓️ Auto-detected scheduling confirmation state');
+                    console.log('[FSM Engine] 🗓️ horario_escolhido:', updatedExtractedData.horario_escolhido);
+
+                    // Parse horario_escolhido into data_especifica and horario_especifico
+                    const diaHorario = updatedExtractedData.horario_escolhido;
+                    let data_especifica = '';
+                    let horario_especifico = '';
+
+                    // Extract time
+                    const timeMatch = diaHorario.match(/(\d{1,2}):?(\d{2})?h?/);
+                    if (timeMatch) {
+                        const hours = timeMatch[1].padStart(2, '0');
+                        const minutes = (timeMatch[2] || '00').padStart(2, '0');
+                        horario_especifico = `${hours}:${minutes}`;
+                    }
+
+                    // Parse date
+                    const now = new Date();
+                    const diaLower = diaHorario.toLowerCase();
+                    let targetDate: Date | null = null;
+
+                    if (diaLower.includes('depois') && (diaLower.includes('amanhã') || diaLower.includes('amanha'))) {
+                        targetDate = new Date(now);
+                        targetDate.setDate(now.getDate() + 2);
+                    } else if (diaLower.includes('amanhã') || diaLower.includes('amanha')) {
+                        targetDate = new Date(now);
+                        targetDate.setDate(now.getDate() + 1);
+                    } else if (diaLower.includes('hoje')) {
+                        targetDate = new Date(now);
+                    } else {
+                        const dayMap: Record<string, number> = {
+                            'domingo': 0, 'segunda': 1, 'terça': 2, 'terca': 2,
+                            'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6, 'sabado': 6
+                        };
+                        for (const [dayName, dayIndex] of Object.entries(dayMap)) {
+                            if (diaLower.includes(dayName)) {
+                                const currentDay = now.getDay();
+                                let daysToAdd = dayIndex - currentDay;
+                                if (daysToAdd <= 0) daysToAdd += 7;
+                                targetDate = new Date(now);
+                                targetDate.setDate(now.getDate() + daysToAdd);
+                                break;
+                            }
+                        }
+                    }
+
+                    if (targetDate) {
+                        data_especifica = targetDate.toISOString().split('T')[0];
+                    }
+
+                    console.log('[FSM Engine] 🗓️ Parsed:', { data_especifica, horario_especifico });
+
+                    if (data_especifica && horario_especifico) {
+                        try {
+                            const toolResult = await toolsHandler.executeFSMTool(
+                                'criar_evento',
+                                {
+                                    acao: 'confirmar',
+                                    data_especifica,
+                                    horario_especifico,
+                                    mensagem_original: diaHorario
+                                },
+                                {
+                                    organizationId: input.organizationId,
+                                    leadId: input.leadId,
+                                    conversationId: input.conversationHistory[0]?.content || '',
+                                },
+                                {
+                                    schedulingTools: this.schedulingToolsService,
+                                }
+                            );
+
+                            console.log('[FSM Engine] 🗓️ Auto-scheduling result:', toolResult);
+
+                            if (toolResult.success) {
+                                updatedExtractedData.agendamento_confirmado = data_especifica + ' ' + horario_especifico;
+                            }
+                        } catch (error) {
+                            console.error('[FSM Engine] 🗓️ Auto-scheduling error:', error);
+                        }
+                    }
+                }
+
+                // ==================== TOOL EXECUTION (if tools configured) ====================
                 if (toolsHandler.hasTools(state)) {
                     try {
                         const toolsList = toolsHandler.parseStateTools(state);
