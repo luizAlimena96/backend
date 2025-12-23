@@ -268,6 +268,7 @@ export class AgentsController {
       const updated = await tx.autoSchedulingConfig.update({
         where: { id: configId },
         data: {
+          crmStageId: data.crmStageId,  // Allow changing CRM stage
           duration: Number(data.duration),
           minAdvanceHours: Number(data.minAdvanceHours),
           preferredTime: data.preferredTime,

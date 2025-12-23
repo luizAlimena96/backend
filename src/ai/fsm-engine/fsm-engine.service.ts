@@ -5,6 +5,7 @@ import { KnowledgeSearchService } from '../services/knowledge-search.service';
 import { DataExtractorService } from './services/data-extractor.service';
 import { StateDeciderService } from './services/state-decider.service';
 import { DecisionValidatorService } from './services/decision-validator.service';
+import { SchedulingToolsService } from '../tools/scheduling-tools.service';
 import * as toolsHandler from './tools-handler';
 import {
     DecisionInput,
@@ -40,6 +41,7 @@ export class FSMEngineService {
         private dataExtractor: DataExtractorService,
         private stateDecider: StateDeciderService,
         private decisionValidator: DecisionValidatorService,
+        private schedulingToolsService: SchedulingToolsService,
     ) { }
 
     /**
@@ -497,20 +499,77 @@ export class FSMEngineService {
 
                                     // Handle legacy "diaHorario" field if present
                                     const diaHorario = updatedExtractedData.dia_horário || updatedExtractedData.horario_escolhido;
-                                    if (diaHorario && !toolArgs.data_especifica) {
-                                        // Simple regex extraction attempt
+                                    if (diaHorario && (!toolArgs.data_especifica || !toolArgs.horario_especifico)) {
+                                        console.log('[FSM Engine] Parsing diaHorario:', diaHorario);
+
+                                        // Extract time using regex
                                         const timeMatch = diaHorario.match(/(\d{1,2}):?(\d{2})?h?/);
-                                        if (timeMatch) {
+                                        if (timeMatch && !toolArgs.horario_especifico) {
                                             const hours = timeMatch[1].padStart(2, '0');
                                             const minutes = (timeMatch[2] || '00').padStart(2, '0');
                                             toolArgs.horario_especifico = `${hours}:${minutes}`;
+                                            console.log('[FSM Engine] Extracted time:', toolArgs.horario_especifico);
                                         }
-                                        // Note: Extracting exact date from string "amanhã às 14h" is hard without NLP here, 
-                                        // but gerenciar_agenda might need structured data.
+
+                                        // Parse relative dates into YYYY-MM-DD format
+                                        if (!toolArgs.data_especifica) {
+                                            const now = new Date();
+                                            let targetDate: Date | null = null;
+                                            const diaLower = diaHorario.toLowerCase();
+
+                                            if (diaLower.includes('depois') && (diaLower.includes('amanhã') || diaLower.includes('amanha'))) {
+                                                targetDate = new Date(now);
+                                                targetDate.setDate(now.getDate() + 2);
+                                            } else if (diaLower.includes('amanhã') || diaLower.includes('amanha')) {
+                                                targetDate = new Date(now);
+                                                targetDate.setDate(now.getDate() + 1);
+                                            } else if (diaLower.includes('hoje')) {
+                                                targetDate = new Date(now);
+                                            } else {
+                                                const dayMap: Record<string, number> = {
+                                                    'domingo': 0, 'segunda': 1, 'terça': 2, 'terca': 2,
+                                                    'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6, 'sabado': 6
+                                                };
+                                                for (const [dayName, dayIndex] of Object.entries(dayMap)) {
+                                                    if (diaLower.includes(dayName)) {
+                                                        const currentDay = now.getDay();
+                                                        let daysToAdd = dayIndex - currentDay;
+                                                        if (daysToAdd <= 0) daysToAdd += 7;
+                                                        targetDate = new Date(now);
+                                                        targetDate.setDate(now.getDate() + daysToAdd);
+                                                        break;
+                                                    }
+                                                }
+                                            }
+
+                                            // Check for DD/MM format
+                                            const dateMatch = diaHorario.match(/(\d{1,2})\/(\d{1,2})/);
+                                            if (dateMatch && !targetDate) {
+                                                const day = parseInt(dateMatch[1]);
+                                                const month = parseInt(dateMatch[2]) - 1;
+                                                targetDate = new Date(now.getFullYear(), month, day);
+                                                if (targetDate < now) targetDate.setFullYear(now.getFullYear() + 1);
+                                            }
+
+                                            if (targetDate) {
+                                                toolArgs.data_especifica = targetDate.toISOString().split('T')[0];
+                                                console.log('[FSM Engine] Extracted date:', toolArgs.data_especifica);
+                                            }
+                                        }
+
                                         toolArgs.mensagem_original = diaHorario;
                                     }
+
+                                    if (!toolArgs.acao) {
+                                        if (toolArgs.data_especifica && toolArgs.horario_especifico) {
+                                            toolArgs.acao = 'confirmar';
+                                            console.log('[FSM Engine] Auto-setting acao=confirmar (date+time provided)');
+                                        } else {
+                                            toolArgs.acao = 'sugerir_iniciais';
+                                            console.log('[FSM Engine] Auto-setting acao=sugerir_iniciais (no date+time)');
+                                        }
+                                    }
                                 } else {
-                                    // Legacy behavior for other tools
                                     const diaHorario = updatedExtractedData.dia_horário || updatedExtractedData.horario_escolhido || '';
                                     let date = '';
                                     let time = '';
@@ -531,7 +590,6 @@ export class FSMEngineService {
                                         else if (dateLower.includes('sexta')) date = 'sexta-feira';
                                     }
 
-                                    // Merge legacy args with any static args
                                     toolArgs = { date, time, notes: `Agendamento via IA - ${diaHorario}`, ...toolArgs };
                                 }
 
@@ -542,6 +600,9 @@ export class FSMEngineService {
                                         organizationId: input.organizationId,
                                         leadId: input.leadId,
                                         conversationId: input.conversationHistory[0]?.content || '',
+                                    },
+                                    {
+                                        schedulingTools: this.schedulingToolsService,
                                     }
                                 );
 
@@ -574,7 +635,6 @@ export class FSMEngineService {
                     }
                 }
 
-                // Detectar loops
                 const loopDetection = this.decisionValidator.detectStateLoop(
                     state.name,
                     decisionResult.estado_escolhido,
@@ -585,7 +645,6 @@ export class FSMEngineService {
                     validationResult.alertas.push(loopDetection.description);
                 }
 
-                // Validar transição
                 const isValid = this.decisionValidator.isValidTransition(
                     state.name,
                     decisionResult.estado_escolhido,
