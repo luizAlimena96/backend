@@ -474,115 +474,127 @@ export class FSMEngineService {
                 const isSchedulingConfirmState = nextStateNameUpper.includes('AGENDAMENTO') &&
                     (nextStateNameUpper.includes('CONFIRMAR') || nextStateNameUpper.includes('CRIAR'));
 
-                if (isSchedulingConfirmState && updatedExtractedData.horario_escolhido) {
+                if (isSchedulingConfirmState) {
                     console.log('[FSM Engine] 🗓️ Auto-detected scheduling confirmation state');
-                    console.log('[FSM Engine] 🗓️ horario_escolhido:', updatedExtractedData.horario_escolhido);
 
-                    // Parse horario_escolhido into data_especifica and horario_especifico
-                    const diaHorario = updatedExtractedData.horario_escolhido;
-                    let data_especifica = '';
-                    let horario_especifico = '';
+                    // Fetch fresh extractedData from database to avoid stale data issues
+                    const freshLead = await this.prisma.lead.findUnique({
+                        where: { id: input.leadId },
+                        select: { extractedData: true }
+                    });
+                    const freshExtractedData = (freshLead?.extractedData as Record<string, any>) || {};
+                    const horarioEscolhido = freshExtractedData.horario_escolhido || updatedExtractedData.horario_escolhido;
 
-                    // Extract time - supports: 08:30, 08h30, 13h, 0830
-                    let timeMatch = diaHorario.match(/(\d{1,2}):(\d{2})/); // 08:30
-                    if (!timeMatch) timeMatch = diaHorario.match(/(\d{1,2})h(\d{2})/); // 08h30
-                    if (!timeMatch) timeMatch = diaHorario.match(/(\d{2})(\d{2})(?!\d)/); // 0830 (4 digits not followed by more digits)
-                    if (!timeMatch) timeMatch = diaHorario.match(/(\d{1,2})h/); // 13h (just hour)
+                    console.log('[FSM Engine] 🗓️ horario_escolhido (fresh from DB):', horarioEscolhido);
+                    console.log('[FSM Engine] 🗓️ DEBUG - updatedExtractedData.horario_escolhido:', updatedExtractedData.horario_escolhido);
 
-                    if (timeMatch) {
-                        const hours = timeMatch[1].padStart(2, '0');
-                        const minutes = (timeMatch[2] || '00').padStart(2, '0');
-                        horario_especifico = `${hours}:${minutes}`;
-                    }
+                    if (horarioEscolhido) {
+                        // Parse horario_escolhido into data_especifica and horario_especifico
+                        const diaHorario = horarioEscolhido;
+                        let data_especifica = '';
+                        let horario_especifico = '';
 
-                    // Parse date
-                    const now = new Date();
-                    const diaLower = diaHorario.toLowerCase();
-                    let targetDate: Date | null = null;
+                        // Extract time - supports: 08:30, 08h30, 13h, 0830
+                        let timeMatch = diaHorario.match(/(\d{1,2}):(\d{2})/); // 08:30
+                        if (!timeMatch) timeMatch = diaHorario.match(/(\d{1,2})h(\d{2})/); // 08h30
+                        if (!timeMatch) timeMatch = diaHorario.match(/(\d{2})(\d{2})(?!\d)/); // 0830 (4 digits not followed by more digits)
+                        if (!timeMatch) timeMatch = diaHorario.match(/(\d{1,2})h/); // 13h (just hour)
 
-                    if (diaLower.includes('depois') && (diaLower.includes('amanhã') || diaLower.includes('amanha'))) {
-                        targetDate = new Date(now);
-                        targetDate.setDate(now.getDate() + 2);
-                    } else if (diaLower.includes('amanhã') || diaLower.includes('amanha')) {
-                        targetDate = new Date(now);
-                        targetDate.setDate(now.getDate() + 1);
-                    } else if (diaLower.includes('hoje')) {
-                        targetDate = new Date(now);
-                    } else {
-                        const dayMap: Record<string, number> = {
-                            'domingo': 0, 'segunda': 1, 'terça': 2, 'terca': 2,
-                            'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6, 'sabado': 6
-                        };
-                        for (const [dayName, dayIndex] of Object.entries(dayMap)) {
-                            if (diaLower.includes(dayName)) {
-                                const currentDay = now.getDay();
-                                let daysToAdd = dayIndex - currentDay;
-                                if (daysToAdd < 0) daysToAdd += 7; // Only add 7 if in the past, not if same day
-                                targetDate = new Date(now);
-                                targetDate.setDate(now.getDate() + daysToAdd);
-                                break;
+                        if (timeMatch) {
+                            const hours = timeMatch[1].padStart(2, '0');
+                            const minutes = (timeMatch[2] || '00').padStart(2, '0');
+                            horario_especifico = `${hours}:${minutes}`;
+                        }
+
+                        // Parse date
+                        const now = new Date();
+                        const diaLower = diaHorario.toLowerCase();
+                        let targetDate: Date | null = null;
+
+                        if (diaLower.includes('depois') && (diaLower.includes('amanhã') || diaLower.includes('amanha'))) {
+                            targetDate = new Date(now);
+                            targetDate.setDate(now.getDate() + 2);
+                        } else if (diaLower.includes('amanhã') || diaLower.includes('amanha')) {
+                            targetDate = new Date(now);
+                            targetDate.setDate(now.getDate() + 1);
+                        } else if (diaLower.includes('hoje')) {
+                            targetDate = new Date(now);
+                        } else {
+                            const dayMap: Record<string, number> = {
+                                'domingo': 0, 'segunda': 1, 'terça': 2, 'terca': 2,
+                                'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6, 'sabado': 6
+                            };
+                            for (const [dayName, dayIndex] of Object.entries(dayMap)) {
+                                if (diaLower.includes(dayName)) {
+                                    const currentDay = now.getDay();
+                                    let daysToAdd = dayIndex - currentDay;
+                                    if (daysToAdd < 0) daysToAdd += 7; // Only add 7 if in the past, not if same day
+                                    targetDate = new Date(now);
+                                    targetDate.setDate(now.getDate() + daysToAdd);
+                                    break;
+                                }
                             }
                         }
-                    }
 
-                    if (targetDate) {
-                        data_especifica = targetDate.toISOString().split('T')[0];
-                    }
+                        if (targetDate) {
+                            data_especifica = targetDate.toISOString().split('T')[0];
+                        }
 
-                    // Check for DD/MM format (e.g., "23/12", "(23/12)")
-                    if (!data_especifica) {
-                        const dateMatch = diaHorario.match(/(\d{1,2})\/(\d{1,2})/);
-                        if (dateMatch) {
-                            const day = parseInt(dateMatch[1]);
-                            const month = parseInt(dateMatch[2]) - 1; // JS months are 0-indexed
-                            if (day >= 1 && day <= 31 && month >= 0 && month <= 11) {
-                                targetDate = new Date(now.getFullYear(), month, day);
-                                // Compare only dates (not time) - if date is strictly in the past, use next year
-                                const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                                if (targetDate < todayMidnight) {
-                                    targetDate.setFullYear(now.getFullYear() + 1);
+                        // Check for DD/MM format (e.g., "23/12", "(23/12)")
+                        if (!data_especifica) {
+                            const dateMatch = diaHorario.match(/(\d{1,2})\/(\d{1,2})/);
+                            if (dateMatch) {
+                                const day = parseInt(dateMatch[1]);
+                                const month = parseInt(dateMatch[2]) - 1; // JS months are 0-indexed
+                                if (day >= 1 && day <= 31 && month >= 0 && month <= 11) {
+                                    targetDate = new Date(now.getFullYear(), month, day);
+                                    // Compare only dates (not time) - if date is strictly in the past, use next year
+                                    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                                    if (targetDate < todayMidnight) {
+                                        targetDate.setFullYear(now.getFullYear() + 1);
+                                    }
+                                    data_especifica = targetDate.toISOString().split('T')[0];
+                                    console.log('[FSM Engine] 🗓️ Parsed DD/MM date:', data_especifica);
                                 }
-                                data_especifica = targetDate.toISOString().split('T')[0];
-                                console.log('[FSM Engine] 🗓️ Parsed DD/MM date:', data_especifica);
                             }
                         }
-                    }
 
-                    // Fallback: if no date parsed but we have time, use today's date
-                    if (!data_especifica && horario_especifico) {
-                        data_especifica = new Date().toISOString().split('T')[0];
-                        console.log('[FSM Engine] 🗓️ Using today as fallback date:', data_especifica);
-                    }
+                        // Fallback: if no date parsed but we have time, use today's date
+                        if (!data_especifica && horario_especifico) {
+                            data_especifica = new Date().toISOString().split('T')[0];
+                            console.log('[FSM Engine] 🗓️ Using today as fallback date:', data_especifica);
+                        }
 
-                    console.log('[FSM Engine] 🗓️ Parsed:', { data_especifica, horario_especifico });
+                        console.log('[FSM Engine] 🗓️ Parsed:', { data_especifica, horario_especifico });
 
-                    if (data_especifica && horario_especifico) {
-                        try {
-                            const toolResult = await toolsHandler.executeFSMTool(
-                                'criar_evento',
-                                {
-                                    acao: 'confirmar',
-                                    data_especifica,
-                                    horario_especifico,
-                                    mensagem_original: diaHorario
-                                },
-                                {
-                                    organizationId: input.organizationId,
-                                    leadId: input.leadId,
-                                    conversationId: input.conversationHistory[0]?.content || '',
-                                },
-                                {
-                                    schedulingTools: this.schedulingToolsService,
+                        if (data_especifica && horario_especifico) {
+                            try {
+                                const toolResult = await toolsHandler.executeFSMTool(
+                                    'criar_evento',
+                                    {
+                                        acao: 'confirmar',
+                                        data_especifica,
+                                        horario_especifico,
+                                        mensagem_original: diaHorario
+                                    },
+                                    {
+                                        organizationId: input.organizationId,
+                                        leadId: input.leadId,
+                                        conversationId: input.conversationHistory[0]?.content || '',
+                                    },
+                                    {
+                                        schedulingTools: this.schedulingToolsService,
+                                    }
+                                );
+
+                                console.log('[FSM Engine] 🗓️ Auto-scheduling result:', toolResult);
+
+                                if (toolResult.success) {
+                                    updatedExtractedData.agendamento_confirmado = data_especifica + ' ' + horario_especifico;
                                 }
-                            );
-
-                            console.log('[FSM Engine] 🗓️ Auto-scheduling result:', toolResult);
-
-                            if (toolResult.success) {
-                                updatedExtractedData.agendamento_confirmado = data_especifica + ' ' + horario_especifico;
+                            } catch (error) {
+                                console.error('[FSM Engine] 🗓️ Auto-scheduling error:', error);
                             }
-                        } catch (error) {
-                            console.error('[FSM Engine] 🗓️ Auto-scheduling error:', error);
                         }
                     }
                 }
