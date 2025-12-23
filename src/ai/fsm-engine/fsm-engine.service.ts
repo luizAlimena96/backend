@@ -483,8 +483,12 @@ export class FSMEngineService {
                     let data_especifica = '';
                     let horario_especifico = '';
 
-                    // Extract time
-                    const timeMatch = diaHorario.match(/(\d{1,2}):?(\d{2})?h?/);
+                    // Extract time - supports: 08:30, 08h30, 13h, 0830
+                    let timeMatch = diaHorario.match(/(\d{1,2}):(\d{2})/); // 08:30
+                    if (!timeMatch) timeMatch = diaHorario.match(/(\d{1,2})h(\d{2})/); // 08h30
+                    if (!timeMatch) timeMatch = diaHorario.match(/(\d{2})(\d{2})(?!\d)/); // 0830 (4 digits not followed by more digits)
+                    if (!timeMatch) timeMatch = diaHorario.match(/(\d{1,2})h/); // 13h (just hour)
+
                     if (timeMatch) {
                         const hours = timeMatch[1].padStart(2, '0');
                         const minutes = (timeMatch[2] || '00').padStart(2, '0');
