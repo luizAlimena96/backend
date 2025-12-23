@@ -469,10 +469,10 @@ export class FSMEngineService {
                 });
 
                 // ==================== AUTO-DETECT SCHEDULING ====================
-                // If state name suggests scheduling confirmation, auto-execute criar_evento
-                const stateNameUpper = state.name.toUpperCase();
-                const isSchedulingConfirmState = stateNameUpper.includes('AGENDAMENTO') &&
-                    (stateNameUpper.includes('CONFIRMAR') || stateNameUpper.includes('CRIAR'));
+                // If NEXT state name suggests scheduling confirmation, auto-execute criar_evento
+                const nextStateNameUpper = finalNextState.toUpperCase();
+                const isSchedulingConfirmState = nextStateNameUpper.includes('AGENDAMENTO') &&
+                    (nextStateNameUpper.includes('CONFIRMAR') || nextStateNameUpper.includes('CRIAR'));
 
                 if (isSchedulingConfirmState && updatedExtractedData.horario_escolhido) {
                     console.log('[FSM Engine] 🗓️ Auto-detected scheduling confirmation state');
