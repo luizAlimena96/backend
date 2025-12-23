@@ -537,8 +537,9 @@ export class FSMEngineService {
                             const month = parseInt(dateMatch[2]) - 1; // JS months are 0-indexed
                             if (day >= 1 && day <= 31 && month >= 0 && month <= 11) {
                                 targetDate = new Date(now.getFullYear(), month, day);
-                                // If date is in the past, use next year
-                                if (targetDate < now) {
+                                // Compare only dates (not time) - if date is strictly in the past, use next year
+                                const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                                if (targetDate < todayMidnight) {
                                     targetDate.setFullYear(now.getFullYear() + 1);
                                 }
                                 data_especifica = targetDate.toISOString().split('T')[0];
