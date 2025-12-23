@@ -513,7 +513,7 @@ export class FSMEngineService {
                             if (diaLower.includes(dayName)) {
                                 const currentDay = now.getDay();
                                 let daysToAdd = dayIndex - currentDay;
-                                if (daysToAdd <= 0) daysToAdd += 7;
+                                if (daysToAdd < 0) daysToAdd += 7; // Only add 7 if in the past, not if same day
                                 targetDate = new Date(now);
                                 targetDate.setDate(now.getDate() + daysToAdd);
                                 break;
