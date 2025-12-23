@@ -529,6 +529,12 @@ export class FSMEngineService {
                         data_especifica = targetDate.toISOString().split('T')[0];
                     }
 
+                    // Fallback: if no date parsed but we have time, use today's date
+                    if (!data_especifica && horario_especifico) {
+                        data_especifica = new Date().toISOString().split('T')[0];
+                        console.log('[FSM Engine] 🗓️ Using today as fallback date:', data_especifica);
+                    }
+
                     console.log('[FSM Engine] 🗓️ Parsed:', { data_especifica, horario_especifico });
 
                     if (data_especifica && horario_especifico) {
