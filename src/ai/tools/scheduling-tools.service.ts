@@ -348,15 +348,20 @@ export class SchedulingToolsService {
         if (!periodo) return slots;
 
         return slots.filter(slot => {
-            const hour = slot.time.getHours();
+            // Use Brazil timezone to get the correct hour
+            const brazilHour = parseInt(slot.time.toLocaleTimeString('pt-BR', {
+                timeZone: 'America/Sao_Paulo',
+                hour: '2-digit',
+                hour12: false
+            }));
 
             switch (periodo) {
                 case 'manha':
-                    return hour >= 6 && hour < 12;
+                    return brazilHour >= 6 && brazilHour < 12;
                 case 'tarde':
-                    return hour >= 12 && hour < 18;
+                    return brazilHour >= 12 && brazilHour < 18;
                 case 'noite':
-                    return hour >= 18 && hour < 22;
+                    return brazilHour >= 18 && brazilHour < 22;
                 default:
                     return true;
             }
