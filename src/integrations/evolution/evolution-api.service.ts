@@ -237,25 +237,20 @@ export class EvolutionAPIService {
 
     async sendVideo(instanceName: string, to: string, videoUrl: string, caption?: string): Promise<any> {
         try {
-            const body: any = {
+            // Videos: always send URL directly in 'media' field
+            const body = {
                 number: to,
                 mediatype: 'video',
                 caption,
+                media: videoUrl, // Direct URL (e.g., https://drive.google.com/uc?export=download&id=...)
             };
 
-            // Check if it's a Data URI
-            if (videoUrl.startsWith('data:')) {
-                const matches = videoUrl.match(/^data:(.+?);base64,(.+)$/);
-                if (matches) {
-                    body.mimetype = matches[1];
-                    body.media = matches[2]; // Raw base64
-                } else {
-                    // Fallback or error if invalid data URI
-                    body.media = videoUrl;
-                }
-            } else {
-                body.media = videoUrl;
-            }
+            console.log('[Evolution API] 🎬 Sending video:', {
+                number: body.number,
+                mediatype: body.mediatype,
+                caption: body.caption,
+                media: body.media
+            });
 
             const response = await firstValueFrom(
                 this.httpService.post(
@@ -266,11 +261,12 @@ export class EvolutionAPIService {
                             apikey: this.getApiKey(),
                             'Content-Type': 'application/json',
                         },
-                        timeout: 60000, // Increased timeout for videos
+                        timeout: 60000,
                     }
                 )
             );
 
+            console.log('[Evolution API] ✅ Video sent successfully');
             return response.data;
         } catch (error) {
             console.error('Evolution API send video error:', error);

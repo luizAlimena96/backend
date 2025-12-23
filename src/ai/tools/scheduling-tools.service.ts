@@ -283,8 +283,6 @@ export class SchedulingToolsService {
 
             const [hours, minutes] = params.horario_especifico.split(':').map(Number);
             const scheduledAt = new Date(params.data_especifica);
-            // Set the time as Brazilian time (UTC-3)
-            // We add 3 hours to convert from BRT to UTC for storage
             scheduledAt.setUTCHours(hours + 3, minutes, 0, 0);
 
             console.log('[Scheduling Tools]   - scheduledAt (parsed as BRT->UTC):', scheduledAt);

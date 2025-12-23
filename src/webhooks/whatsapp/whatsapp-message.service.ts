@@ -113,7 +113,7 @@ export class WhatsAppMessageService {
                         console.log(`[WhatsApp] ✅ Deleted conversation ${existingConversation.id}`);
                     }
 
-                    // Find and reset lead
+                    // Find and DELETE lead completely (for clean testing)
                     const existingLead = await this.prisma.lead.findFirst({
                         where: {
                             phone,
@@ -122,16 +122,11 @@ export class WhatsAppMessageService {
                     });
 
                     if (existingLead) {
-                        // Reset lead state to initial
-                        const initialState = agent.states?.[0]?.name || 'INICIO';
-                        await this.prisma.lead.update({
+                        // Delete lead completely from database
+                        await this.prisma.lead.delete({
                             where: { id: existingLead.id },
-                            data: {
-                                currentState: initialState,
-                                extractedData: {},
-                            },
                         });
-                        console.log(`[WhatsApp] ✅ Reset lead ${existingLead.id} to state: ${initialState}`);
+                        console.log(`[WhatsApp] ✅ Deleted lead ${existingLead.id} completely`);
                     }
 
                     // Send confirmation message
@@ -361,15 +356,20 @@ export class WhatsAppMessageService {
             const conversationHistory = await this.getConversationHistory(conversation.id);
 
             // 7. Process with FSM Engine
+            const previousState = lead.currentState || 'INICIO';
             const fsmDecision = await this.fsmEngine.decideNextState({
                 agentId: agent.id,
-                currentState: lead.currentState || 'INICIO',
+                currentState: previousState,
                 lastMessage: messageContent,
                 extractedData: (lead.extractedData as any) || {},
                 conversationHistory,
                 leadId: lead.id,
                 organizationId: agent.organizationId,
             });
+
+            // Check if state changed (not persistence route)
+            const stateChanged = previousState !== fsmDecision.nextState;
+            console.log(`[WhatsApp] 📊 State transition: ${previousState} → ${fsmDecision.nextState} (changed: ${stateChanged})`);
 
             // 8. Update lead with new state and data
             await this.prisma.lead.update({
@@ -424,9 +424,11 @@ export class WhatsAppMessageService {
             );
 
             // 12. Process and send state media items (if any)
+            // IMPORTANT: Only send media on state TRANSITION (first entry), not on persistence route
             // Parse mediaItems - it might be a string if stored as JSON
             let stateMediaItems: any[] = [];
-            if (nextState?.mediaItems) {
+            if (nextState?.mediaItems && stateChanged) {
+                // Only process media if state actually changed (not persistence route)
                 if (typeof nextState.mediaItems === 'string') {
                     try {
                         stateMediaItems = JSON.parse(nextState.mediaItems);
@@ -438,6 +440,8 @@ export class WhatsAppMessageService {
                 } else {
                     console.warn('[WhatsApp] ⚠️ mediaItems is neither string nor array:', typeof nextState.mediaItems);
                 }
+            } else if (nextState?.mediaItems && !stateChanged) {
+                console.log('[WhatsApp] 📎 Skipping media - persistence route (state unchanged)');
             }
 
             const mediaTiming = nextState?.mediaTiming || 'after'; // default to 'after'
@@ -446,6 +450,7 @@ export class WhatsAppMessageService {
                 count: stateMediaItems.length,
                 items: stateMediaItems,
                 timing: mediaTiming,
+                stateChanged: stateChanged,
             });
 
             // Helper function to send media items
@@ -457,15 +462,24 @@ export class WhatsAppMessageService {
                         try {
                             const { url, type, caption, fileName } = mediaItem;
 
-                            // Process URL (convert Google Drive if needed) AND convert to Base64
+                            // Detect media type first
+                            const detectedType = type || this.mediaProcessor.detectMediaType(url);
+
+                            // For videos: Use URL directly (base64 causes 500 errors with large files)
+                            // For other types: Convert to base64 for reliability
+                            const shouldUseBase64 = detectedType !== 'video';
+
+                            console.log(`[WhatsApp] 📎 Processing ${detectedType} - Using ${shouldUseBase64 ? 'Base64' : 'URL'}`);
+
+                            // Process URL (convert Google Drive if needed)
                             const processedMedia = await this.mediaProcessor.processMediaUrl(url, {
-                                type: type || undefined,
-                                convertToBase64: true // Validamos que queremos enviar como base64
+                                type: detectedType,
+                                convertToBase64: shouldUseBase64
                             });
 
                             console.log(`[WhatsApp] 📤 Sending ${processedMedia.type}: ${processedMedia.fileName}`);
 
-                            // Construct Data URI if base64 is available
+                            // Construct payload: base64 Data URI for images/docs, URL for videos
                             const mediaPayload = processedMedia.base64
                                 ? `data:${processedMedia.mimeType};base64,${processedMedia.base64}`
                                 : processedMedia.url;
@@ -481,10 +495,13 @@ export class WhatsAppMessageService {
                                     );
                                     break;
                                 case 'video':
+                                    // Videos always use URL (not base64) to avoid 500 errors
+                                    // URL format: https://drive.google.com/uc?export=download&id=...
+                                    console.log(`[WhatsApp] 🎬 Sending video via URL: ${processedMedia.url}`);
                                     await this.whatsappService.sendVideo(
                                         instanceName,
                                         phone,
-                                        mediaPayload,
+                                        processedMedia.url, // Always use URL for videos
                                         caption
                                     );
                                     break;
