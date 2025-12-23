@@ -281,11 +281,21 @@ export class SchedulingToolsService {
             console.log('[Scheduling Tools]   - autoSchedulingConfig found:', !!config);
             console.log('[Scheduling Tools]   - config.duration:', config?.duration || 'using default 60');
 
+            // Convert Brazil time (input) to UTC for storage
+            // Input: data_especifica = "YYYY-MM-DD", horario_especifico = "HH:MM" (Brazil time)
+            // Output: Date in UTC
             const [hours, minutes] = params.horario_especifico.split(':').map(Number);
-            const scheduledAt = new Date(params.data_especifica);
-            scheduledAt.setUTCHours(hours + 3, minutes, 0, 0);
+            const [year, month, day] = params.data_especifica.split('-').map(Number);
 
-            console.log('[Scheduling Tools]   - scheduledAt (parsed as BRT->UTC):', scheduledAt);
+            // Create date in UTC, then add 3 hours to convert from Brazil (UTC-3) to UTC
+            const scheduledAt = new Date(Date.UTC(year, month - 1, day, hours + 3, minutes, 0, 0));
+
+            console.log('[Scheduling Tools] 🕐 Timezone conversion:', {
+                input_date: params.data_especifica,
+                input_time: params.horario_especifico,
+                brazil_time: `${params.data_especifica} ${params.horario_especifico} (UTC-3)`,
+                utc_time: scheduledAt.toISOString(),
+            });
 
             const appointment = await this.schedulingService.createAppointment({
                 leadId: params.leadId,

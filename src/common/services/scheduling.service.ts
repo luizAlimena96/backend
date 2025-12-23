@@ -2,6 +2,34 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { GoogleCalendarService } from '../../integrations/google/google-calendar.service';
 
+// Brazil timezone offset: UTC-3 (3 hours behind UTC)
+const BRAZIL_TIMEZONE_OFFSET_HOURS = -3;
+const BRAZIL_TIMEZONE_OFFSET_MS = BRAZIL_TIMEZONE_OFFSET_HOURS * 60 * 60 * 1000;
+
+/**
+ * Convert a local Brazil time to UTC Date
+ * Input: date string "YYYY-MM-DD" and time string "HH:MM" in Brazil time
+ * Output: Date object in UTC
+ */
+function brazilTimeToUTC(dateStr: string, timeStr: string): Date {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    // Create date as if it's UTC, then subtract Brazil offset to get actual UTC
+    const utcDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
+    // Since Brazil is UTC-3, we ADD 3 hours to convert local -> UTC
+    utcDate.setTime(utcDate.getTime() + (3 * 60 * 60 * 1000));
+    return utcDate;
+}
+
+/**
+ * Get current time in Brazil timezone
+ */
+function getNowInBrazil(): Date {
+    const now = new Date();
+    // Adjust for Brazil timezone
+    return new Date(now.getTime() + BRAZIL_TIMEZONE_OFFSET_MS);
+}
+
 @Injectable()
 export class SchedulingService {
     constructor(
@@ -272,6 +300,17 @@ export class SchedulingService {
             },
         });
 
+        console.log('[Scheduling] 📅 Appointments found for this day:', {
+            date: date.toISOString().split('T')[0],
+            count: appointments.length,
+            appointments: appointments.map(apt => ({
+                id: apt.id,
+                scheduledAt: apt.scheduledAt,
+                duration: apt.duration,
+                status: apt.status
+            }))
+        });
+
         // 5. Generate available slots based on working hours
         const slots: Array<{ time: Date; available: boolean }> = [];
 
@@ -297,10 +336,14 @@ export class SchedulingService {
                     return slotTime >= blockStart && slotTime < blockEnd;
                 });
 
-                // Check if slot has an appointment
-                const hasAppointment = appointments.some(apt =>
-                    Math.abs(apt.scheduledAt.getTime() - slotTime.getTime()) < 60000 // Within 1 minute
-                );
+                // Check if slot has an appointment (considering duration)
+                const hasAppointment = appointments.some(apt => {
+                    const aptStart = apt.scheduledAt.getTime();
+                    const aptEnd = aptStart + (apt.duration * 60000); // duration in minutes -> ms
+                    const slotMs = slotTime.getTime();
+                    // Slot is occupied if it falls within [start, end) of any appointment
+                    return slotMs >= aptStart && slotMs < aptEnd;
+                });
 
                 // Skip slots that are in the past
                 const now = new Date();
