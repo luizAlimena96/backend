@@ -265,24 +265,21 @@ export class SchedulingToolsService {
                 };
             }
 
-            if (!lead.crmStageId) {
-                console.log('[Scheduling Tools] ❌ Lead not in any CRM stage');
-                return {
-                    success: false,
-                    mensagem: 'Lead não está em nenhuma etapa do CRM.'
-                };
+            // Try to find AutoSchedulingConfig for duration, but don't require it
+            let config: { duration?: number } | null = null;
+            if (lead.crmStageId) {
+                config = await this.prisma.autoSchedulingConfig.findFirst({
+                    where: {
+                        agentId: lead.agent.id,
+                        crmStageId: lead.crmStageId,
+                        isActive: true,
+                    }
+                });
             }
 
-            const config = await this.prisma.autoSchedulingConfig.findFirst({
-                where: {
-                    agentId: lead.agent.id,
-                    crmStageId: lead.crmStageId,
-                    isActive: true,
-                }
-            });
-
+            console.log('[Scheduling Tools]   - crmStageId:', lead.crmStageId || 'N/A');
             console.log('[Scheduling Tools]   - autoSchedulingConfig found:', !!config);
-            console.log('[Scheduling Tools]   - config.duration:', config?.duration);
+            console.log('[Scheduling Tools]   - config.duration:', config?.duration || 'using default 60');
 
             const [hours, minutes] = params.horario_especifico.split(':').map(Number);
             const scheduledAt = new Date(params.data_especifica);
