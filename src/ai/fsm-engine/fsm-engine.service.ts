@@ -508,15 +508,64 @@ export class FSMEngineService {
                         const diaLower = diaHorario.toLowerCase();
                         let targetDate: Date | null = null;
 
-                        if (diaLower.includes('depois') && (diaLower.includes('amanhã') || diaLower.includes('amanha'))) {
+                        // ==================== COMPLEX DATE PARSING ====================
+
+                        // "daqui a X dias" or "daqui X dias"
+                        const daquiMatch = diaLower.match(/daqui\s*a?\s*(\d+)\s*dias?/);
+                        if (daquiMatch) {
+                            const days = parseInt(daquiMatch[1]);
+                            targetDate = new Date(now);
+                            targetDate.setDate(now.getDate() + days);
+                            console.log('[FSM Engine] 🗓️ Parsed "daqui a X dias":', days);
+                        }
+
+                        // "próxima semana" or "semana que vem" -> next Monday
+                        if (!targetDate && (diaLower.includes('próxima semana') || diaLower.includes('proxima semana') || diaLower.includes('semana que vem'))) {
+                            targetDate = new Date(now);
+                            const currentDay = now.getDay();
+                            // Calculate days until next Monday (day 1)
+                            const daysUntilMonday = currentDay === 0 ? 1 : (8 - currentDay);
+                            targetDate.setDate(now.getDate() + daysUntilMonday);
+                            console.log('[FSM Engine] 🗓️ Parsed "próxima semana" -> next Monday');
+                        }
+
+                        // "[dia] que vem" (e.g., "terça que vem", "segunda que vem")
+                        if (!targetDate) {
+                            const queVemMatch = diaLower.match(/(segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)\s*(que|q)\s*vem/);
+                            if (queVemMatch) {
+                                const dayMap: Record<string, number> = {
+                                    'domingo': 0, 'segunda': 1, 'terça': 2, 'terca': 2,
+                                    'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6, 'sabado': 6
+                                };
+                                const dayIndex = dayMap[queVemMatch[1]];
+                                if (dayIndex !== undefined) {
+                                    targetDate = new Date(now);
+                                    const currentDay = now.getDay();
+                                    // "Que vem" always means NEXT week, so add 7 first then calculate
+                                    let daysToAdd = (dayIndex - currentDay + 7) % 7;
+                                    if (daysToAdd === 0) daysToAdd = 7; // If same day, go to next week
+                                    targetDate.setDate(now.getDate() + daysToAdd);
+                                    console.log('[FSM Engine] 🗓️ Parsed "[day] que vem":', queVemMatch[1]);
+                                }
+                            }
+                        }
+
+                        // "depois de amanhã"
+                        if (!targetDate && diaLower.includes('depois') && (diaLower.includes('amanhã') || diaLower.includes('amanha'))) {
                             targetDate = new Date(now);
                             targetDate.setDate(now.getDate() + 2);
-                        } else if (diaLower.includes('amanhã') || diaLower.includes('amanha')) {
+                        }
+                        // "amanhã"
+                        else if (!targetDate && (diaLower.includes('amanhã') || diaLower.includes('amanha'))) {
                             targetDate = new Date(now);
                             targetDate.setDate(now.getDate() + 1);
-                        } else if (diaLower.includes('hoje')) {
+                        }
+                        // "hoje"
+                        else if (!targetDate && diaLower.includes('hoje')) {
                             targetDate = new Date(now);
-                        } else {
+                        }
+                        // Day name only (e.g., "segunda", "terça")
+                        else if (!targetDate) {
                             const dayMap: Record<string, number> = {
                                 'domingo': 0, 'segunda': 1, 'terça': 2, 'terca': 2,
                                 'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6, 'sabado': 6

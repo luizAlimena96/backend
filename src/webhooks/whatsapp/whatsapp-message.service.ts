@@ -696,7 +696,8 @@ export class WhatsAppMessageService {
                 const checkDate = new Date(minDate);
                 checkDate.setDate(checkDate.getDate() + i);
 
-                const slots = await this.schedulingService.getAvailableSlots(organizationId, checkDate, agentId);
+                const slotDuration = config?.duration || 30;
+                const slots = await this.schedulingService.getAvailableSlots(organizationId, checkDate, agentId, slotDuration);
 
                 for (const slot of slots) {
                     if (!slot.available) continue;

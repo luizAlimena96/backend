@@ -603,7 +603,8 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
                 const checkDate = new Date(minDate);
                 checkDate.setDate(checkDate.getDate() + i);
 
-                const slots = await this.schedulingService.getAvailableSlots(organizationId, checkDate, agentId);
+                const slotDuration = config?.duration || 30;
+                const slots = await this.schedulingService.getAvailableSlots(organizationId, checkDate, agentId, slotDuration);
 
                 for (const slot of slots) {
                     if (!slot.available) continue;

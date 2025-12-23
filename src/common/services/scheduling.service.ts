@@ -55,12 +55,51 @@ export class SchedulingService {
         console.log('[Scheduling]   - type:', data.type || 'MEETING');
         console.log('[Scheduling]   - organizationId:', data.organizationId);
 
+        // ==================== CONFLICT VERIFICATION ====================
+        // Check if the slot is already occupied by another appointment
+        const duration = data.duration || 60;
+        const newAptStart = data.scheduledAt.getTime();
+        const newAptEnd = newAptStart + (duration * 60000);
+
+        // Find appointments that overlap with the new time slot
+        const conflictingAppointments = await this.prisma.appointment.findMany({
+            where: {
+                organizationId: data.organizationId,
+                status: { not: 'CANCELLED' },
+                scheduledAt: {
+                    // Appointments that START before our new appointment ENDS
+                    lt: new Date(newAptEnd),
+                },
+            },
+        });
+
+        // Check for actual overlap (appointment end time overlaps with new start)
+        const hasConflict = conflictingAppointments.some(apt => {
+            const aptStart = apt.scheduledAt.getTime();
+            const aptEnd = aptStart + (apt.duration * 60000);
+            // Overlap if: existing end > new start AND existing start < new end
+            const overlaps = aptEnd > newAptStart && aptStart < newAptEnd;
+            if (overlaps) {
+                console.log('[Scheduling] ⚠️ Conflict detected:', {
+                    existingApt: { start: apt.scheduledAt, end: new Date(aptEnd) },
+                    newApt: { start: data.scheduledAt, end: new Date(newAptEnd) }
+                });
+            }
+            return overlaps;
+        });
+
+        if (hasConflict) {
+            console.log('[Scheduling] ❌ Slot conflict - appointment not created');
+            throw new Error('SLOT_OCCUPIED: O horário solicitado já está ocupado por outro agendamento.');
+        }
+
+        // ==================== CREATE APPOINTMENT ====================
         let appointment = await this.prisma.appointment.create({
             data: {
                 leadId: data.leadId,
                 title: data.title,
                 scheduledAt: data.scheduledAt,
-                duration: data.duration || 60,
+                duration: duration,
                 type: data.type || 'MEETING',
                 notes: data.notes,
                 organizationId: data.organizationId,
@@ -200,8 +239,8 @@ export class SchedulingService {
         return msg;
     }
 
-    async getAvailableSlots(organizationId: string, date: Date, agentId?: string): Promise<Array<{ time: Date; available: boolean }>> {
-        console.log('[Scheduling] 📅 getAvailableSlots called:', { organizationId, agentId, date: date.toISOString() });
+    async getAvailableSlots(organizationId: string, date: Date, agentId?: string, slotDuration: number = 30): Promise<Array<{ time: Date; available: boolean }>> {
+        console.log('[Scheduling] 📅 getAvailableSlots called:', { organizationId, agentId, date: date.toISOString(), slotDuration });
 
         const startOfDay = new Date(date);
         startOfDay.setHours(0, 0, 0, 0);
@@ -366,8 +405,8 @@ export class SchedulingService {
                     slots.push({ time: slotTime, available: true });
                 }
 
-                // Move to next 30-minute slot
-                currentTime.setMinutes(currentTime.getMinutes() + 30);
+                // Move to next slot based on duration
+                currentTime.setTime(currentTime.getTime() + (slotDuration * 60000));
             }
         }
 

@@ -111,10 +111,13 @@ export class SchedulingToolsService {
                 const checkDate = new Date(minDate);
                 checkDate.setDate(checkDate.getDate() + i);
 
+                // Use config.duration for slot size (default 30min)
+                const slotDuration = config.duration || 30;
                 const slots = await this.schedulingService.getAvailableSlots(
                     params.organizationId,
                     checkDate,
-                    lead.agent.id
+                    lead.agent.id,
+                    slotDuration
                 );
 
                 const slotsFiltrados = this.filtrarPorPeriodo(slots, params.periodo_dia);
@@ -317,6 +320,15 @@ export class SchedulingToolsService {
         } catch (error: any) {
             console.error('[Scheduling Tools] ❌ Erro ao confirmar agendamento:', error);
             console.error('[Scheduling Tools]   - Error message:', error.message);
+
+            // Handle slot conflict error specifically
+            if (error.message?.includes('SLOT_OCCUPIED')) {
+                return {
+                    success: false,
+                    mensagem: '⚠️ Infelizmente esse horário acabou de ser ocupado! Por favor, escolha outro horário disponível.'
+                };
+            }
+
             return {
                 success: false,
                 mensagem: 'Erro ao criar agendamento.'
@@ -375,13 +387,25 @@ export class SchedulingToolsService {
                 };
             }
 
-            // 2. Cancelar
+            // 2. Cancel pending reminders first
+            const cancelledReminders = await this.prisma.appointmentReminder.updateMany({
+                where: {
+                    appointmentId: appointment.id,
+                    status: 'PENDING'
+                },
+                data: {
+                    status: 'CANCELLED'
+                }
+            });
+            console.log(`[Scheduling Tools] ♻️ Cancelled ${cancelledReminders.count} pending reminders`);
+
+            // 3. Cancel the appointment
             await this.schedulingService.cancelAppointment(appointment.id);
 
             return {
                 success: true,
                 agendamento: appointment,
-                mensagem: `O agendamento do dia ${appointment.scheduledAt.toLocaleDateString('pt-BR')} às ${appointment.scheduledAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} foi cancelado com sucesso.`
+                mensagem: `✅ Agendamento do dia ${appointment.scheduledAt.toLocaleDateString('pt-BR')} às ${appointment.scheduledAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} foi cancelado com sucesso.`
             };
 
         } catch (error: any) {
@@ -430,8 +454,9 @@ export class SchedulingToolsService {
 
             // 2. Verificar disponibilidade do novo horário
             const [hours, minutes] = params.horario_especifico.split(':').map(Number);
-            const novaData = new Date(params.data_especifica);
-            novaData.setHours(hours, minutes, 0, 0);
+            const [year, month, day] = params.data_especifica.split('-').map(Number);
+            // Convert Brazil time to UTC
+            const novaData = new Date(Date.UTC(year, month - 1, day, hours + 3, minutes, 0, 0));
 
             const check = await this.verificarDisponibilidade({
                 organizationId: params.organizationId,
@@ -447,13 +472,64 @@ export class SchedulingToolsService {
                 };
             }
 
-            // 3. Reagendar
+            // 3. Cancel old reminders (PENDING ones only)
+            const cancelledReminders = await this.prisma.appointmentReminder.updateMany({
+                where: {
+                    appointmentId: appointment.id,
+                    status: 'PENDING'
+                },
+                data: {
+                    status: 'CANCELLED'
+                }
+            });
+            console.log(`[Scheduling Tools] ♻️ Cancelled ${cancelledReminders.count} pending reminders for old appointment`);
+
+            // 4. Reschedule the appointment
             await this.schedulingService.rescheduleAppointment(appointment.id, novaData);
+
+            // 5. Create new reminders for the new date (if config exists)
+            const lead = await this.prisma.lead.findUnique({
+                where: { id: params.leadId },
+                include: { agent: true }
+            });
+
+            if (lead?.agent?.id && lead.crmStageId) {
+                const config = await this.prisma.autoSchedulingConfig.findFirst({
+                    where: {
+                        agentId: lead.agent.id,
+                        crmStageId: lead.crmStageId,
+                        isActive: true
+                    },
+                    include: { reminders: true }
+                });
+
+                if (config?.reminders) {
+                    for (const reminderConfig of config.reminders) {
+                        if (!reminderConfig.isActive) continue;
+
+                        const remindAt = new Date(novaData.getTime() - (reminderConfig.minutesBefore * 60000));
+
+                        if (reminderConfig.sendToLead) {
+                            await this.prisma.appointmentReminder.create({
+                                data: {
+                                    appointmentId: appointment.id,
+                                    scheduledFor: remindAt,
+                                    type: 'LEAD',
+                                    recipient: lead.phone,
+                                    message: `Lembrete: você tem um compromisso reagendado para ${novaData.toLocaleDateString('pt-BR')} às ${novaData.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+                                    status: 'PENDING'
+                                }
+                            });
+                        }
+                    }
+                    console.log('[Scheduling Tools] ✅ Created new reminders for rescheduled appointment');
+                }
+            }
 
             return {
                 success: true,
                 agendamento: appointment,
-                mensagem: `Agendamento reagendado com sucesso para ${novaData.toLocaleDateString('pt-BR')} às ${novaData.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.`
+                mensagem: `✅ Agendamento reagendado com sucesso para ${params.data_especifica} às ${params.horario_especifico}!`
             };
 
         } catch (error: any) {
