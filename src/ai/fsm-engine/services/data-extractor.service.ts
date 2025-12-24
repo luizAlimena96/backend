@@ -354,6 +354,10 @@ ${input.agentContext?.prohibitions ? `**PROIBIÇÕES GLOBAIS DO AGENTE**: ${inpu
 
 # CONTEXTO DINÂMICO DA EXECUÇÃO
 
+## DATA E HORA ATUAL
+- **Hoje é**: ${new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+- **Horário atual**: ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+
 ## CAMPO A EXTRAIR
 - **Chave**: ${input.dataKey}
 - **Tipo Esperado**: ${input.dataType}

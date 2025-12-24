@@ -477,9 +477,48 @@ export class FSMEngineService {
                 if (isSchedulingConfirmState) {
                     console.log('[FSM Engine] 🗓️ Auto-detected scheduling confirmation state');
 
-                    // Get horario_escolhido from extraction result first (most recent),
-                    // then from updatedExtractedData (merged), then from DB as last resort
-                    const horarioFromExtraction = extractionResult?.data?.horario_escolhido;
+                    // Get horario_escolhido from extraction result first
+                    let horarioFromExtraction = extractionResult?.data?.horario_escolhido;
+
+                    // If extraction failed, parse directly from user message ("quinta as 8")
+                    if (!horarioFromExtraction && input.lastMessage) {
+                        const userMsg = input.lastMessage.toLowerCase();
+                        const now = new Date();
+                        const dayMap: Record<string, number> = {
+                            'domingo': 0, 'segunda': 1, 'terça': 2, 'terca': 2,
+                            'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6, 'sabado': 6
+                        };
+
+                        let parsedDay: Date | null = null;
+                        let parsedTime: string | null = null;
+
+                        for (const [dayName, dayIdx] of Object.entries(dayMap)) {
+                            if (userMsg.includes(dayName)) {
+                                let daysToAdd = dayIdx - now.getDay();
+                                if (daysToAdd <= 0) daysToAdd += 7;
+                                parsedDay = new Date(now);
+                                parsedDay.setDate(now.getDate() + daysToAdd);
+                                console.log(`[FSM Engine] 🗓️ Parsed day: ${dayName} -> ${parsedDay.toISOString().split('T')[0]}`);
+                                break;
+                            }
+                        }
+
+                        const timeMatch = userMsg.match(/(?:[àa]s?\s*)?(\d{1,2})(?:\s*[h:]\s*(\d{2})?)?/);
+                        if (timeMatch) {
+                            const h = (timeMatch[1] || '08').padStart(2, '0');
+                            const m = (timeMatch[2] || '00').padStart(2, '0');
+                            parsedTime = `${h}${m}`;
+                            console.log(`[FSM Engine] 🗓️ Parsed time: ${parsedTime}`);
+                        }
+
+                        if (parsedDay && parsedTime) {
+                            const d = parsedDay.getDate().toString().padStart(2, '0');
+                            const mo = (parsedDay.getMonth() + 1).toString().padStart(2, '0');
+                            horarioFromExtraction = `(${d}/${mo}) às ${parsedTime}`;
+                            console.log(`[FSM Engine] 🗓️ Built horario_escolhido: ${horarioFromExtraction}`);
+                        }
+                    }
+
                     const horarioEscolhido = horarioFromExtraction || updatedExtractedData.horario_escolhido;
 
                     console.log('[FSM Engine] 🗓️ horario_escolhido from extraction:', horarioFromExtraction);
