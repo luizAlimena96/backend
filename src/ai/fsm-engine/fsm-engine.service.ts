@@ -735,6 +735,25 @@ export class FSMEngineService {
                         if (toolsList.length > 0) {
                             console.log(`[FSM Engine] State '${state.name}' has tools:`, toolsList);
 
+                            // Check if lead has an existing active appointment (database check)
+                            let hasExistingAppointment = false;
+                            let schedulingToolExecuted = false; // Flag to prevent redundant execution
+
+                            try {
+                                const existingAppointment = await this.prisma.appointment.findFirst({
+                                    where: {
+                                        leadId: input.leadId,
+                                        organizationId: input.organizationId,
+                                        status: 'SCHEDULED',
+                                        scheduledAt: { gte: new Date() }
+                                    }
+                                });
+                                hasExistingAppointment = !!existingAppointment;
+                                console.log('[FSM Engine] DB Check - hasExistingAppointment:', hasExistingAppointment, existingAppointment?.id);
+                            } catch (e) {
+                                console.error('[FSM Engine] Error checking existing appointment:', e);
+                            }
+
                             for (const toolConfig of toolsList) {
                                 // Cast to access properties since it can be string or object
                                 const configObj = typeof toolConfig === 'string'
@@ -747,6 +766,13 @@ export class FSMEngineService {
                                 // Skip cancel/reschedule tools if global cancellation was already executed
                                 if (globalCancelExecuted && (toolName === 'cancelar_evento' || toolName === 'reagendar_evento')) {
                                     console.log(`[FSM Engine] Skipping tool '${toolName}' - global cancellation already executed`);
+                                    continue;
+                                }
+
+                                // IMPORTANT: If reagendar_evento or gerenciar_agenda was just executed successfully,
+                                // skip cancelar_evento to avoid canceling what we just created
+                                if (schedulingToolExecuted && toolName === 'cancelar_evento') {
+                                    console.log(`[FSM Engine] Skipping tool '${toolName}' - scheduling tool was just executed`);
                                     continue;
                                 }
 
@@ -923,6 +949,12 @@ export class FSMEngineService {
                                             data: { extractedData: updatedExtractedData }
                                         });
                                     }
+                                }
+
+                                // Mark scheduling tool as executed to prevent redundant cancelar_evento
+                                if (toolResult.success && ['reagendar_evento', 'gerenciar_agenda', 'criar_evento'].includes(toolName)) {
+                                    schedulingToolExecuted = true;
+                                    console.log('[FSM Engine] Scheduling tool executed successfully, setting flag to prevent redundant cancellation');
                                 }
                             }
                         }

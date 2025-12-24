@@ -126,6 +126,9 @@ export class SchedulingToolsService {
                 for (const slot of slotsNovos) {
                     if (horariosSugeridos.length >= 2) break;
 
+                    // IMPORTANT: Skip slots that don't respect minimum advance time
+                    if (slot.time < minDate) continue;
+
                     const brazilOptions = { timeZone: 'America/Sao_Paulo' };
                     horariosSugeridos.push({
                         dia: slot.time.toLocaleDateString('pt-BR', { ...brazilOptions, weekday: 'long', day: '2-digit', month: 'long' }),

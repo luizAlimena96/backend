@@ -703,6 +703,11 @@ export class WhatsAppMessageService {
                 for (const slot of slots) {
                     if (!slot.available) continue;
 
+                    // IMPORTANT: Skip slots that don't respect minimum advance time
+                    if (slot.time < minDate) {
+                        continue;
+                    }
+
                     // Convert UTC time to Brazil time for display (UTC-3)
                     const brazilOptions = { timeZone: 'America/Sao_Paulo' };
                     const hour = parseInt(slot.time.toLocaleTimeString('pt-BR', { ...brazilOptions, hour: '2-digit', hour12: false }));

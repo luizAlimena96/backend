@@ -609,6 +609,10 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
                 for (const slot of slots) {
                     if (!slot.available) continue;
 
+                    if (slot.time < minDate) {
+                        continue;
+                    }
+
                     // Convert UTC time to Brazil time for display (UTC-3)
                     // Use timezone option to get Brazil time
                     const brazilOptions = { timeZone: 'America/Sao_Paulo' };
