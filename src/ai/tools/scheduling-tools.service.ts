@@ -270,6 +270,40 @@ export class SchedulingToolsService {
             console.log('[Scheduling Tools]   - autoSchedulingConfig found:', !!config);
             console.log('[Scheduling Tools]   - config.duration:', config?.duration || 'using default 60');
 
+            // ==================== CANCEL EXISTING APPOINTMENTS ====================
+            // A lead can only have ONE active appointment at a time
+            // Find and cancel any existing future appointments for this lead
+            const existingAppointments = await this.prisma.appointment.findMany({
+                where: {
+                    leadId: params.leadId,
+                    organizationId: params.organizationId,
+                    status: 'SCHEDULED',
+                    scheduledAt: { gte: new Date() }
+                }
+            });
+
+            if (existingAppointments.length > 0) {
+                console.log(`[Scheduling Tools] ♻️ Found ${existingAppointments.length} existing appointment(s) for this lead - cancelling...`);
+
+                for (const existingApt of existingAppointments) {
+                    // Cancel associated reminders
+                    await this.prisma.appointmentReminder.updateMany({
+                        where: {
+                            appointmentId: existingApt.id,
+                            status: 'PENDING'
+                        },
+                        data: {
+                            status: 'CANCELLED'
+                        }
+                    });
+
+                    // Cancel the appointment
+                    await this.schedulingService.cancelAppointment(existingApt.id);
+                    console.log(`[Scheduling Tools] ♻️ Cancelled existing appointment: ${existingApt.id} (was scheduled for ${existingApt.scheduledAt.toISOString()})`);
+                }
+            }
+            // ==================== END CANCEL EXISTING ====================
+
             const [hours, minutes] = params.horario_especifico.split(':').map(Number);
             const [year, month, day] = params.data_especifica.split('-').map(Number);
 

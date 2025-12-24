@@ -684,6 +684,45 @@ export class FSMEngineService {
                     }
                 }
 
+                // ==================== AUTO-DETECT CANCEL/RESCHEDULE INTENT ====================
+                // Execute cancellation even if current state doesn't have tools configured
+                const userMsgLower = input.lastMessage.toLowerCase();
+                const cancelKeywords = ['cancelar', 'cancela', 'não quero mais', 'desmarcar', 'desmarque', 'desisto', 'não vou mais'];
+                const rescheduleKeywords = ['reagendar', 'remarcar', 'mudar horário', 'mudar o horário', 'outro horário', 'trocar horário'];
+
+                const wantsToCancelGlobal = cancelKeywords.some(kw => userMsgLower.includes(kw));
+                const wantsToRescheduleGlobal = rescheduleKeywords.some(kw => userMsgLower.includes(kw));
+
+                if (wantsToCancelGlobal && !wantsToRescheduleGlobal) {
+                    console.log('[FSM Engine] 🗓️ GLOBAL: Cancel intent detected - executing cancelar');
+                    try {
+                        const toolResult = await toolsHandler.executeFSMTool(
+                            'gerenciar_agenda',
+                            { acao: 'cancelar' },
+                            {
+                                organizationId: input.organizationId,
+                                leadId: input.leadId,
+                                conversationId: input.conversationHistory[0]?.content || '',
+                            },
+                            {
+                                schedulingTools: this.schedulingToolsService,
+                            }
+                        );
+
+                        console.log('[FSM Engine] 🗓️ GLOBAL Cancel result:', toolResult);
+
+                        decisionResult.pensamento.push(
+                            '🔧 Ferramenta executada: gerenciar_agenda (cancelar)',
+                            toolResult.success ? `✅ ${toolResult.message}` : `❌ ${toolResult.message}`
+                        );
+                    } catch (error) {
+                        console.error('[FSM Engine] 🗓️ GLOBAL Cancel error:', error);
+                    }
+                } else if (wantsToRescheduleGlobal) {
+                    console.log('[FSM Engine] 🗓️ GLOBAL: Reschedule intent detected - will suggest new times');
+                    // Reschedule is handled by the normal tool flow since it may need new times
+                }
+
                 // ==================== TOOL EXECUTION (if tools configured) ====================
                 if (toolsHandler.hasTools(state)) {
                     try {
@@ -789,7 +828,27 @@ export class FSMEngineService {
                                     }
 
                                     if (!toolArgs.acao) {
-                                        if (toolArgs.data_especifica && toolArgs.horario_especifico) {
+                                        // ==================== DETECT CANCEL/RESCHEDULE INTENT ====================
+                                        const userMsgLower = input.lastMessage.toLowerCase();
+                                        const cancelKeywords = ['cancelar', 'cancela', 'não quero mais', 'desmarcar', 'desmarque', 'desisto', 'não vou mais'];
+                                        const rescheduleKeywords = ['reagendar', 'remarcar', 'mudar horário', 'mudar o horário', 'outro horário', 'trocar horário'];
+
+                                        const wantsToCancel = cancelKeywords.some(kw => userMsgLower.includes(kw));
+                                        const wantsToReschedule = rescheduleKeywords.some(kw => userMsgLower.includes(kw));
+
+                                        if (wantsToCancel && !wantsToReschedule) {
+                                            toolArgs.acao = 'cancelar';
+                                            console.log('[FSM Engine] Auto-setting acao=cancelar (cancel intent detected in message)');
+                                        } else if (wantsToReschedule) {
+                                            if (toolArgs.data_especifica && toolArgs.horario_especifico) {
+                                                toolArgs.acao = 'reagendar';
+                                                console.log('[FSM Engine] Auto-setting acao=reagendar (reschedule intent with new date/time)');
+                                            } else {
+                                                // First cancel the existing, then suggest new times
+                                                toolArgs.acao = 'sugerir_iniciais';
+                                                console.log('[FSM Engine] Auto-setting acao=sugerir_iniciais (reschedule intent, need new times)');
+                                            }
+                                        } else if (toolArgs.data_especifica && toolArgs.horario_especifico) {
                                             toolArgs.acao = 'confirmar';
                                             console.log('[FSM Engine] Auto-setting acao=confirmar (date+time provided)');
                                         } else {
