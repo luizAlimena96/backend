@@ -693,6 +693,9 @@ export class FSMEngineService {
                 const wantsToCancelGlobal = cancelKeywords.some(kw => userMsgLower.includes(kw));
                 const wantsToRescheduleGlobal = rescheduleKeywords.some(kw => userMsgLower.includes(kw));
 
+                // Track if cancellation was already executed globally to avoid duplicate execution
+                let globalCancelExecuted = false;
+
                 if (wantsToCancelGlobal && !wantsToRescheduleGlobal) {
                     console.log('[FSM Engine] 🗓️ GLOBAL: Cancel intent detected - executing cancelar');
                     try {
@@ -710,6 +713,7 @@ export class FSMEngineService {
                         );
 
                         console.log('[FSM Engine] 🗓️ GLOBAL Cancel result:', toolResult);
+                        globalCancelExecuted = toolResult.success; // Mark as executed if successful
 
                         decisionResult.pensamento.push(
                             '🔧 Ferramenta executada: gerenciar_agenda (cancelar)',
@@ -739,6 +743,12 @@ export class FSMEngineService {
 
                                 const toolName = configObj.name;
                                 const toolStaticArgs = configObj.args || {};
+
+                                // Skip cancel/reschedule tools if global cancellation was already executed
+                                if (globalCancelExecuted && (toolName === 'cancelar_evento' || toolName === 'reagendar_evento')) {
+                                    console.log(`[FSM Engine] Skipping tool '${toolName}' - global cancellation already executed`);
+                                    continue;
+                                }
 
                                 console.log(`[FSM Engine] Executing tool: ${toolName}`, { staticArgs: toolStaticArgs });
 

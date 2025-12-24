@@ -176,7 +176,58 @@ async function handleReagendarEvento(
             };
         }
 
-        const { data_especifica, horario_especifico } = args;
+        // Accept both formats: data_especifica or date, horario_especifico or time
+        let data_especifica = args.data_especifica;
+        let horario_especifico = args.horario_especifico || args.time;
+
+        // If date is a relative string like "quinta-feira", convert it
+        if (!data_especifica && args.date) {
+            const dateStr = args.date.toLowerCase();
+            const now = new Date();
+            let targetDate: Date | null = null;
+
+            // Parse relative date strings
+            if (dateStr.includes('amanhã') || dateStr.includes('amanha')) {
+                targetDate = new Date(now);
+                targetDate.setDate(now.getDate() + 1);
+            } else if (dateStr.includes('hoje')) {
+                targetDate = new Date(now);
+            } else {
+                // Day name mapping
+                const dayMap: Record<string, number> = {
+                    'domingo': 0, 'segunda': 1, 'terça': 2, 'terca': 2,
+                    'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6, 'sabado': 6
+                };
+
+                for (const [dayName, dayIndex] of Object.entries(dayMap)) {
+                    if (dateStr.includes(dayName)) {
+                        const currentDay = now.getDay();
+                        let daysToAdd = dayIndex - currentDay;
+                        if (daysToAdd <= 0) daysToAdd += 7;
+                        targetDate = new Date(now);
+                        targetDate.setDate(now.getDate() + daysToAdd);
+                        break;
+                    }
+                }
+            }
+
+            if (targetDate) {
+                data_especifica = targetDate.toISOString().split('T')[0];
+                console.log(`[FSM Tools] reagendar_evento: Converted date '${args.date}' to '${data_especifica}'`);
+            }
+        }
+
+        // Normalize time format (e.g., "10:00" -> "10:00")
+        if (horario_especifico && !horario_especifico.includes(':')) {
+            // Handle formats like "1000" -> "10:00"
+            if (horario_especifico.length === 4) {
+                horario_especifico = `${horario_especifico.slice(0, 2)}:${horario_especifico.slice(2)}`;
+            } else if (horario_especifico.length === 3) {
+                horario_especifico = `0${horario_especifico.slice(0, 1)}:${horario_especifico.slice(1)}`;
+            }
+        }
+
+        console.log(`[FSM Tools] reagendar_evento: Final values - date: ${data_especifica}, time: ${horario_especifico}`);
 
         if (!data_especifica || !horario_especifico) {
             return {

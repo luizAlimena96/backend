@@ -453,11 +453,15 @@ export class SchedulingToolsService {
                 orderBy: { scheduledAt: 'asc' }
             });
 
+            // If no existing appointment, create a new one instead
             if (!appointment) {
-                return {
-                    success: false,
-                    mensagem: 'Não encontrei nenhum agendamento futuro para reagendar.'
-                };
+                console.log('[Scheduling Tools] No existing appointment found for reschedule, creating new one...');
+                return await this.confirmarAgendamento({
+                    organizationId: params.organizationId,
+                    leadId: params.leadId,
+                    data_especifica: params.data_especifica,
+                    horario_especifico: params.horario_especifico,
+                });
             }
 
             const [hours, minutes] = params.horario_especifico.split(':').map(Number);
