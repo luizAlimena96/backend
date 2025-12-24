@@ -446,6 +446,22 @@ export class SchedulingToolsService {
                 };
             }
 
+            console.log('[Scheduling Tools] 🔍 reagendarUltimoAgendamento - searching for existing appointment:', {
+                leadId: params.leadId,
+                organizationId: params.organizationId,
+                now: new Date().toISOString()
+            });
+
+            // First, let's see ALL appointments for this lead (for debugging)
+            const allAppointments = await this.prisma.appointment.findMany({
+                where: {
+                    leadId: params.leadId,
+                    organizationId: params.organizationId,
+                },
+                select: { id: true, status: true, scheduledAt: true }
+            });
+            console.log('[Scheduling Tools] 🔍 All appointments for this lead:', allAppointments);
+
             const appointment = await this.prisma.appointment.findFirst({
                 where: {
                     leadId: params.leadId,
@@ -455,6 +471,8 @@ export class SchedulingToolsService {
                 },
                 orderBy: { scheduledAt: 'asc' }
             });
+
+            console.log('[Scheduling Tools] 🔍 Found scheduled appointment:', appointment ? appointment.id : 'NONE');
 
             // If no existing appointment, create a new one instead
             if (!appointment) {
@@ -467,7 +485,7 @@ export class SchedulingToolsService {
                 });
             }
 
-            console.log('[Scheduling Tools] Found existing appointment to reschedule:', appointment.id);
+            console.log('[Scheduling Tools] Found existing appointment to reschedule:', appointment.id, 'scheduled for:', appointment.scheduledAt);
 
             // IMPORTANT: Cancel the old appointment FIRST, then create the new one
             // This prevents the old appointment from blocking the new slot
@@ -486,10 +504,18 @@ export class SchedulingToolsService {
 
             // Cancel the old appointment (including Google Calendar if configured)
             try {
+                console.log('[Scheduling Tools] 🗑️ Cancelling old appointment:', appointment.id);
                 await this.schedulingService.cancelAppointment(appointment.id);
-                console.log('[Scheduling Tools] ✅ Old appointment cancelled successfully');
+                console.log('[Scheduling Tools] ✅ Old appointment cancelled successfully:', appointment.id);
+
+                // Verify the cancellation
+                const verifyAppointment = await this.prisma.appointment.findUnique({
+                    where: { id: appointment.id },
+                    select: { id: true, status: true }
+                });
+                console.log('[Scheduling Tools] 🔍 Verification - Old appointment status:', verifyAppointment?.status);
             } catch (cancelError) {
-                console.error('[Scheduling Tools] Error cancelling old appointment:', cancelError);
+                console.error('[Scheduling Tools] ❌ Error cancelling old appointment:', cancelError);
             }
 
             // Now check availability (without the old appointment blocking)
