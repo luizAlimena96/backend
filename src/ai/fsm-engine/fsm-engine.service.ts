@@ -736,7 +736,7 @@ export class FSMEngineService {
                             console.log(`[FSM Engine] State '${state.name}' has tools:`, toolsList);
 
                             // Check if lead has an existing active appointment (database check)
-                            let hasExistingAppointment = false;
+                            let existingAppointmentId: string | null = null;
                             let schedulingToolExecuted = false; // Flag to prevent redundant execution
 
                             try {
@@ -748,11 +748,25 @@ export class FSMEngineService {
                                         scheduledAt: { gte: new Date() }
                                     }
                                 });
-                                hasExistingAppointment = !!existingAppointment;
-                                console.log('[FSM Engine] DB Check - hasExistingAppointment:', hasExistingAppointment, existingAppointment?.id);
+                                existingAppointmentId = existingAppointment?.id || null;
+                                console.log('[FSM Engine] DB Check - existingAppointmentId:', existingAppointmentId);
                             } catch (e) {
                                 console.error('[FSM Engine] Error checking existing appointment:', e);
                             }
+
+                            // Determine user intent based on extracted data
+                            const hasNewDateTime = !!(updatedExtractedData.horario_escolhido ||
+                                (updatedExtractedData.data_especifica && updatedExtractedData.horario_especifico));
+
+                            const userMsgLower = input.lastMessage.toLowerCase();
+                            const wantsToCancelOnly = ['cancelar', 'cancela', 'desmarcar', 'não quero mais', 'desisto'].some(kw => userMsgLower.includes(kw))
+                                && !hasNewDateTime;
+
+                            console.log('[FSM Engine] Intent analysis:', {
+                                existingAppointmentId,
+                                hasNewDateTime,
+                                wantsToCancelOnly
+                            });
 
                             for (const toolConfig of toolsList) {
                                 // Cast to access properties since it can be string or object
@@ -769,8 +783,21 @@ export class FSMEngineService {
                                     continue;
                                 }
 
-                                // IMPORTANT: If reagendar_evento or gerenciar_agenda was just executed successfully,
-                                // skip cancelar_evento to avoid canceling what we just created
+                                // SMART LOGIC based on database state:
+                                // 1. If user wants to schedule/reschedule (has new date/time) → only run reagendar_evento
+                                // 2. If user wants to cancel only (no new date/time) → only run cancelar_evento
+                                // 3. If scheduling tool was executed → skip cancelar_evento
+
+                                if (hasNewDateTime && toolName === 'cancelar_evento') {
+                                    console.log(`[FSM Engine] Skipping tool '${toolName}' - user wants to schedule new time, not cancel`);
+                                    continue;
+                                }
+
+                                if (wantsToCancelOnly && toolName === 'reagendar_evento') {
+                                    console.log(`[FSM Engine] Skipping tool '${toolName}' - user wants to cancel, not reschedule`);
+                                    continue;
+                                }
+
                                 if (schedulingToolExecuted && toolName === 'cancelar_evento') {
                                     console.log(`[FSM Engine] Skipping tool '${toolName}' - scheduling tool was just executed`);
                                     continue;

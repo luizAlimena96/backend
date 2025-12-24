@@ -467,24 +467,12 @@ export class SchedulingToolsService {
                 });
             }
 
-            const [hours, minutes] = params.horario_especifico.split(':').map(Number);
-            const [year, month, day] = params.data_especifica.split('-').map(Number);
-            const novaData = new Date(Date.UTC(year, month - 1, day, hours + 3, minutes, 0, 0));
+            console.log('[Scheduling Tools] Found existing appointment to reschedule:', appointment.id);
 
-            const check = await this.verificarDisponibilidade({
-                organizationId: params.organizationId,
-                leadId: params.leadId,
-                data_especifica: params.data_especifica,
-                horario_especifico: params.horario_especifico
-            });
+            // IMPORTANT: Cancel the old appointment FIRST, then create the new one
+            // This prevents the old appointment from blocking the new slot
 
-            if (!check.disponivel) {
-                return {
-                    success: false,
-                    mensagem: `O novo horário (${params.data_especifica} às ${params.horario_especifico}) não está disponível. Por favor, escolha outro.`
-                };
-            }
-
+            // Cancel pending reminders for the old appointment
             const cancelledReminders = await this.prisma.appointmentReminder.updateMany({
                 where: {
                     appointmentId: appointment.id,
@@ -496,51 +484,50 @@ export class SchedulingToolsService {
             });
             console.log(`[Scheduling Tools] ♻️ Cancelled ${cancelledReminders.count} pending reminders for old appointment`);
 
-            await this.schedulingService.rescheduleAppointment(appointment.id, novaData);
-
-            const lead = await this.prisma.lead.findUnique({
-                where: { id: params.leadId },
-                include: { agent: true }
-            });
-
-            if (lead?.agent?.id && lead.crmStageId) {
-                const config = await this.prisma.autoSchedulingConfig.findFirst({
-                    where: {
-                        agentId: lead.agent.id,
-                        crmStageId: lead.crmStageId,
-                        isActive: true
-                    },
-                    include: { reminders: true }
-                });
-
-                if (config?.reminders) {
-                    for (const reminderConfig of config.reminders) {
-                        if (!reminderConfig.isActive) continue;
-
-                        const remindAt = new Date(novaData.getTime() - (reminderConfig.minutesBefore * 60000));
-
-                        if (reminderConfig.sendToLead) {
-                            await this.prisma.appointmentReminder.create({
-                                data: {
-                                    appointmentId: appointment.id,
-                                    scheduledFor: remindAt,
-                                    type: 'LEAD',
-                                    recipient: lead.phone,
-                                    message: `Lembrete: você tem um compromisso reagendado para ${novaData.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} às ${novaData.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}`,
-                                    status: 'PENDING'
-                                }
-                            });
-                        }
-                    }
-                    console.log('[Scheduling Tools] ✅ Created new reminders for rescheduled appointment');
-                }
+            // Cancel the old appointment (including Google Calendar if configured)
+            try {
+                await this.schedulingService.cancelAppointment(appointment.id);
+                console.log('[Scheduling Tools] ✅ Old appointment cancelled successfully');
+            } catch (cancelError) {
+                console.error('[Scheduling Tools] Error cancelling old appointment:', cancelError);
             }
 
-            return {
-                success: true,
-                agendamento: appointment,
-                mensagem: `✅ Agendamento reagendado com sucesso para ${params.data_especifica} às ${params.horario_especifico}!`
-            };
+            // Now check availability (without the old appointment blocking)
+            const check = await this.verificarDisponibilidade({
+                organizationId: params.organizationId,
+                leadId: params.leadId,
+                data_especifica: params.data_especifica,
+                horario_especifico: params.horario_especifico
+            });
+
+            if (!check.disponivel) {
+                return {
+                    success: false,
+                    mensagem: `O novo horário (${params.data_especifica} às ${params.horario_especifico}) não está disponível. O agendamento anterior foi cancelado. Por favor, escolha outro horário.`
+                };
+            }
+
+            // Create the new appointment
+            const result = await this.confirmarAgendamento({
+                organizationId: params.organizationId,
+                leadId: params.leadId,
+                data_especifica: params.data_especifica,
+                horario_especifico: params.horario_especifico,
+            });
+
+            if (result.success) {
+                const [hours, minutes] = params.horario_especifico.split(':').map(Number);
+                const [year, month, day] = params.data_especifica.split('-').map(Number);
+                const novaData = new Date(Date.UTC(year, month - 1, day, hours + 3, minutes, 0, 0));
+
+                return {
+                    success: true,
+                    agendamento: result.agendamento,
+                    mensagem: `✅ Agendamento reagendado com sucesso para ${novaData.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} às ${novaData.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}!`
+                };
+            }
+
+            return result;
 
         } catch (error: any) {
             console.error('[Scheduling Tools] Erro ao reagendar:', error);
