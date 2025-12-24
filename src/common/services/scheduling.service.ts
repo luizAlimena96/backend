@@ -423,6 +423,11 @@ export class SchedulingService {
             }
         });
 
+        if (!appointment) {
+            console.log(`[Scheduling] Appointment ${id} not found for cancellation`);
+            return null;
+        }
+
         if (appointment?.googleEventId && appointment.organizationId) {
             const organization = await this.prisma.organization.findUnique({
                 where: { id: appointment.organizationId },
@@ -447,9 +452,10 @@ export class SchedulingService {
             }
         }
 
-        return this.prisma.appointment.update({
+        // DELETE the appointment from database instead of just marking as cancelled
+        console.log(`[Scheduling] 🗑️ Deleting appointment ${id} from database`);
+        return this.prisma.appointment.delete({
             where: { id },
-            data: { status: 'CANCELLED' },
         });
     }
 

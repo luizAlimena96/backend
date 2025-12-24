@@ -273,39 +273,33 @@ export class SchedulingToolsService {
             console.log('[Scheduling Tools]   - autoSchedulingConfig found:', !!config);
             console.log('[Scheduling Tools]   - config.duration:', config?.duration || 'using default 60');
 
-            // ==================== CANCEL EXISTING APPOINTMENTS ====================
+            // ==================== DELETE EXISTING APPOINTMENTS ====================
             // A lead can only have ONE active appointment at a time
-            // Find and cancel any existing future appointments for this lead
+            // Find and DELETE any existing appointments for this lead
             const existingAppointments = await this.prisma.appointment.findMany({
                 where: {
                     leadId: params.leadId,
                     organizationId: params.organizationId,
-                    status: 'SCHEDULED',
-                    scheduledAt: { gte: new Date() }
                 }
             });
 
             if (existingAppointments.length > 0) {
-                console.log(`[Scheduling Tools] ♻️ Found ${existingAppointments.length} existing appointment(s) for this lead - cancelling...`);
+                console.log(`[Scheduling Tools] 🗑️ Found ${existingAppointments.length} existing appointment(s) for this lead - DELETING...`);
 
                 for (const existingApt of existingAppointments) {
-                    // Cancel associated reminders
-                    await this.prisma.appointmentReminder.updateMany({
+                    // Delete associated reminders first
+                    await this.prisma.appointmentReminder.deleteMany({
                         where: {
                             appointmentId: existingApt.id,
-                            status: 'PENDING'
-                        },
-                        data: {
-                            status: 'CANCELLED'
                         }
                     });
 
-                    // Cancel the appointment
+                    // Delete the appointment (also removes from Google Calendar)
                     await this.schedulingService.cancelAppointment(existingApt.id);
-                    console.log(`[Scheduling Tools] ♻️ Cancelled existing appointment: ${existingApt.id} (was scheduled for ${existingApt.scheduledAt.toISOString()})`);
+                    console.log(`[Scheduling Tools] 🗑️ Deleted existing appointment: ${existingApt.id} (was scheduled for ${existingApt.scheduledAt.toISOString()})`);
                 }
             }
-            // ==================== END CANCEL EXISTING ====================
+            // ==================== END DELETE EXISTING ====================
 
             const [hours, minutes] = params.horario_especifico.split(':').map(Number);
             const [year, month, day] = params.data_especifica.split('-').map(Number);
@@ -502,20 +496,20 @@ export class SchedulingToolsService {
             });
             console.log(`[Scheduling Tools] ♻️ Cancelled ${cancelledReminders.count} pending reminders for old appointment`);
 
-            // Cancel the old appointment (including Google Calendar if configured)
+            // Delete the old appointment (including Google Calendar if configured)
             try {
-                console.log('[Scheduling Tools] 🗑️ Cancelling old appointment:', appointment.id);
+                console.log('[Scheduling Tools] 🗑️ Deleting old appointment:', appointment.id);
                 await this.schedulingService.cancelAppointment(appointment.id);
-                console.log('[Scheduling Tools] ✅ Old appointment cancelled successfully:', appointment.id);
+                console.log('[Scheduling Tools] ✅ Old appointment deleted successfully:', appointment.id);
 
-                // Verify the cancellation
+                // Verify the deletion
                 const verifyAppointment = await this.prisma.appointment.findUnique({
                     where: { id: appointment.id },
-                    select: { id: true, status: true }
+                    select: { id: true }
                 });
-                console.log('[Scheduling Tools] 🔍 Verification - Old appointment status:', verifyAppointment?.status);
-            } catch (cancelError) {
-                console.error('[Scheduling Tools] ❌ Error cancelling old appointment:', cancelError);
+                console.log('[Scheduling Tools] 🔍 Verification - Old appointment exists:', !!verifyAppointment);
+            } catch (deleteError) {
+                console.error('[Scheduling Tools] ❌ Error deleting old appointment:', deleteError);
             }
 
             // Now check availability (without the old appointment blocking)
