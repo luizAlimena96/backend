@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
 import { WhatsAppIntegrationService } from "../integrations/whatsapp/whatsapp-integration.service";
 import { OpenAIService } from "../ai/services/openai.service";
+import { MediaProcessorService } from "../common/services/media-processor.service";
 
 @Injectable()
 export class FollowupsService {
@@ -9,6 +10,7 @@ export class FollowupsService {
     private prisma: PrismaService,
     private whatsappService: WhatsAppIntegrationService,
     private openaiService: OpenAIService,
+    private mediaProcessor: MediaProcessorService,
   ) { }
 
   async findAll(agentId: string) {
@@ -70,6 +72,7 @@ export class FollowupsService {
       audioVoiceId: data.audioVoiceId || null,
       mediaType: data.mediaType || 'text',
       mediaUrl: data.mediaUrl || null,
+      mediaItems: data.mediaItems || null,
       respectBusinessHours: data.businessHoursEnabled ?? false,
       specificHour: data.specificHour || null,
       specificMinute: data.specificMinute || null,
@@ -110,6 +113,7 @@ export class FollowupsService {
     if (data.audioVoiceId !== undefined) updateData.audioVoiceId = data.audioVoiceId;
     if (data.mediaType !== undefined) updateData.mediaType = data.mediaType;
     if (data.mediaUrl !== undefined) updateData.mediaUrl = data.mediaUrl;
+    if (data.mediaItems !== undefined) updateData.mediaItems = data.mediaItems;
     if (data.businessHoursEnabled !== undefined) updateData.respectBusinessHours = data.businessHoursEnabled;
     if (data.specificHour !== undefined) updateData.specificHour = data.specificHour;
     if (data.specificMinute !== undefined) updateData.specificMinute = data.specificMinute;
@@ -485,19 +489,74 @@ Gere uma mensagem de follow-up personalizada baseada neste contexto.`;
       // Send via Evolution API only for real WhatsApp (not Test AI)
       if (!isTestAI) {
         try {
-          if (followup.mediaType === 'text' || !followup.mediaType) {
+          // First, send text message if there is one
+          if (messageToSend && messageToSend.trim()) {
             console.log(`[Followups] 📨 Sending text message via Evolution API...`);
             const textResult = await this.whatsappService.sendMessage(instanceName, recipient, messageToSend);
             console.log(`[Followups] ✅ Text message sent, result:`, JSON.stringify(textResult).substring(0, 200));
-          } else if (followup.mediaType === 'media' && followup.mediaUrl) {
-            console.log(`[Followups] 📷 Sending media message via Evolution API...`);
-            console.log(`[Followups]   - Media URL: ${followup.mediaUrl}`);
-            console.log(`[Followups]   - Caption: ${messageToSend?.substring(0, 50)}...`);
+          }
+
+          // Then, process and send mediaItems (new system - like states)
+          const mediaItems = followup.mediaItems as any[] || [];
+          if (mediaItems.length > 0) {
+            console.log(`[Followups] � Processing ${mediaItems.length} media item(s)...`);
+
+            for (const mediaItem of mediaItems) {
+              try {
+                const { url, type, caption, fileName } = mediaItem;
+
+                // Detect media type if not specified
+                const detectedType = type || this.mediaProcessor.detectMediaType(url);
+
+                // For videos: Use URL directly (base64 causes 500 errors with large files)
+                // For other types: Convert to base64 for reliability
+                const shouldUseBase64 = detectedType !== 'video';
+
+                console.log(`[Followups] 📎 Processing ${detectedType} - Using ${shouldUseBase64 ? 'Base64' : 'URL'}`);
+
+                // Process URL (convert Google Drive if needed)
+                const processedMedia = await this.mediaProcessor.processMediaUrl(url, {
+                  type: detectedType,
+                  convertToBase64: shouldUseBase64
+                });
+
+                console.log(`[Followups] 📤 Sending ${processedMedia.type}: ${processedMedia.fileName}`);
+
+                // Construct payload: base64 Data URI for images/docs, URL for videos
+                const mediaPayload = processedMedia.base64
+                  ? `data:${processedMedia.mimeType};base64,${processedMedia.base64}`
+                  : processedMedia.url;
+
+                // Send based on media type
+                switch (processedMedia.type) {
+                  case 'image':
+                    await this.whatsappService.sendImage(instanceName, recipient, mediaPayload, caption);
+                    break;
+                  case 'video':
+                    console.log(`[Followups] 🎬 Sending video via URL: ${processedMedia.url}`);
+                    await this.whatsappService.sendVideo(instanceName, recipient, processedMedia.url, caption);
+                    break;
+                  case 'document':
+                    await this.whatsappService.sendDocument(instanceName, recipient, mediaPayload, fileName || processedMedia.fileName, caption);
+                    break;
+                  case 'audio':
+                    await this.whatsappService.sendAudio(instanceName, recipient, mediaPayload);
+                    break;
+                }
+
+                console.log(`[Followups] ✅ Sent ${processedMedia.type} successfully`);
+              } catch (mediaError) {
+                console.error(`[Followups] ❌ Error sending media item:`, mediaError);
+                // Continue with next media item even if one fails
+              }
+            }
+          }
+
+          // Legacy support: still send old mediaUrl if exists (backward compatibility)
+          if (followup.mediaType === 'media' && followup.mediaUrl && mediaItems.length === 0) {
+            console.log(`[Followups] 📷 Sending legacy media via Evolution API...`);
             const mediaResult = await this.whatsappService.sendMedia(instanceName, recipient, followup.mediaUrl, messageToSend);
-            console.log(`[Followups] ✅ Media message sent, result:`, JSON.stringify(mediaResult).substring(0, 200));
-          } else {
-            console.log(`[Followups] ⚠️ Unknown mediaType or missing mediaUrl, skipping media send`);
-            console.log(`[Followups]   - mediaType: ${followup.mediaType}, mediaUrl: ${followup.mediaUrl ? 'EXISTS' : 'MISSING'}`);
+            console.log(`[Followups] ✅ Legacy media sent, result:`, JSON.stringify(mediaResult).substring(0, 200));
           }
 
           console.log(`[Followups Service] ✅ Sent follow-up to ${recipient} via Evolution API`);

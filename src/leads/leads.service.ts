@@ -4,6 +4,7 @@ import { OpenAIService } from "../ai/services/openai.service";
 
 import { CRMAutomationService } from "../common/services/crm-automation.service";
 import { CrmAutomationsService } from "../crm-automations/crm-automations.service";
+import { CRMEventsService } from "../crm/crm-events.service";
 
 @Injectable()
 export class LeadsService {
@@ -12,6 +13,7 @@ export class LeadsService {
     private openaiService: OpenAIService,
     private crmAutomationService: CRMAutomationService,
     private crmEngine: CrmAutomationsService,
+    private crmEvents: CRMEventsService,
   ) { }
 
   async findAll(organizationId: string, agentId?: string) {
@@ -60,6 +62,9 @@ export class LeadsService {
       data: lead
     });
 
+    // Emit WebSocket event
+    this.crmEvents.leadCreated(lead.organizationId, lead, lead.agentId);
+
     return lead;
   }
 
@@ -93,11 +98,26 @@ export class LeadsService {
       });
     }
 
+    // Emit WebSocket event for any update
+    this.crmEvents.leadUpdated(updatedLead.organizationId, updatedLead, updatedLead.agentId);
+
+    // Special event for stage change
+    if (data.crmStageId && startLead?.crmStageId !== data.crmStageId) {
+      this.crmEvents.leadMoved(updatedLead.organizationId, id, data.crmStageId, updatedLead.agentId);
+    }
+
     return updatedLead;
   }
 
   async delete(id: string) {
+    const lead = await this.prisma.lead.findUnique({ where: { id } });
     await this.prisma.lead.delete({ where: { id } });
+
+    // Emit WebSocket event
+    if (lead) {
+      this.crmEvents.leadDeleted(lead.organizationId, id, lead.agentId);
+    }
+
     return { success: true };
   }
 

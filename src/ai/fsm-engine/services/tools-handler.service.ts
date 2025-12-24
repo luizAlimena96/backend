@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { SchedulingToolsService } from '../../tools/scheduling-tools.service';
+import { ContractToolsService } from '../../tools/contract-tools.service';
 
 export interface ToolExecutionResult {
     success: boolean;
@@ -18,6 +19,7 @@ export class ToolsHandlerService {
     constructor(
         private prisma: PrismaService,
         private schedulingTools: SchedulingToolsService,
+        private contractTools: ContractToolsService,
     ) { }
 
     /**
@@ -44,6 +46,10 @@ export class ToolsHandlerService {
                     return await this.handleCancelEvent(args, context);
                 case 'reagendar_evento':
                     return await this.handleRescheduleEvent(args, context);
+                case 'gerenciar_contrato':
+                case 'verificar_dados_contrato':
+                case 'enviar_contrato':
+                    return await this.handleContractTool(toolName, args, context);
 
                 default:
                     return {
@@ -200,52 +206,113 @@ export class ToolsHandlerService {
             };
         }
 
-        const { date, time } = args;
-        if (!date || !time) {
+        const { date, time, data_especifica, horario_especifico } = args;
+
+        // Support both direct format or parsed format
+        let dateStr = data_especifica;
+        let timeStr = horario_especifico;
+
+        if (!dateStr && date) {
+            try {
+                const parsedDate = this.parseDateInput(date, time || '00:00');
+                dateStr = parsedDate.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }); // YYYY-MM-DD format
+                timeStr = time || parsedDate.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+            } catch (error) {
+                console.error('[FSM Tools] Error parsing reschedule date:', error);
+                return {
+                    success: false,
+                    message: 'Não entendi a nova data. Poderia repetir no formato DD/MM às HH:MM?'
+                };
+            }
+        }
+
+        if (!dateStr || !timeStr) {
             return {
                 success: false,
                 message: 'Por favor, informe a nova data e horário para o reagendamento.'
             };
         }
 
+        console.log('[FSM Tools] Rescheduling with:', { dateStr, timeStr });
+
+        const result = await this.schedulingTools.reagendarUltimoAgendamento({
+            organizationId: context.organizationId,
+            leadId: context.leadId,
+            data_especifica: dateStr,
+            horario_especifico: timeStr
+        });
+
+        return {
+            success: result.success,
+            data: result.agendamento,
+            message: result.mensagem
+        };
+    }
+
+    /**
+     * Handle contract tools (gerenciar_contrato, verificar_dados_contrato, enviar_contrato)
+     */
+    private async handleContractTool(
+        toolName: string,
+        args: Record<string, any>,
+        context: {
+            organizationId: string;
+            leadId?: string;
+            conversationId: string;
+        }
+    ): Promise<ToolExecutionResult> {
+        console.log(`[FSM Tools] Contract tool: ${toolName}`, args);
+
+        if (!context.leadId) {
+            return {
+                success: false,
+                error: 'Lead ID required',
+                message: 'É necessário um lead para gerenciar contratos.'
+            };
+        }
+
         try {
-            // Validate/Format date/time
-            // Note: The service expects "YYYY-MM-DD" and "HH:MM"
-            // The FSM might send them in varied formats, but usually normalized by extraction
-            // We'll trust the strings for now or add normalization if needed.
-            // But strict checking is good.
+            // Map tool names to actions
+            let acao: 'verificar_dados' | 'enviar_contrato';
 
-            // If incoming date is like "amanhã", we might need to parse it?
-            // The FSM extraction is usually smart.
-            // Let's assume standard format for now or basic cleaning.
-            // If the service fails, it returns a message.
+            switch (toolName) {
+                case 'verificar_dados_contrato':
+                    acao = 'verificar_dados';
+                    break;
+                case 'enviar_contrato':
+                case 'gerenciar_contrato':
+                    // For gerenciar_contrato, check if action is specified in args
+                    if (args.acao === 'verificar_dados') {
+                        acao = 'verificar_dados';
+                    } else {
+                        acao = 'enviar_contrato';
+                    }
+                    break;
+                default:
+                    acao = 'enviar_contrato';
+            }
 
-            // HOWEVER, the logic in implementation plan said "Seek upcoming... verify availability".
-            // The service method `reagendarUltimoAgendamento` requires `data_especifica` (YYYY-MM-DD) and `horario_especifico` (HH:MM).
-            // We should use `parseDateInput` logic to ensure we have a valid Date object, then format it back to string.
-
-            const parsedDate = this.parseDateInput(date, time);
-            const dateStr = parsedDate.toISOString().split('T')[0];
-            const timeStr = parsedDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-            const result = await this.schedulingTools.reagendarUltimoAgendamento({
+            const result = await this.contractTools.gerenciarContrato(acao, {
                 organizationId: context.organizationId,
                 leadId: context.leadId,
-                data_especifica: dateStr,
-                horario_especifico: timeStr
+                campos_obrigatorios: args.campos_obrigatorios || args.campos || undefined
             });
 
             return {
                 success: result.success,
-                data: result.agendamento,
+                data: {
+                    contrato_enviado: result.contrato_enviado,
+                    campos_faltantes: result.campos_faltantes,
+                    link_assinatura: result.link_assinatura
+                },
                 message: result.mensagem
             };
-
-        } catch (error) {
-            console.error('[FSM Tools] Error in reschedule:', error);
+        } catch (error: any) {
+            console.error(`[FSM Tools] Contract error:`, error);
             return {
                 success: false,
-                message: 'Não entendi a nova data ou horário. Poderia repetir?'
+                error: error.message,
+                message: `Erro ao processar contrato: ${error.message}`
             };
         }
     }

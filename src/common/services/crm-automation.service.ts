@@ -241,14 +241,30 @@ Responda diretamente ao lead. Seja cordial e breve.`;
             if (cleanPath === 'lead.cpf') return context.cpf || '';
             if (cleanPath === 'lead.rg') return context.rg || '';
 
-            // Handle lead.extractedData.field
+            // Handle lead.extractedData.field (supports nested objects!)
+            // Examples: lead.extractedData.cpf, lead.extractedData.dados_cliente.nome
             if (cleanPath.startsWith('lead.extractedData.')) {
-                const field = cleanPath.split('lead.extractedData.')[1];
-                return context.extractedData?.[field] || '';
+                const fieldPath = cleanPath.split('lead.extractedData.')[1];
+                // Navigate nested objects using dot notation
+                const parts = fieldPath.split('.');
+                let value: any = context.extractedData;
+
+                for (const part of parts) {
+                    if (value === undefined || value === null) return '';
+                    value = value[part];
+                }
+
+                // If value is an object, stringify it
+                if (typeof value === 'object') {
+                    return JSON.stringify(value);
+                }
+
+                return value?.toString() || '';
             }
 
             return '';
         } catch (e) {
+            console.error('[CRM Automation] Error resolving value:', e);
             return '';
         }
     }

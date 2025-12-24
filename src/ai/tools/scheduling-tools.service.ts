@@ -9,19 +9,15 @@ export class SchedulingToolsService {
         private schedulingService: SchedulingService,
     ) { }
 
-    /**
-     * Ferramenta unificada de agendamento
-     * Ações: sugerir_iniciais, verificar_disponibilidade, confirmar
-     */
     async gerenciarAgenda(
-        acao: 'sugerir_iniciais' | 'verificar_disponibilidade' | 'confirmar',
+        acao: 'sugerir_iniciais' | 'verificar_disponibilidade' | 'confirmar' | 'cancelar' | 'reagendar',
         params: {
             organizationId: string;
             leadId: string;
             periodo_dia?: 'manha' | 'tarde' | 'noite';
-            data_especifica?: string; // YYYY-MM-DD
-            horario_especifico?: string; // HH:MM
-            horarios_ja_oferecidos?: string[]; // Para evitar repetição
+            data_especifica?: string;
+            horario_especifico?: string;
+            horarios_ja_oferecidos?: string[];
         }
     ): Promise<{
         success: boolean;
@@ -42,6 +38,12 @@ export class SchedulingToolsService {
             case 'confirmar':
                 return this.confirmarAgendamento(params);
 
+            case 'cancelar':
+                return this.cancelarUltimoAgendamento(params);
+
+            case 'reagendar':
+                return this.reagendarUltimoAgendamento(params);
+
             default:
                 return {
                     success: false,
@@ -50,9 +52,6 @@ export class SchedulingToolsService {
         }
     }
 
-    /**
-     * Sugere 2 horários iniciais baseado no período do dia (ou padrão)
-     */
     private async sugerirHorariosIniciais(params: {
         organizationId: string;
         leadId: string;
@@ -60,29 +59,24 @@ export class SchedulingToolsService {
         horarios_ja_oferecidos?: string[];
     }) {
         try {
-            // 1. Buscar configuração de agendamento do lead
-            // Usando relação direta com agent conforme schema
             const lead = await this.prisma.lead.findUnique({
                 where: { id: params.leadId },
                 include: {
                     agent: true
                 }
             });
-
             if (!lead?.agent) {
                 return {
                     success: false,
                     mensagem: 'Lead ou agente não encontrado.'
                 };
             }
-
             if (!lead.crmStageId) {
                 return {
                     success: false,
                     mensagem: 'Lead não está em nenhuma etapa do CRM.'
                 };
             }
-
             const config = await this.prisma.autoSchedulingConfig.findFirst({
                 where: {
                     agentId: lead.agent.id,
@@ -98,12 +92,9 @@ export class SchedulingToolsService {
                 };
             }
 
-            // 2. Calcular data mínima (antecedência)
             const now = new Date();
             const minAdvanceMs = config.minAdvanceHours * 60 * 60 * 1000;
             const minDate = new Date(now.getTime() + minAdvanceMs);
-
-            // 3. Buscar slots nos próximos 14 dias
             const horariosSugeridos: Array<{ dia: string; horario: string; data_completa: Date }> = [];
             const maxDias = 14;
 
@@ -111,7 +102,6 @@ export class SchedulingToolsService {
                 const checkDate = new Date(minDate);
                 checkDate.setDate(checkDate.getDate() + i);
 
-                // Use config.duration for slot size (default 30min)
                 const slotDuration = config.duration || 30;
                 const slots = await this.schedulingService.getAvailableSlots(
                     params.organizationId,
@@ -122,16 +112,20 @@ export class SchedulingToolsService {
 
                 const slotsFiltrados = this.filtrarPorPeriodo(slots, params.periodo_dia);
 
+                // Filter already offered slots (use Brazil timezone for comparison)
+                const brazilTz = { timeZone: 'America/Sao_Paulo' };
                 const slotsNovos = slotsFiltrados.filter(slot => {
-                    const horarioStr = `${slot.time.toLocaleDateString('pt-BR')} ${slot.time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+                    const horarioStr = `${slot.time.toLocaleDateString('pt-BR', brazilTz)} ${slot.time.toLocaleTimeString('pt-BR', { ...brazilTz, hour: '2-digit', minute: '2-digit' })}`;
                     return !params.horarios_ja_oferecidos?.includes(horarioStr);
                 });
 
-                // Adicionar até 2 horários
+                console.log('[Scheduling Tools] 📅 Available slots for', checkDate.toISOString().split('T')[0], ':',
+                    slotsNovos.slice(0, 5).map(s => s.time.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }))
+                );
+
                 for (const slot of slotsNovos) {
                     if (horariosSugeridos.length >= 2) break;
 
-                    // Convert UTC to Brazil time for display
                     const brazilOptions = { timeZone: 'America/Sao_Paulo' };
                     horariosSugeridos.push({
                         dia: slot.time.toLocaleDateString('pt-BR', { ...brazilOptions, weekday: 'long', day: '2-digit', month: 'long' }),
@@ -148,7 +142,6 @@ export class SchedulingToolsService {
                 };
             }
 
-            // Se encontrou apenas 1, buscar mais um em outro dia
             if (horariosSugeridos.length === 1) {
                 return {
                     success: true,
@@ -172,9 +165,6 @@ export class SchedulingToolsService {
         }
     }
 
-    /**
-     * Verifica se um horário específico está disponível
-     */
     private async verificarDisponibilidade(params: {
         organizationId: string;
         leadId: string;
@@ -193,7 +183,6 @@ export class SchedulingToolsService {
             const dataHora = new Date(params.data_especifica);
             dataHora.setHours(hours, minutes, 0, 0);
 
-            // Fetch lead with agent info
             const lead = await this.prisma.lead.findUnique({
                 where: { id: params.leadId },
                 include: { agent: true }
@@ -206,7 +195,7 @@ export class SchedulingToolsService {
             );
 
             const disponivel = slots.some(slot =>
-                Math.abs(slot.time.getTime() - dataHora.getTime()) < 60000 // Dentro de 1 minuto
+                Math.abs(slot.time.getTime() - dataHora.getTime()) < 60000
             );
 
             return {
@@ -227,16 +216,12 @@ export class SchedulingToolsService {
         }
     }
 
-    /**
-     * Confirma e cria o agendamento
-     */
     private async confirmarAgendamento(params: {
         organizationId: string;
         leadId: string;
         data_especifica?: string;
         horario_especifico?: string;
     }) {
-        // DEBUG: Log confirmation attempt
         console.log('[Scheduling Tools] 🔍 DEBUG - confirmarAgendamento:');
         console.log('[Scheduling Tools]   - organizationId:', params.organizationId);
         console.log('[Scheduling Tools]   - leadId:', params.leadId);
@@ -270,7 +255,6 @@ export class SchedulingToolsService {
                 };
             }
 
-            // Try to find AutoSchedulingConfig for duration, but don't require it
             let config: { duration?: number } | null = null;
             if (lead.crmStageId) {
                 config = await this.prisma.autoSchedulingConfig.findFirst({
@@ -286,13 +270,9 @@ export class SchedulingToolsService {
             console.log('[Scheduling Tools]   - autoSchedulingConfig found:', !!config);
             console.log('[Scheduling Tools]   - config.duration:', config?.duration || 'using default 60');
 
-            // Convert Brazil time (input) to UTC for storage
-            // Input: data_especifica = "YYYY-MM-DD", horario_especifico = "HH:MM" (Brazil time)
-            // Output: Date in UTC
             const [hours, minutes] = params.horario_especifico.split(':').map(Number);
             const [year, month, day] = params.data_especifica.split('-').map(Number);
 
-            // Create date in UTC, then add 3 hours to convert from Brazil (UTC-3) to UTC
             const scheduledAt = new Date(Date.UTC(year, month - 1, day, hours + 3, minutes, 0, 0));
 
             console.log('[Scheduling Tools] 🕐 Timezone conversion:', {
@@ -323,7 +303,6 @@ export class SchedulingToolsService {
             console.error('[Scheduling Tools] ❌ Erro ao confirmar agendamento:', error);
             console.error('[Scheduling Tools]   - Error message:', error.message);
 
-            // Handle slot conflict error specifically
             if (error.message?.includes('SLOT_OCCUPIED')) {
                 return {
                     success: false,
@@ -338,9 +317,6 @@ export class SchedulingToolsService {
         }
     }
 
-    /**
-     * Filtra slots por período do dia
-     */
     private filtrarPorPeriodo(
         slots: Array<{ time: Date; available: boolean }>,
         periodo?: 'manha' | 'tarde' | 'noite'
@@ -348,7 +324,6 @@ export class SchedulingToolsService {
         if (!periodo) return slots;
 
         return slots.filter(slot => {
-            // Use Brazil timezone to get the correct hour
             const brazilHour = parseInt(slot.time.toLocaleTimeString('pt-BR', {
                 timeZone: 'America/Sao_Paulo',
                 hour: '2-digit',
@@ -368,15 +343,11 @@ export class SchedulingToolsService {
         });
     }
 
-    /**
-     * Busca o próximo agendamento futuro do lead e o cancela
-     */
     async cancelarUltimoAgendamento(params: {
         organizationId: string;
         leadId: string;
     }) {
         try {
-            // 1. Buscar agendamento futuro mais próximo
             const appointment = await this.prisma.appointment.findFirst({
                 where: {
                     leadId: params.leadId,
@@ -394,7 +365,7 @@ export class SchedulingToolsService {
                 };
             }
 
-            // 2. Cancel pending reminders first
+
             const cancelledReminders = await this.prisma.appointmentReminder.updateMany({
                 where: {
                     appointmentId: appointment.id,
@@ -406,7 +377,6 @@ export class SchedulingToolsService {
             });
             console.log(`[Scheduling Tools] ♻️ Cancelled ${cancelledReminders.count} pending reminders`);
 
-            // 3. Cancel the appointment
             await this.schedulingService.cancelAppointment(appointment.id);
 
             return {
@@ -424,9 +394,7 @@ export class SchedulingToolsService {
         }
     }
 
-    /**
-     * Reagenda o próximo compromisso para uma nova data/horário
-     */
+
     async reagendarUltimoAgendamento(params: {
         organizationId: string;
         leadId: string;
@@ -441,7 +409,6 @@ export class SchedulingToolsService {
                 };
             }
 
-            // 1. Buscar agendamento futuro mais próximo
             const appointment = await this.prisma.appointment.findFirst({
                 where: {
                     leadId: params.leadId,
@@ -459,10 +426,8 @@ export class SchedulingToolsService {
                 };
             }
 
-            // 2. Verificar disponibilidade do novo horário
             const [hours, minutes] = params.horario_especifico.split(':').map(Number);
             const [year, month, day] = params.data_especifica.split('-').map(Number);
-            // Convert Brazil time to UTC
             const novaData = new Date(Date.UTC(year, month - 1, day, hours + 3, minutes, 0, 0));
 
             const check = await this.verificarDisponibilidade({
@@ -479,7 +444,6 @@ export class SchedulingToolsService {
                 };
             }
 
-            // 3. Cancel old reminders (PENDING ones only)
             const cancelledReminders = await this.prisma.appointmentReminder.updateMany({
                 where: {
                     appointmentId: appointment.id,
@@ -491,10 +455,8 @@ export class SchedulingToolsService {
             });
             console.log(`[Scheduling Tools] ♻️ Cancelled ${cancelledReminders.count} pending reminders for old appointment`);
 
-            // 4. Reschedule the appointment
             await this.schedulingService.rescheduleAppointment(appointment.id, novaData);
 
-            // 5. Create new reminders for the new date (if config exists)
             const lead = await this.prisma.lead.findUnique({
                 where: { id: params.leadId },
                 include: { agent: true }
