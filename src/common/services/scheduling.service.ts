@@ -234,8 +234,8 @@ export class SchedulingService {
         let msg = template;
         msg = msg.replace(/{{lead.name}}/g, lead.name || 'Cliente');
         msg = msg.replace(/{{lead.phone}}/g, lead.phone || '');
-        msg = msg.replace(/{{appointment.date}}/g, appointment.scheduledAt.toLocaleDateString('pt-BR'));
-        msg = msg.replace(/{{appointment.time}}/g, appointment.scheduledAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+        msg = msg.replace(/{{appointment.date}}/g, appointment.scheduledAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }));
+        msg = msg.replace(/{{appointment.time}}/g, appointment.scheduledAt.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }));
         return msg;
     }
 

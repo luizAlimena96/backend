@@ -296,7 +296,7 @@ export class SchedulingToolsService {
             return {
                 success: true,
                 agendamento: appointment,
-                mensagem: `✅ Agendamento confirmado para ${scheduledAt.toLocaleDateString('pt-BR')} às ${scheduledAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}!`
+                mensagem: `✅ Agendamento confirmado para ${scheduledAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} às ${scheduledAt.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}!`
             };
 
         } catch (error: any) {
@@ -382,7 +382,7 @@ export class SchedulingToolsService {
             return {
                 success: true,
                 agendamento: appointment,
-                mensagem: `✅ Agendamento do dia ${appointment.scheduledAt.toLocaleDateString('pt-BR')} às ${appointment.scheduledAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} foi cancelado com sucesso.`
+                mensagem: `✅ Agendamento do dia ${appointment.scheduledAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} às ${appointment.scheduledAt.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })} foi cancelado com sucesso.`
             };
 
         } catch (error: any) {
@@ -485,7 +485,7 @@ export class SchedulingToolsService {
                                     scheduledFor: remindAt,
                                     type: 'LEAD',
                                     recipient: lead.phone,
-                                    message: `Lembrete: você tem um compromisso reagendado para ${novaData.toLocaleDateString('pt-BR')} às ${novaData.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+                                    message: `Lembrete: você tem um compromisso reagendado para ${novaData.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} às ${novaData.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}`,
                                     status: 'PENDING'
                                 }
                             });
