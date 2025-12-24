@@ -200,12 +200,19 @@ export class DataExtractorService {
                 .map(dk => `- **${dk.key}**: ${dk.description} (tipo: ${dk.type})`)
                 .join('\n');
 
+            const now = new Date();
+            const currentDateInfo = now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+
             const prompt = `Você é um extrator de dados especializado. Analise a mensagem e extraia TODOS os dados possíveis.
             
 DIRETRIZ SUPREMA (LEI ZERO):
 NÃO EXTRAIA SAUDAÇÕES COMO DADOS.
 Se a mensagem for apenas "Olá", "Oi", "Eai", "Tudo bem", "Bom dia", ou variações, RETORNE UM JSON VAZIO em 'extractedData'.
 NUNCA invente um nome baseando-se em uma saudação (ex: "Eai" NÃO É UM NOME).
+
+CONTEXTO TEMPORAL:
+- Data atual: ${currentDateInfo}
+- Horário atual: ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
 
 DADOS DISPONÍVEIS PARA EXTRAÇÃO:
 ${dataKeysDescription}
@@ -222,7 +229,14 @@ REGRAS:
 3. Se um dado não estiver presente, não o inclua no resultado
 4. Normalize os valores conforme o tipo esperado
 5. Retorne apenas os dados que você tem ALTA confiança (>0.7)
-6. NÃO extraia dados que já existem em DADOS JÁ COLETADOS com valores válidos
+6. NÃO extraia dados que já existem em DADOS JÁ COLETADOS com valores válidos, EXCETO para campos de agendamento (horario_escolhido, data_especifica, horario_especifico, dia_horário) - estes DEVEM ser atualizados se o usuário fornecer uma nova preferência de horário
+
+REGRA CRÍTICA PARA horario_escolhido:
+- Extraia EXATAMENTE o que o usuário disse, preservando o formato original
+- Se o usuário disse "quinta as 8", extraia "quinta às 08:00" (NÃO invente datas numéricas como "19/10")
+- Se o usuário disse "amanhã às 10h", extraia "amanhã às 10:00"
+- NUNCA invente datas (DD/MM) que o usuário não mencionou explicitamente
+- Use a DATA ATUAL acima para referência se precisar converter dia da semana para data
 
 FORMATO DE SAÍDA (JSON):
 {

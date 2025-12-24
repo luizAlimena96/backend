@@ -730,6 +730,7 @@ HORÁRIOS DISPONÍVEIS PARA AGENDAMENTO (tempo real):
 ${morningSlots.length > 0 ? `- MANHÃ: ${morningSlots.join(', ')}` : '- MANHÃ: Sem horários disponíveis'}
 ${afternoonSlots.length > 0 ? `- TARDE: ${afternoonSlots.join(', ')}` : '- TARDE: Sem horários disponíveis'}
 
+IMPORTANTE: Ao apresentar horários ao lead, NÃO coloque cada horário em uma linha separada. Liste-os de forma compacta em uma única mensagem (ex: "Temos disponível quinta às 08:00, 09:00, 10:00 ou segunda às 08:00, 09:00").
 Ao perguntar se o lead prefere "manhã ou tarde?", considere que estes são os horários reais disponíveis.`;
 
             console.log('[WhatsApp] 📅 Scheduling context prepared:', { morningSlots, afternoonSlots });

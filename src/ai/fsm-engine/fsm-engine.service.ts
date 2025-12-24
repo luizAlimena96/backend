@@ -717,7 +717,16 @@ export class FSMEngineService {
                                     if (horaExt) toolArgs.horario_especifico = horaExt;
 
                                     // Handle legacy "diaHorario" field if present
-                                    const diaHorario = updatedExtractedData.dia_horário || updatedExtractedData.horario_escolhido;
+                                    // PRIORITY: Fresh extraction from globalExtractionResult > updatedExtractedData (may contain old DB values)
+                                    const freshHorario = globalExtractionResult?.extractedData?.horario_escolhido;
+                                    const diaHorario = freshHorario || updatedExtractedData.dia_horário || updatedExtractedData.horario_escolhido;
+
+                                    console.log('[FSM Engine] 🕐 Scheduling data debug:', {
+                                        freshHorario,
+                                        dbHorario: updatedExtractedData.horario_escolhido,
+                                        finalDiaHorario: diaHorario,
+                                    });
+
                                     if (diaHorario && (!toolArgs.data_especifica || !toolArgs.horario_especifico)) {
                                         console.log('[FSM Engine] Parsing diaHorario:', diaHorario);
 
