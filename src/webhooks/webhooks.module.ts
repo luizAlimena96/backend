@@ -3,7 +3,11 @@ import { WhatsAppWebhookController } from './whatsapp/whatsapp-webhook.controlle
 import { AIControlWebhookController } from './ai-control/ai-control-webhook.controller';
 import { ZapSignWebhookController } from './zapsign/zapsign-webhook.controller';
 import { MetaLeadsWebhookController } from './meta-leads/meta-leads-webhook.controller';
+import { WhatsAppCloudWebhookController } from './whatsapp-cloud/whatsapp-cloud.controller';
+import { InstagramWebhookController } from './instagram/instagram-webhook.controller';
 import { WhatsAppMessageService } from './whatsapp/whatsapp-message.service';
+import { WhatsAppCloudMessageService } from './whatsapp-cloud/whatsapp-cloud-message.service';
+import { InstagramMessageService } from './instagram/instagram-message.service';
 import { MetaLeadsProcessorService } from './meta-leads/meta-leads-processor.service';
 import { PrismaService } from '../database/prisma.service';
 import { AIModule } from '../ai/ai.module';
@@ -20,7 +24,16 @@ import { CommonModule } from '../common/common.module';
     AIControlWebhookController,
     ZapSignWebhookController,
     MetaLeadsWebhookController,
+    WhatsAppCloudWebhookController,
+    InstagramWebhookController,
   ],
-  providers: [WhatsAppMessageService, MetaLeadsProcessorService, PrismaService],
+  providers: [
+    WhatsAppMessageService,
+    WhatsAppCloudMessageService,
+    InstagramMessageService,
+    MetaLeadsProcessorService,
+    PrismaService,
+  ],
 })
 export class WebhooksModule { }
+

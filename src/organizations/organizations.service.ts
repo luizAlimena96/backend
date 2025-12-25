@@ -37,6 +37,17 @@ export class OrganizationsService {
                 evolutionInstanceName: true,
                 zapSignApiToken: true,
                 zapSignTemplateId: true,
+                // WhatsApp Cloud API fields
+                preferredChannel: true,
+                whatsappPhoneNumberId: true,
+                whatsappWabaId: true,
+                whatsappCloudAccessToken: true,
+                whatsappCloudVerifyToken: true,
+                whatsappBusinessId: true,
+                // Instagram DMs fields
+                instagramMessagesEnabled: true,
+                instagramAccountId: true,
+                instagramWelcomeMessage: true,
                 _count: {
                     select: {
                         users: true,
@@ -86,7 +97,12 @@ export class OrganizationsService {
             openaiApiKey, openaiProjectId,
             elevenLabsApiKey, elevenLabsVoiceId,
             evolutionApiUrl, evolutionInstanceName,
-            zapSignApiToken, zapSignTemplateId } = data;
+            zapSignApiToken, zapSignTemplateId,
+            // WhatsApp Cloud API
+            preferredChannel, whatsappPhoneNumberId, whatsappWabaId,
+            whatsappCloudAccessToken, whatsappCloudVerifyToken, whatsappBusinessId,
+            // Instagram DMs
+            instagramMessagesEnabled, instagramAccountId, instagramWelcomeMessage } = data;
 
         if (!name || !slug) {
             throw new ForbiddenException('Nome e slug são obrigatórios');
@@ -120,6 +136,19 @@ export class OrganizationsService {
         if (evolutionInstanceName) createData.evolutionInstanceName = evolutionInstanceName;
         if (zapSignApiToken) createData.zapSignApiToken = zapSignApiToken;
         if (zapSignTemplateId) createData.zapSignTemplateId = zapSignTemplateId;
+
+        // WhatsApp Cloud API fields
+        if (preferredChannel) createData.preferredChannel = preferredChannel;
+        if (whatsappPhoneNumberId) createData.whatsappPhoneNumberId = whatsappPhoneNumberId;
+        if (whatsappWabaId) createData.whatsappWabaId = whatsappWabaId;
+        if (whatsappCloudAccessToken) createData.whatsappCloudAccessToken = whatsappCloudAccessToken;
+        if (whatsappCloudVerifyToken) createData.whatsappCloudVerifyToken = whatsappCloudVerifyToken;
+        if (whatsappBusinessId) createData.whatsappBusinessId = whatsappBusinessId;
+
+        // Instagram DMs fields
+        if (instagramMessagesEnabled !== undefined) createData.instagramMessagesEnabled = instagramMessagesEnabled;
+        if (instagramAccountId) createData.instagramAccountId = instagramAccountId;
+        if (instagramWelcomeMessage) createData.instagramWelcomeMessage = instagramWelcomeMessage;
 
         return this.prisma.organization.create({
             data: createData,

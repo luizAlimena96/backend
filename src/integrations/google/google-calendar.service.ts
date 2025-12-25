@@ -6,11 +6,14 @@ import { firstValueFrom } from 'rxjs';
 export class GoogleCalendarService {
     constructor(private httpService: HttpService) { }
 
-    async createEvent(accessToken: string, calendarId: string, event: any): Promise<any> {
+    async createEvent(accessToken: string, calendarId: string, event: any, withConference: boolean = false): Promise<any> {
         try {
+            // Add conferenceDataVersion=1 to create Google Meet link automatically
+            const url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events${withConference ? '?conferenceDataVersion=1' : ''}`;
+
             const response = await firstValueFrom(
                 this.httpService.post(
-                    `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`,
+                    url,
                     event,
                     {
                         headers: {

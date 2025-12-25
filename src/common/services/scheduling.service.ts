@@ -136,15 +136,23 @@ export class SchedulingService {
 
                 const eventPayload = {
                     summary: `${appointment.title} - ${lead?.name || 'Cliente'}`,
-                    description: `Agendamento via LEXA.\nLead: ${lead?.name || 'N/A'} (${lead?.phone || 'N/A'})\nNotas: ${data.notes || ''}`,
+                    description: `Agendamento via LEXA.\\nLead: ${lead?.name || 'N/A'} (${lead?.phone || 'N/A'})\\nNotas: ${data.notes || ''}`,
                     start: { dateTime: startTime.toISOString() },
                     end: { dateTime: endTime.toISOString() },
+                    // Add Google Meet video conference
+                    conferenceData: {
+                        createRequest: {
+                            requestId: `lexa-${appointment.id}`,
+                            conferenceSolutionKey: { type: 'hangoutsMeet' },
+                        },
+                    },
                 };
 
                 const googleEvent = await this.googleCalendarService.createEvent(
                     organization.googleAccessToken,
                     organization.googleCalendarId,
-                    eventPayload
+                    eventPayload,
+                    true // conferenceDataVersion=1
                 );
 
                 if (googleEvent?.id) {

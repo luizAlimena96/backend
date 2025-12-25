@@ -37,6 +37,7 @@ import { TestAIModule } from './test-ai/test-ai.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { HealthModule } from './health/health.module';
 import { GoogleModule } from './google/google.module';
+import { TemplatesModule } from './templates/templates.module';
 
 @Module({
   imports: [
@@ -93,6 +94,7 @@ import { GoogleModule } from './google/google.module';
     CalendarModule,
     HealthModule,
     GoogleModule,
+    TemplatesModule,
   ],
   controllers: [AppController],
   providers: [

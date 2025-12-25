@@ -74,12 +74,19 @@ model Organization {
   metaPageId                String?
   metaWelcomeMessage        String?            @default("Olá, falo com {{nome}}?")
   metaIntegrationEnabled    Boolean            @default(false)
-  // Datacrazy CRM Integration
-  datacrazyApiUrl           String?
-  datacrazyApiToken         String?
-  datacrazyTenantId         String?
-  datacrazyTagId            String?
-  datacrazyWebhookUrl       String?
+  // WhatsApp Cloud API (Meta Oficial)
+  whatsappCloudEnabled      Boolean            @default(false)
+  whatsappPhoneNumberId     String?            // Phone Number ID do Meta
+  whatsappWabaId            String?            // WhatsApp Business Account ID
+  whatsappCloudAccessToken  String?            // System User Access Token
+  whatsappCloudVerifyToken  String?            // Webhook verify token
+  whatsappBusinessId        String?            // Business ID no Meta
+  // Instagram DMs
+  instagramAccountId        String?            // Instagram Business Account ID
+  instagramMessagesEnabled  Boolean            @default(false)
+  instagramWelcomeMessage   String?            @default("Olá! Como posso ajudar?")
+  // Canal preferencial para WhatsApp
+  preferredChannel          String             @default("evolution") // "evolution" | "cloud_api"
   agents                    Agent[]
   appointments              Appointment[]      @relation("OrganizationAppointments")
   blockedSlots              BlockedSlot[]
@@ -99,6 +106,7 @@ model Organization {
   tags                      Tag[]
   users                     User[]
   reports                   Report[]
+  whatsappTemplates         WhatsAppTemplate[]
 
   @@map("organizations")
 }
@@ -388,6 +396,7 @@ model Conversation {
   leadId         String?
   organizationId String
   aiEnabled      Boolean         @default(true)
+  channel        String          @default("whatsapp") // "whatsapp" | "instagram"
   automationLogs AutomationLog[]
   agent          Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
   lead           Lead?           @relation(fields: [leadId], references: [id])
@@ -1017,4 +1026,26 @@ model Report {
 
   @@index([organizationId])
   @@map("reports")
+}
+
+model WhatsAppTemplate {
+  id                String       @id @default(uuid())
+  organizationId    String
+  name              String       // Nome do template no Meta (ex: "follow_up_geral")
+  category          String       // MARKETING, UTILITY, AUTHENTICATION
+  language          String       @default("pt_BR")
+  headerType        String?      // TEXT, IMAGE, VIDEO, DOCUMENT, NONE
+  headerContent     String?      // URL ou texto do header
+  bodyText          String       // Corpo com placeholders {{1}}, {{2}}
+  footerText        String?
+  buttons           Json?        // Botões (CTA, Quick Reply)
+  status            String       @default("PENDING") // PENDING, APPROVED, REJECTED
+  metaTemplateId    String?      // ID retornado pelo Meta após aprovação
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("whatsapp_templates")
 }

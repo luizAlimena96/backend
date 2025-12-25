@@ -111,12 +111,7 @@ export class MetaLeadsProcessorService {
                 }
             }
 
-            // 6. Create lead in Datacrazy CRM (if configured)
-            if (organization.datacrazyApiUrl && organization.datacrazyApiToken) {
-                await this.createLeadInDatacrazy(organization, parsedLead, formattedPhone, adId);
-            }
-
-            // 7. Get first agent of organization
+            // 6. Get first agent of organization
             const agent = await this.prisma.agent.findFirst({
                 where: { organizationId: organization.id, isActive: true },
             });
@@ -126,7 +121,7 @@ export class MetaLeadsProcessorService {
                 return;
             }
 
-            // 8. Create lead in local database
+            // 7. Create lead in local database
             const lead = await this.prisma.lead.create({
                 data: {
                     name: parsedLead.name,
@@ -148,7 +143,7 @@ export class MetaLeadsProcessorService {
 
             console.log(`[Meta Processor] Created lead: ${lead.id}`);
 
-            // 9. Create conversation
+            // 8. Create conversation
             const conversation = await this.prisma.conversation.create({
                 data: {
                     whatsapp: formattedPhone.phone9,
@@ -161,7 +156,7 @@ export class MetaLeadsProcessorService {
 
             console.log(`[Meta Processor] Created conversation: ${conversation.id}`);
 
-            // 10. Send welcome message via WhatsApp
+            // 9. Send welcome message via WhatsApp
             if (isWhatsApp && organization.evolutionInstanceName) {
                 const welcomeMessage = (organization.metaWelcomeMessage || 'Olá, falo com {{nome}}?')
                     .replace(/\{\{nome\}\}/g, parsedLead.name || 'você');
@@ -173,7 +168,7 @@ export class MetaLeadsProcessorService {
                         welcomeMessage,
                     );
 
-                    // 11. Save message to database
+                    // 10. Save message to database
                     await this.prisma.message.create({
                         data: {
                             messageId: `meta_welcome_${Date.now()}`,
@@ -228,62 +223,6 @@ export class MetaLeadsProcessorService {
         } catch (error) {
             console.error('[Meta Processor] WhatsApp check error:', error);
             return false;
-        }
-    }
-
-    /**
-     * Create lead in Datacrazy CRM
-     */
-    private async createLeadInDatacrazy(
-        organization: any,
-        parsedLead: any,
-        formattedPhone: { phone9: string; phone8: string },
-        adId?: string,
-    ): Promise<void> {
-        try {
-            const url = `${organization.datacrazyApiUrl}/api/v1/leads`;
-
-            const payload = {
-                name: parsedLead.name || 'Lead Meta',
-                phone: formattedPhone.phone9,
-                email: parsedLead.email || '',
-                source: 'meta_leads',
-                sourceReferral: {
-                    sourceId: parsedLead.id,
-                    sourceUrl: adId ? `https://facebook.com/ads/${adId}` : '',
-                },
-                tags: organization.datacrazyTagId ? [{ id: [organization.datacrazyTagId] }] : [],
-            };
-
-            console.log('[Meta Processor] Creating lead in Datacrazy:', payload);
-
-            await firstValueFrom(
-                this.httpService.post(url, payload, {
-                    headers: {
-                        Authorization: `Bearer ${organization.datacrazyApiToken}`,
-                        'Content-Type': 'application/json',
-                    },
-                    timeout: 30000,
-                }),
-            );
-
-            console.log('[Meta Processor] Lead created in Datacrazy');
-
-            // Also trigger Datacrazy webhook if configured
-            if (organization.datacrazyWebhookUrl) {
-                await firstValueFrom(
-                    this.httpService.post(organization.datacrazyWebhookUrl, payload, {
-                        headers: {
-                            Authorization: `Bearer ${organization.datacrazyApiToken}`,
-                            'Content-Type': 'application/json',
-                        },
-                        timeout: 30000,
-                    }),
-                );
-                console.log('[Meta Processor] Datacrazy webhook triggered');
-            }
-        } catch (error: any) {
-            console.error('[Meta Processor] Error creating lead in Datacrazy:', error.message);
         }
     }
 }

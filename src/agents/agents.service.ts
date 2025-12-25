@@ -3,13 +3,13 @@ import { PrismaService } from "../database/prisma.service";
 
 @Injectable()
 export class AgentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findAll(organizationId?: string) {
     return this.prisma.agent.findMany({
       where: organizationId ? { organizationId } : {},
       include: {
-        organization: { select: { id: true, name: true, slug: true } },
+        organization: { select: { id: true, name: true, slug: true, preferredChannel: true } },
         user: { select: { id: true, name: true, email: true } },
         _count: {
           select: {
