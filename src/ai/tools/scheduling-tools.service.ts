@@ -16,6 +16,7 @@ export class SchedulingToolsService {
             leadId: string;
             periodo_dia?: 'manha' | 'tarde' | 'noite';
             data_especifica?: string;
+            data_referencia?: string; // YYYY-MM-DD - Reference date for suggestions when client asked for specific day
             horario_especifico?: string;
             horarios_ja_oferecidos?: string[];
         }
@@ -57,6 +58,7 @@ export class SchedulingToolsService {
         leadId: string;
         periodo_dia?: 'manha' | 'tarde' | 'noite';
         horarios_ja_oferecidos?: string[];
+        data_referencia?: string;
     }) {
         try {
             const lead = await this.prisma.lead.findUnique({
@@ -95,11 +97,26 @@ export class SchedulingToolsService {
             const now = new Date();
             const minAdvanceMs = config.minAdvanceHours * 60 * 60 * 1000;
             const minDate = new Date(now.getTime() + minAdvanceMs);
+
+            // If data_referencia is provided, start searching from that date (if it's >= minDate)
+            let startDate = minDate;
+            if (params.data_referencia) {
+                const [year, month, day] = params.data_referencia.split('-').map(Number);
+                const referenceDate = new Date(year, month - 1, day, 0, 0, 0);
+                // Use reference date if it's in the future, otherwise use minDate
+                if (referenceDate >= minDate) {
+                    startDate = referenceDate;
+                    console.log(`[Scheduling Tools] 📅 Using reference date: ${params.data_referencia}`);
+                } else {
+                    console.log(`[Scheduling Tools] 📅 Reference date ${params.data_referencia} is before minDate, using minDate instead`);
+                }
+            }
+
             const horariosSugeridos: Array<{ dia: string; horario: string; data_completa: Date }> = [];
             const maxDias = 14;
 
             for (let i = 0; i < maxDias && horariosSugeridos.length < 2; i++) {
-                const checkDate = new Date(minDate);
+                const checkDate = new Date(startDate);
                 checkDate.setDate(checkDate.getDate() + i);
 
                 const slotDuration = config.duration || 30;

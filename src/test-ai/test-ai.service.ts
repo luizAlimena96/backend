@@ -540,23 +540,170 @@ Responda de forma natural e ajude o usuário conforme a missão do estado atual.
         }
 
         try {
-            console.log('[Test AI] Triggering follow-up check...', { forceIgnoreDelay });
+            console.log('[Test AI] Triggering follow-up check for TEST USER ONLY...', { organizationId, agentId });
 
-            // Call the new follow-up system that filters by CRM stage states
-            const result = await this.followupsService.checkAgentFollowUps(forceIgnoreDelay);
+            // Find the TEST conversation for this organization only
+            const testPhone = `test_${organizationId}`;
 
-            console.log('[Test AI] Follow-up check completed:', result);
+            const testConversation = await this.prisma.conversation.findFirst({
+                where: {
+                    whatsapp: testPhone,
+                    organizationId,
+                    agentId,
+                },
+                include: {
+                    messages: {
+                        orderBy: { timestamp: 'desc' },
+                        take: 1,
+                    },
+                    lead: {
+                        select: {
+                            id: true,
+                            name: true,
+                            status: true,
+                            currentState: true,
+                            crmStageId: true,
+                            conversationSummary: true,
+                            extractedData: true,
+                        },
+                    },
+                },
+            });
+
+            if (!testConversation) {
+                return {
+                    success: false,
+                    message: 'Nenhuma conversa de teste encontrada. Envie algumas mensagens primeiro.',
+                };
+            }
+
+            // Get followup rules for this agent
+            const followups = await this.prisma.followup.findMany({
+                where: {
+                    agentId,
+                    isActive: true,
+                },
+                include: {
+                    agent: {
+                        include: {
+                            organization: {
+                                select: {
+                                    workingHours: true,
+                                    evolutionInstanceName: true,
+                                    openaiApiKey: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+
+            if (followups.length === 0) {
+                return {
+                    success: false,
+                    message: 'Nenhuma regra de follow-up ativa encontrada para este agente.',
+                };
+            }
+
+            console.log(`[Test AI] Found ${followups.length} followup rules for agent ${agentId}`);
+
+            // Process ONLY the test conversation for each followup rule
+            let processedCount = 0;
+            const results: string[] = [];
+
+            for (const followup of followups) {
+                try {
+                    // Check if lead's current state matches CRM stage (if configured)
+                    if (followup.crmStageId && testConversation.lead) {
+                        const crmStage = await this.prisma.cRMStage.findUnique({
+                            where: { id: followup.crmStageId },
+                            include: {
+                                states: { select: { name: true } },
+                            },
+                        });
+
+                        if (crmStage) {
+                            const eligibleStates = crmStage.states.map(s => s.name);
+                            if (!eligibleStates.includes(testConversation.lead.currentState || '')) {
+                                console.log(`[Test AI] Skipping followup "${followup.name}" - lead not in eligible state`);
+                                results.push(`❌ "${followup.name}": Lead não está no estágio CRM correto`);
+                                continue;
+                            }
+                        }
+                    }
+
+                    // Check if followup was already sent to this lead
+                    if (testConversation.lead?.id) {
+                        const alreadySent = await this.prisma.followupLog.findFirst({
+                            where: {
+                                leadId: testConversation.lead.id,
+                                followupId: followup.id,
+                            },
+                        });
+
+                        if (alreadySent) {
+                            console.log(`[Test AI] Followup "${followup.name}" already sent to test lead`);
+                            results.push(`⚠️ "${followup.name}": Já enviado anteriormente`);
+                            continue;
+                        }
+                    }
+
+                    // Send the followup (using followupsService internal method via direct simulation)
+                    let messageToSend = followup.message;
+
+                    // Personalize with lead name if available
+                    if (testConversation.lead?.name) {
+                        messageToSend = messageToSend.replace(/\{\{nome\}\}/g, testConversation.lead.name);
+                    }
+
+                    // Save message to conversation
+                    await this.prisma.message.create({
+                        data: {
+                            messageId: `followup_test_${followup.id}_${Date.now()}`,
+                            conversationId: testConversation.id,
+                            content: messageToSend,
+                            fromMe: true,
+                            type: 'TEXT',
+                            timestamp: new Date(),
+                        },
+                    });
+
+                    // Log the followup
+                    if (testConversation.lead?.id) {
+                        await this.prisma.followupLog.create({
+                            data: {
+                                leadId: testConversation.lead.id,
+                                followupId: followup.id,
+                                message: messageToSend,
+                            },
+                        });
+                    }
+
+                    processedCount++;
+                    results.push(`✅ "${followup.name}": Enviado com sucesso`);
+                    console.log(`[Test AI] ✅ Sent followup "${followup.name}" to test user`);
+
+                } catch (error) {
+                    console.error(`[Test AI] Error processing followup ${followup.id}:`, error);
+                    results.push(`❌ "${followup.name}": Erro - ${error.message}`);
+                }
+            }
+
+            console.log('[Test AI] Follow-up simulation completed:', { processedCount, total: followups.length });
 
             return {
                 success: true,
-                message: `Follow-up verificado! Processados: ${result.processed} de ${result.rulesChecked} regras`,
-                stats: result,
+                message: `Follow-up simulado! ${processedCount} de ${followups.length} regras processadas:\n${results.join('\n')}`,
+                stats: {
+                    processed: processedCount,
+                    rulesChecked: followups.length,
+                },
             };
         } catch (error) {
             console.error('[Test AI] Error triggering followup:', error);
             return {
                 success: false,
-                message: 'Erro ao verificar follow-ups: ' + error.message,
+                message: 'Erro ao simular follow-up: ' + error.message,
             };
         }
     }

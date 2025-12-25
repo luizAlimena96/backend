@@ -79,7 +79,7 @@ export class ToolsHandlerService {
             conversationId: string;
         }
     ): Promise<ToolExecutionResult> {
-        const { acao, periodo_dia, data_especifica, horario_especifico, horarios_ja_oferecidos } = args;
+        const { acao, periodo_dia, data_especifica, data_referencia, horario_especifico, horarios_ja_oferecidos } = args;
 
         if (!acao) {
             return {
@@ -100,6 +100,7 @@ export class ToolsHandlerService {
             leadId: context.leadId,
             periodo_dia,
             data_especifica,
+            data_referencia, // Pass reference date for context-aware suggestions
             horario_especifico,
             horarios_ja_oferecidos,
         });

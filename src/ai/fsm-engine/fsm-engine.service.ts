@@ -916,7 +916,33 @@ export class FSMEngineService {
                                             console.log('[FSM Engine] Auto-setting acao=confirmar (date+time provided)');
                                         } else {
                                             toolArgs.acao = 'sugerir_iniciais';
-                                            console.log('[FSM Engine] Auto-setting acao=sugerir_iniciais (no date+time)');
+
+                                            // CONTEXTUAL SUGGESTIONS: Infer periodo_dia from requested time
+                                            // If client asked for "16h" (afternoon) but it's unavailable, suggest afternoon slots
+                                            if (toolArgs.horario_especifico && !toolArgs.periodo_dia) {
+                                                const requestedHour = parseInt(toolArgs.horario_especifico.split(':')[0]);
+                                                if (requestedHour >= 6 && requestedHour < 12) {
+                                                    toolArgs.periodo_dia = 'manha';
+                                                } else if (requestedHour >= 12 && requestedHour < 18) {
+                                                    toolArgs.periodo_dia = 'tarde';
+                                                } else if (requestedHour >= 18) {
+                                                    toolArgs.periodo_dia = 'noite';
+                                                }
+                                                console.log(`[FSM Engine] Inferred periodo_dia=${toolArgs.periodo_dia} from requested time ${toolArgs.horario_especifico}`);
+                                            }
+
+                                            // CONTEXTUAL SUGGESTIONS: Use requested date as reference
+                                            // If client asked for "Wednesday" but the specific time is unavailable, 
+                                            // suggest other times on/after Wednesday, not earlier days
+                                            if (toolArgs.data_especifica && !toolArgs.data_referencia) {
+                                                toolArgs.data_referencia = toolArgs.data_especifica;
+                                                console.log(`[FSM Engine] Set data_referencia=${toolArgs.data_referencia} from requested date`);
+                                            }
+
+                                            console.log('[FSM Engine] Auto-setting acao=sugerir_iniciais (no date+time)', {
+                                                periodo_dia: toolArgs.periodo_dia,
+                                                data_referencia: toolArgs.data_referencia,
+                                            });
                                         }
                                     }
                                 } else {
