@@ -3,7 +3,7 @@ import { PrismaService } from "../database/prisma.service";
 
 @Injectable()
 export class AppointmentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findAll(organizationId: string, leadId?: string) {
     return this.prisma.appointment.findMany({
@@ -40,6 +40,16 @@ export class AppointmentsService {
   }
 
   async delete(id: string) {
+    // Check if appointment exists before attempting delete
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id },
+    });
+
+    if (!appointment) {
+      console.log(`[Appointments] Appointment ${id} not found for deletion`);
+      return { success: false, message: 'Appointment not found' };
+    }
+
     await this.prisma.appointment.delete({ where: { id } });
     return { success: true };
   }

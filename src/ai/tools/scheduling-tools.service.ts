@@ -9,6 +9,101 @@ export class SchedulingToolsService {
         private schedulingService: SchedulingService,
     ) { }
 
+    /**
+     * Parse horario_escolhido in format "(DD/MM) às HHMM" or "(DD/MM/YYYY) às HHMM" or "DD/MM às HHMM"
+     * Returns { data_especifica: 'YYYY-MM-DD', horario_especifico: 'HH:MM' }
+     */
+    parseHorarioEscolhido(horario: string): {
+        data_especifica: string;
+        horario_especifico: string;
+    } | null {
+        if (!horario) return null;
+
+        console.log('[Scheduling Tools] 🔍 parseHorarioEscolhido input:', horario);
+
+        // Try different formats:
+        // Format 1: "(DD/MM/YYYY) às HHMM" or "(DD/MM) às HHMM"
+        let match = horario.match(/\(?(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\)?\s*às\s*(\d{2})(\d{2})/i);
+
+        // Format 2: "DD/MM às HH:MM" (with colon in time)
+        if (!match) {
+            match = horario.match(/\(?(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\)?\s*às\s*(\d{1,2}):(\d{2})/i);
+        }
+
+        // Format 3: Just "às HHMM" with no date (use today's date) - skip this, need date
+
+        if (!match) {
+            console.log('[Scheduling Tools] ❌ parseHorarioEscolhido: No match found');
+            return null;
+        }
+
+        const day = parseInt(match[1]);
+        const month = parseInt(match[2]);
+        let year = match[3] ? parseInt(match[3]) : new Date().getFullYear();
+        const hours = match[4].padStart(2, '0');
+        const minutes = match[5].padStart(2, '0');
+
+        // Ensure 4-digit year
+        if (year < 100) {
+            year = 2000 + year;
+        }
+
+        // Validate the date parts
+        if (day < 1 || day > 31 || month < 1 || month > 12) {
+            console.log('[Scheduling Tools] ❌ parseHorarioEscolhido: Invalid date values');
+            return null;
+        }
+
+        // Check if date is in the past, if so use next year
+        const now = new Date();
+        const parsedDate = new Date(year, month - 1, day);
+        const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        if (parsedDate < todayMidnight && year === now.getFullYear()) {
+            year = year + 1;
+            console.log('[Scheduling Tools] 📅 Date was in past, adjusted to next year:', year);
+        }
+
+        const data_especifica = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+        const horario_especifico = `${hours}:${minutes}`;
+
+        console.log('[Scheduling Tools] ✅ parseHorarioEscolhido result:', { data_especifica, horario_especifico });
+
+        return { data_especifica, horario_especifico };
+    }
+
+    /**
+     * Confirm appointment directly from horario_escolhido string
+     * This is the preferred method when the format is "(DD/MM) às HHMM"
+     */
+    async confirmarPorHorarioEscolhido(params: {
+        organizationId: string;
+        leadId: string;
+        horario_escolhido: string;
+    }): Promise<{
+        success: boolean;
+        agendamento?: any;
+        mensagem: string;
+    }> {
+        console.log('[Scheduling Tools] 📅 confirmarPorHorarioEscolhido called:', params.horario_escolhido);
+
+        const parsed = this.parseHorarioEscolhido(params.horario_escolhido);
+
+        if (!parsed) {
+            return {
+                success: false,
+                mensagem: `Formato de horário inválido: "${params.horario_escolhido}". Esperado: (DD/MM) às HHMM`
+            };
+        }
+
+        return this.confirmarAgendamento({
+            organizationId: params.organizationId,
+            leadId: params.leadId,
+            data_especifica: parsed.data_especifica,
+            horario_especifico: parsed.horario_especifico,
+        });
+    }
+
     async gerenciarAgenda(
         acao: 'sugerir_iniciais' | 'verificar_disponibilidade' | 'confirmar' | 'cancelar' | 'reagendar',
         params: {
