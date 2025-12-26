@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CrmAutomationsService } from './crm-automations.service';
 
@@ -8,16 +8,15 @@ export class CrmAutomationsController {
     constructor(private readonly crmAutomationsService: CrmAutomationsService) { }
 
     @Get()
-    async findAll(@Request() req, @Body() body) {
-        // GET usually doesn't have body, pass as query param ideally, but for now let's hope req.user works or we check query
-        const orgId = req.query.organizationId || req.user.organizationId;
+    async findAll(@Query('organizationId') queryOrgId: string, @Request() req) {
+        const orgId = queryOrgId || req.user.organizationId;
         if (!orgId) throw new Error('Organization ID required');
         return this.crmAutomationsService.findAll(orgId);
     }
 
     @Get(':id')
-    async findOne(@Param('id') id: string, @Request() req) {
-        const orgId = req.query.organizationId || req.user.organizationId;
+    async findOne(@Param('id') id: string, @Query('organizationId') queryOrgId: string, @Request() req) {
+        const orgId = queryOrgId || req.user.organizationId;
         return this.crmAutomationsService.findOne(id, orgId);
     }
 
@@ -35,8 +34,8 @@ export class CrmAutomationsController {
     }
 
     @Delete(':id')
-    async delete(@Param('id') id: string, @Request() req) {
-        const orgId = req.query.organizationId || req.body.organizationId || req.user.organizationId;
+    async delete(@Param('id') id: string, @Query('organizationId') queryOrgId: string, @Request() req) {
+        const orgId = queryOrgId || req.user.organizationId;
         return this.crmAutomationsService.delete(id, orgId);
     }
 }

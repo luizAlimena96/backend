@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CrmTemplatesService } from './crm-templates.service';
 
@@ -8,28 +8,34 @@ export class CrmTemplatesController {
     constructor(private readonly crmTemplatesService: CrmTemplatesService) { }
 
     @Get()
-    async findAll(@Request() req, @Param('organizationId') organizationId?: string) {
-        return this.crmTemplatesService.findAll(organizationId || req.user.organizationId);
+    async findAll(@Query('organizationId') queryOrgId: string, @Request() req) {
+        const orgId = queryOrgId || req.user.organizationId;
+        return this.crmTemplatesService.findAll(orgId);
     }
 
     @Post()
     async create(@Body() data: any, @Request() req) {
+        const orgId = data.organizationId || req.user.organizationId;
+        if (!orgId) throw new Error('Organization ID required');
         return this.crmTemplatesService.create({
             ...data,
-            organizationId: data.organizationId || req.user.organizationId,
+            organizationId: orgId,
         });
     }
 
     @Post(':id/instantiate')
     async instantiate(@Param('id') id: string, @Body() data: any, @Request() req) {
+        const orgId = data.organizationId || req.user.organizationId;
+        if (!orgId) throw new Error('Organization ID required');
         return this.crmTemplatesService.instantiate(id, {
             ...data,
-            organizationId: data.organizationId || req.user.organizationId,
+            organizationId: orgId,
         });
     }
 
     @Delete(':id')
-    async delete(@Param('id') id: string, @Request() req) {
-        return this.crmTemplatesService.delete(id, req.user.organizationId);
+    async delete(@Param('id') id: string, @Query('organizationId') queryOrgId: string, @Request() req) {
+        const orgId = queryOrgId || req.user.organizationId;
+        return this.crmTemplatesService.delete(id, orgId);
     }
 }

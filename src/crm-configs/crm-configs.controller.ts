@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CrmConfigsService } from './crm-configs.service';
 
@@ -8,30 +8,37 @@ export class CrmConfigsController {
     constructor(private readonly crmConfigsService: CrmConfigsService) { }
 
     @Get()
-    async findAll(@Request() req) {
-        return this.crmConfigsService.findAll(req.user.organizationId);
+    async findAll(@Query('organizationId') queryOrgId: string, @Request() req) {
+        const orgId = queryOrgId || req.user.organizationId;
+        // For SUPER_ADMIN, if no orgId provided, return all (or empty)
+        return this.crmConfigsService.findAll(orgId);
     }
 
     @Get(':id')
-    async findOne(@Param('id') id: string, @Request() req) {
-        return this.crmConfigsService.findOne(id, req.user.organizationId);
+    async findOne(@Param('id') id: string, @Query('organizationId') queryOrgId: string, @Request() req) {
+        const orgId = queryOrgId || req.user.organizationId;
+        return this.crmConfigsService.findOne(id, orgId);
     }
 
     @Post()
     async create(@Body() data: any, @Request() req) {
+        const orgId = data.organizationId || req.user.organizationId;
+        if (!orgId) throw new Error('Organization ID required');
         return this.crmConfigsService.create({
             ...data,
-            organizationId: data.organizationId || req.user.organizationId,
+            organizationId: orgId,
         });
     }
 
     @Patch(':id')
     async update(@Param('id') id: string, @Body() data: any, @Request() req) {
-        return this.crmConfigsService.update(id, data, req.user.organizationId);
+        const orgId = data.organizationId || req.user.organizationId;
+        return this.crmConfigsService.update(id, data, orgId);
     }
 
     @Delete(':id')
-    async delete(@Param('id') id: string, @Request() req) {
-        return this.crmConfigsService.delete(id, req.user.organizationId);
+    async delete(@Param('id') id: string, @Query('organizationId') queryOrgId: string, @Request() req) {
+        const orgId = queryOrgId || req.user.organizationId;
+        return this.crmConfigsService.delete(id, orgId);
     }
 }
