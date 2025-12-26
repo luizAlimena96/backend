@@ -158,7 +158,7 @@ export class CrmAutomationsService {
     // ============================================
 
     async trigger(triggerType: string, context: { organizationId: string; leadId: string; data?: any }) {
-        this.logger.log(`Triggering ${triggerType} for lead ${context.leadId}`);
+        this.logger.log(`🔄 Triggering ${triggerType} for lead ${context.leadId}`);
 
         try {
             // Find automations
@@ -170,62 +170,64 @@ export class CrmAutomationsService {
                 }
             });
 
-            this.logger.log(`Found ${automations.length} potential automations`);
+            this.logger.log(`📋 Found ${automations.length} potential automations for trigger ${triggerType}`);
+
+            if (automations.length > 0) {
+                this.logger.debug(`📋 Automations found:`, automations.map(a => ({ id: a.id, name: a.name, triggerType: a.triggerType, actions: a.actions })));
+            }
 
             for (const automation of automations) {
-                if (await this.checkCondition(automation, context)) {
+                const conditionPassed = await this.checkCondition(automation, context);
+                this.logger.log(`📋 Automation ${automation.name}: condition ${conditionPassed ? 'PASSED' : 'FAILED'}`);
+
+                if (conditionPassed) {
                     await this.enqueue(automation, context);
                 }
             }
         } catch (error) {
-            this.logger.error(`Error processing trigger ${triggerType}:`, error);
+            this.logger.error(`❌ Error processing trigger ${triggerType}:`, error);
         }
     }
 
     private async checkCondition(automation: any, context: any): Promise<boolean> {
-        // The frontend saves triggerCondition inside... where?
-        // If frontend sends triggerCondition to API, but API only has 'actions' JSON, 
-        // we must check if frontend is stuffing it into actions or if we need migration.
-        // Let's assume frontend sends { triggerCondition, actions } in the body, but backend create/update 
-        // maps 'actions' to `data.actions`. 
-        // IF frontend sends `triggerCondition` as a separate field, create() ignores it unless we map.
-        // Let's assume for now we look into `actions` JSON to find conditions because schema is rigid.
-        // OR `actions` field in DB actually holds the whole config object.
-
-        // Let's inspect `automation.actions`. If it's the `CRMAutomation` object from frontend, it matches.
-        // But backend schema says `actions: Json`. 
-        // Let's assume we store `{ triggerCondition: ..., actionConfig: ... }` inside DB `actions` column.
-
-        const config = automation.actions as any; // Assuming DB 'actions' column holds the config
-        // Wait, 'actions' usually holds list of actions.
-        // Frontend sends: actionConfig inside root.
-
-        // Let's rely on data extracted from `automation` object if we saved it correctly.
-        // I will assume for this implementation that `actions` column contains `{ triggerCondition: ..., actionConfig: ... }`
-        // Or I should fix the CREATE method to pack it.
-
+        const config = automation.actions as any;
         const condition = config?.triggerCondition || {};
 
+        this.logger.debug(`📋 Checking condition for ${automation.name}:`, { triggerType: automation.triggerType, condition });
+
         if (automation.triggerType === 'TAG_ADDED') {
-            if (!condition.tagId) return true; // Any tag
+            if (!condition.tagId) return true;
             return condition.tagId === context.data?.tagId;
         }
 
         if (automation.triggerType === 'MESSAGE_RECEIVED') {
-            if (!condition.keyword) return true; // Any message
+            if (!condition.keyword) return true;
             const message = context.data?.content || '';
             return message.toLowerCase().includes(condition.keyword.toLowerCase());
         }
 
+        // LEAD_CREATED, STAGE_CHANGE, etc. - no specific conditions, pass through
         return true;
     }
 
     private async enqueue(automation: any, context: any) {
+        const actionsData = automation.actions as any;
+
+        // Try to get actionType from multiple places it might be stored
+        const actionType = automation.actionType || actionsData?.actionType || actionsData?.type;
+        const actionConfig = actionsData?.actionConfig || actionsData?.config || actionsData;
+
+        this.logger.log(`📋 Enqueuing automation ${automation.name}:`, {
+            actionType,
+            actionConfig,
+            rawActions: actionsData
+        });
+
         const payload = {
             automationId: automation.id,
             leadId: context.leadId,
-            actionType: automation.actionType || (automation.actions as any)?.actionType,
-            actionConfig: (automation.actions as any)?.actionConfig,
+            actionType,
+            actionConfig,
             contextData: context.data
         };
 
@@ -236,6 +238,6 @@ export class CrmAutomationsService {
             removeOnComplete: true
         });
 
-        this.logger.log(`Enqueued automation ${automation.id} with ${delay}ms delay`);
+        this.logger.log(`✅ Enqueued automation ${automation.id} with ${delay}ms delay`);
     }
 }

@@ -675,12 +675,33 @@ export class FSMEngineService {
                 }
 
                 // ==================== TOOL EXECUTION (if tools configured) ====================
-                if (toolsHandler.hasTools(state)) {
+                // IMPORTANT: Check tools on the TARGET state (finalNextState), not current state
+                // When transitioning from A to B, we need to execute B's tools, not A's
+
+                let stateForTools = state; // Default to current state
+
+                // If transitioning to a different state, get that state's config for tools
+                if (finalNextState !== state.name) {
+                    const targetState = await this.prisma.state.findFirst({
+                        where: { agentId: input.agentId, name: finalNextState }
+                    });
+                    if (targetState) {
+                        stateForTools = targetState as any;
+                        console.log(`[FSM Engine] 🔧 Transitioning to '${finalNextState}' - checking its tools`);
+                    }
+                }
+
+                console.log(`[FSM Engine] Checking tools for state '${stateForTools.name}':`, {
+                    tools: stateForTools.tools,
+                    hasTools: toolsHandler.hasTools(stateForTools)
+                });
+
+                if (toolsHandler.hasTools(stateForTools)) {
                     try {
-                        const toolsList = toolsHandler.parseStateTools(state);
+                        const toolsList = toolsHandler.parseStateTools(stateForTools);
 
                         if (toolsList.length > 0) {
-                            console.log(`[FSM Engine] State '${state.name}' has tools:`, toolsList);
+                            console.log(`[FSM Engine] State '${stateForTools.name}' has tools:`, toolsList);
 
                             // Check if lead has an existing active appointment (database check)
                             let existingAppointmentId: string | null = null;
