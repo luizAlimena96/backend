@@ -119,6 +119,25 @@ export class DataExtractorService {
                 extractedData = parsed.data || {};
                 confidence = parsed.confidence || 0.8;
                 reasoning = Array.isArray(parsed.reasoning) ? parsed.reasoning : [parsed.reasoning || 'Dados extraídos'];
+            } else if (parsed.extractedData !== undefined) {
+                // AI returned with extractedData wrapper - unwrap it
+                let unwrappedData = parsed.extractedData;
+
+                // If extractedData contains dados_cliente, flatten it
+                if (unwrappedData.dados_cliente && typeof unwrappedData.dados_cliente === 'object') {
+                    const dadosCliente = unwrappedData.dados_cliente as Record<string, any>;
+                    console.log('[Data Extractor] Flattening dados_cliente:', dadosCliente);
+                    // Spread dados_cliente fields to root level
+                    unwrappedData = {
+                        ...unwrappedData,
+                        ...dadosCliente,
+                    };
+                    // Keep dados_cliente as well for backwards compatibility but also flatten
+                }
+
+                extractedData = unwrappedData;
+                confidence = parsed.confidence || 0.8;
+                reasoning = Array.isArray(parsed.reasoning) ? parsed.reasoning : ['Dados extraídos de extractedData'];
             } else {
                 // Formato simples - EXACTLY like legacy
                 extractedData = {};
