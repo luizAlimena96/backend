@@ -161,7 +161,19 @@ export class ContractToolsService {
             });
 
             // Construct payload - ZapSign API format for /models/create-doc/
-            const signerName = lead.name || extractedData.nome || extractedData.nome_cliente || extractedData.nome_completo || extractedData.dados_cliente?.nome || 'Cliente';
+            // Get signer name from multiple possible locations in extractedData
+            let signerName = lead.name || '';
+            if (!signerName) {
+                // Check common locations
+                signerName = extractedData.nome
+                    || extractedData.nome_cliente
+                    || extractedData.nome_completo
+                    || extractedData.dados_cliente?.nome
+                    // Check nested extractedData structure (from Data Extractor)
+                    || extractedData.extractedData?.dados_cliente?.nome
+                    || extractedData.extractedData?.nome
+                    || 'Cliente';
+            }
 
             // Format phone number (remove country code prefix if present)
             let signerPhone = lead.phone || '';
@@ -307,6 +319,7 @@ export class ContractToolsService {
         try {
             const cleanPath = path.replace(/{{|}}/g, '').trim();
             console.log(`[Contract Tools] Resolving field: '${path}' -> cleanPath: '${cleanPath}'`);
+            console.log(`[Contract Tools] extractedData structure:`, JSON.stringify(extractedData, null, 2));
 
             // Handle specific lead fields
             if (cleanPath === 'currentDate') {
@@ -320,54 +333,99 @@ export class ContractToolsService {
             if (cleanPath === 'lead.cpf') return lead.cpf || '';
             if (cleanPath === 'lead.rg') return lead.rg || '';
 
-            // Parse dados_cliente_serializados if it's a JSON string
-            let parsedData = { ...extractedData };
+            // Build a flattened data map from all possible nested locations
+            // This handles the structure: extractedData.extractedData.dados_cliente.*
+            const flattenedData: Record<string, any> = {};
+
+            // 1. Add all root-level fields
+            for (const [key, value] of Object.entries(extractedData)) {
+                if (typeof value !== 'object' || value === null) {
+                    flattenedData[key] = value;
+                }
+            }
+
+            // 2. Check for nested extractedData (Data Extractor returns {extractedData: {dados_cliente: {...}}})
+            if (extractedData.extractedData && typeof extractedData.extractedData === 'object') {
+                const nestedData = extractedData.extractedData as Record<string, any>;
+                for (const [key, value] of Object.entries(nestedData)) {
+                    if (typeof value !== 'object' || value === null) {
+                        flattenedData[key] = value;
+                    }
+                }
+
+                // 3. Check for dados_cliente inside extractedData
+                if (nestedData.dados_cliente && typeof nestedData.dados_cliente === 'object') {
+                    const dadosCliente = nestedData.dados_cliente as Record<string, any>;
+                    for (const [key, value] of Object.entries(dadosCliente)) {
+                        flattenedData[key] = value;
+                        flattenedData[`dados_cliente.${key}`] = value;
+                    }
+                }
+            }
+
+            // 4. Check for dados_cliente at root level
+            if (extractedData.dados_cliente && typeof extractedData.dados_cliente === 'object') {
+                const dadosCliente = extractedData.dados_cliente as Record<string, any>;
+                for (const [key, value] of Object.entries(dadosCliente)) {
+                    flattenedData[key] = value;
+                    flattenedData[`dados_cliente.${key}`] = value;
+                }
+            }
+
+            // 5. Parse dados_cliente_serializados if it's a JSON string
             if (typeof extractedData.dados_cliente_serializados === 'string') {
                 try {
-                    parsedData.dados_cliente_serializados = JSON.parse(extractedData.dados_cliente_serializados);
+                    const parsed = JSON.parse(extractedData.dados_cliente_serializados);
+                    for (const [key, value] of Object.entries(parsed)) {
+                        flattenedData[key] = value;
+                    }
                 } catch {
                     // Keep as string if parsing fails
                 }
             }
 
-            // Handle extractedData with full path (supports nested objects)
+            console.log(`[Contract Tools] Flattened data keys:`, Object.keys(flattenedData));
+
+            // Extract the field name from the path
+            let fieldName = cleanPath;
             if (cleanPath.startsWith('lead.extractedData.')) {
-                const fieldPath = cleanPath.split('lead.extractedData.')[1];
-                const value = this.resolveNestedValue(parsedData, fieldPath);
-                if (value) {
-                    console.log(`[Contract Tools] Resolved extractedData.${fieldPath}: '${value}'`);
-                    return value;
-                }
+                fieldName = cleanPath.split('lead.extractedData.')[1];
+                // Handle nested paths like dados_cliente.nome
+                const parts = fieldName.split('.');
+                fieldName = parts[parts.length - 1]; // Get the last part (e.g., 'nome' from 'dados_cliente.nome')
             }
 
-            // Try to find the field directly in extractedData (simple field name like "cpf", "nome")
-            if (parsedData[cleanPath] !== undefined && parsedData[cleanPath] !== null) {
-                const value = parsedData[cleanPath]?.toString() || '';
-                console.log(`[Contract Tools] Resolved direct field '${cleanPath}': '${value}'`);
+            console.log(`[Contract Tools] Looking for field: '${fieldName}'`);
+
+            // Try to find the value in flattened data
+            if (flattenedData[fieldName] !== undefined && flattenedData[fieldName] !== null) {
+                const value = flattenedData[fieldName]?.toString() || '';
+                console.log(`[Contract Tools] ✅ Found field '${fieldName}': '${value}'`);
                 return value;
             }
 
             // Field mapping: map common ZapSign template fields to extracted data fields
             const fieldMapping: Record<string, string[]> = {
-                'nome': ['nome_cliente', 'nome_completo', 'nome', 'dados_cliente.nome', 'dados_cliente_serializados.nome_completo'],
-                'cpf': ['cpf', 'dados_cliente.cpf', 'dados_cliente_serializados.cpf'],
-                'estado_civil': ['estado_civil', 'dados_cliente.estado_civil', 'dados_cliente_serializados.estado_civil'],
-                'profissao': ['profissao', 'dados_cliente.profissao', 'dados_cliente_serializados.profissao'],
-                'endereco_completo': ['endereco_completo', 'endereco', 'dados_cliente.endereco', 'dados_cliente_serializados.endereco_completo'],
-                'nome_completo': ['nome_cliente', 'nome_completo', 'dados_cliente.nome', 'dados_cliente_serializados.nome_completo'],
+                'nome': ['nome', 'nome_cliente', 'nome_completo'],
+                'cpf': ['cpf'],
+                'estado_civil': ['estado_civil'],
+                'profissao': ['profissao'],
+                'endereco_completo': ['endereco_completo', 'endereco'],
+                'endereco': ['endereco', 'endereco_completo'],
+                'nome_completo': ['nome', 'nome_cliente', 'nome_completo'],
             };
 
             // Try mapped fields
-            const possibleFields = fieldMapping[cleanPath] || [cleanPath, `${cleanPath}_cliente`];
-            for (const field of possibleFields) {
-                const value = this.resolveNestedValue(parsedData, field);
-                if (value) {
-                    console.log(`[Contract Tools] Resolved via mapping '${field}': '${value}'`);
+            const possibleFields = fieldMapping[fieldName] || [fieldName];
+            for (const altField of possibleFields) {
+                if (flattenedData[altField] !== undefined && flattenedData[altField] !== null) {
+                    const value = flattenedData[altField]?.toString() || '';
+                    console.log(`[Contract Tools] ✅ Found via mapping '${altField}': '${value}'`);
                     return value;
                 }
             }
 
-            console.log(`[Contract Tools] Could not resolve field '${path}', extractedData keys:`, Object.keys(extractedData));
+            console.log(`[Contract Tools] ❌ Could not resolve field '${path}'`);
             return '';
         } catch (error) {
             console.error(`[Contract Tools] Error resolving field '${path}':`, error);
