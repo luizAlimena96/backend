@@ -4,7 +4,6 @@ import { PrismaService } from '../database/prisma.service';
 import { Response } from 'express';
 
 @Controller('google')
-@UseGuards(JwtAuthGuard)
 export class GoogleController {
     constructor(
         @Inject(PrismaService) private prisma: PrismaService
@@ -13,6 +12,7 @@ export class GoogleController {
     /**
      * Get Google OAuth URL for organization
      */
+    @UseGuards(JwtAuthGuard)
     @Get('auth')
     async getAuthUrl(@Query('organizationId') organizationId: string, @Res() res: Response) {
         if (!organizationId) {
@@ -174,6 +174,7 @@ export class GoogleController {
     /**
      * Disconnect Google Calendar
      */
+    @UseGuards(JwtAuthGuard)
     @Post('disconnect')
     async disconnect(@Body() data: { organizationId: string }) {
         console.log('[Google] 🔌 Disconnecting Google Calendar for organization:', data.organizationId);
