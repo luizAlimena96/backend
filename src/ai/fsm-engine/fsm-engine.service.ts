@@ -530,11 +530,17 @@ export class FSMEngineService {
                         let data_especifica = '';
                         let horario_especifico = '';
 
-                        // Extract time - supports: 08:30, 08h30, 13h, 0830
-                        let timeMatch = diaHorario.match(/(\d{1,2}):(\d{2})/); // 08:30
+                        // Extract time - MUST NOT match DD/MM date format
+                        // Priority order: "às 1100", "11h30", "11:30", "11h", then 4 consecutive digits not part of date
+                        let timeMatch = diaHorario.match(/às\s*(\d{2})(\d{2})/i); // "às 1100"
                         if (!timeMatch) timeMatch = diaHorario.match(/(\d{1,2})h(\d{2})/); // 08h30
-                        if (!timeMatch) timeMatch = diaHorario.match(/(\d{2})(\d{2})(?!\d)/); // 0830 (4 digits not followed by more digits)
-                        if (!timeMatch) timeMatch = diaHorario.match(/(\d{1,2})h/); // 13h (just hour)
+                        if (!timeMatch) timeMatch = diaHorario.match(/(\d{1,2}):(\d{2})/); // 08:30
+                        if (!timeMatch) timeMatch = diaHorario.match(/(\d{1,2})h(?!\d)/); // 13h (just hour, not followed by digits)
+                        // Fallback: 4 consecutive digits NOT part of a date (not preceded/followed by / or other digits)
+                        if (!timeMatch) {
+                            const fourDigitMatch = diaHorario.match(/(?<!\d|\/)(\d{2})(\d{2})(?!\d|\/)/);
+                            if (fourDigitMatch) timeMatch = fourDigitMatch;
+                        }
 
                         if (timeMatch) {
                             const hours = timeMatch[1].padStart(2, '0');
@@ -832,8 +838,18 @@ export class FSMEngineService {
                                     if (diaHorario && (!toolArgs.data_especifica || !toolArgs.horario_especifico)) {
                                         console.log('[FSM Engine] Parsing diaHorario:', diaHorario);
 
-                                        // Extract time using regex
-                                        const timeMatch = diaHorario.match(/(\d{1,2}):?(\d{2})?h?/);
+                                        // Extract time using regex - MUST NOT match DD/MM date format
+                                        // Priority order: "às 1100", "1100" (4 digits), "11:00", "11h", "11h00"
+                                        let timeMatch = diaHorario.match(/às\s*(\d{2})(\d{2})/i); // "às 1100"
+                                        if (!timeMatch) timeMatch = diaHorario.match(/(\d{2})h(\d{2})/); // "11h30"
+                                        if (!timeMatch) timeMatch = diaHorario.match(/(\d{1,2}):(\d{2})/); // "11:30"
+                                        if (!timeMatch) timeMatch = diaHorario.match(/(\d{1,2})h(?!\d)/); // "11h" (but not "11h30")
+                                        // Fallback: 4 consecutive digits NOT part of a date (not followed/preceded by /)
+                                        if (!timeMatch) {
+                                            const fourDigitMatch = diaHorario.match(/(?<!\d|\/)(\d{2})(\d{2})(?!\d|\/)/);
+                                            if (fourDigitMatch) timeMatch = fourDigitMatch;
+                                        }
+
                                         if (timeMatch && !toolArgs.horario_especifico) {
                                             const hours = timeMatch[1].padStart(2, '0');
                                             const minutes = (timeMatch[2] || '00').padStart(2, '0');
