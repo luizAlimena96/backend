@@ -6,6 +6,7 @@ import { DataExtractorService } from './services/data-extractor.service';
 import { StateDeciderService } from './services/state-decider.service';
 import { DecisionValidatorService } from './services/decision-validator.service';
 import { SchedulingToolsService } from '../tools/scheduling-tools.service';
+import { ContractToolsService } from '../tools/contract-tools.service';
 import * as toolsHandler from './tools-handler';
 import {
     DecisionInput,
@@ -42,6 +43,7 @@ export class FSMEngineService {
         private stateDecider: StateDeciderService,
         private decisionValidator: DecisionValidatorService,
         private schedulingToolsService: SchedulingToolsService,
+        private contractToolsService: ContractToolsService,
     ) { }
 
     /**
@@ -612,6 +614,7 @@ export class FSMEngineService {
                                     },
                                     {
                                         schedulingTools: this.schedulingToolsService,
+                                        contractTools: this.contractToolsService,
                                     }
                                 );
 
@@ -652,6 +655,7 @@ export class FSMEngineService {
                             },
                             {
                                 schedulingTools: this.schedulingToolsService,
+                                contractTools: this.contractToolsService,
                             }
                         );
 
@@ -917,6 +921,7 @@ export class FSMEngineService {
                                     },
                                     {
                                         schedulingTools: this.schedulingToolsService,
+                                        contractTools: this.contractToolsService,
                                     }
                                 );
 

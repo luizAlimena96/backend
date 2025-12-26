@@ -5,6 +5,7 @@
  */
 
 import { SchedulingToolsService } from '../tools/scheduling-tools.service';
+import { ContractToolsService } from '../tools/contract-tools.service';
 
 export interface ToolExecutionResult {
     success: boolean;
@@ -26,6 +27,7 @@ export async function executeFSMTool(
     },
     services?: {
         schedulingTools?: SchedulingToolsService;
+        contractTools?: ContractToolsService;
     }
 ): Promise<ToolExecutionResult> {
     console.log(`[FSM Tools] Executing tool: ${toolName}`, { args, context });
@@ -61,7 +63,23 @@ export async function executeFSMTool(
             console.log('[FSM Tools] reagendar_evento called');
             return await handleReagendarEvento(args, context, services.schedulingTools);
 
+        // ==================== CONTRACT TOOLS ====================
+        case 'gerenciar_contrato':
+        case 'verificar_dados_contrato':
+        case 'enviar_contrato':
+            console.log(`[FSM Tools] 📋 Contract tool called: ${toolName}`, args);
+            if (!services?.contractTools) {
+                console.error('[FSM Tools] ❌ Contract tools service not available!');
+                return {
+                    success: false,
+                    error: 'Contract tools service not available',
+                    message: 'Serviço de contratos não disponível. Entre em contato com o suporte.'
+                };
+            }
+            return await handleContractTool(toolName, args, context, services.contractTools);
+
         default:
+            console.warn(`[FSM Tools] ⚠️ Unknown tool requested: ${toolName}`);
             return {
                 success: false,
                 error: `Unknown tool: ${toolName}`,
@@ -245,7 +263,7 @@ async function handleReagendarEvento(
 
         return {
             success: result.success,
-            data: result.agendamento,
+            data: (result as any).agendamento,
             message: result.mensagem
         };
 
@@ -255,6 +273,75 @@ async function handleReagendarEvento(
             success: false,
             error: error.message,
             message: 'Erro ao reagendar compromisso.'
+        };
+    }
+}
+
+/**
+ * Handle contract tools (gerenciar_contrato, verificar_dados_contrato, enviar_contrato)
+ */
+async function handleContractTool(
+    toolName: string,
+    args: any,
+    context: any,
+    contractTools: ContractToolsService
+): Promise<ToolExecutionResult> {
+    console.log(`[FSM Tools] 📋 handleContractTool called`, { toolName, args, context });
+
+    try {
+        if (!context.leadId) {
+            console.error('[FSM Tools] ❌ No leadId in context');
+            return {
+                success: false,
+                error: 'Lead ID required',
+                message: 'É necessário um lead para gerenciar contratos.'
+            };
+        }
+
+        // Map tool names to actions
+        let acao: 'verificar_dados' | 'enviar_contrato';
+
+        switch (toolName) {
+            case 'verificar_dados_contrato':
+                acao = 'verificar_dados';
+                break;
+            case 'enviar_contrato':
+            case 'gerenciar_contrato':
+                if (args.acao === 'verificar_dados') {
+                    acao = 'verificar_dados';
+                } else {
+                    acao = 'enviar_contrato';
+                }
+                break;
+            default:
+                acao = 'enviar_contrato';
+        }
+
+        console.log(`[FSM Tools] 📋 Calling contractTools.gerenciarContrato with acao: ${acao}`);
+
+        const result = await contractTools.gerenciarContrato(acao, {
+            organizationId: context.organizationId,
+            leadId: context.leadId,
+            campos_obrigatorios: args.campos_obrigatorios || args.campos || undefined
+        });
+
+        console.log(`[FSM Tools] 📋 Contract tool result:`, result);
+
+        return {
+            success: result.success,
+            data: {
+                contrato_enviado: result.contrato_enviado,
+                campos_faltantes: result.campos_faltantes,
+                link_assinatura: result.link_assinatura
+            },
+            message: result.mensagem
+        };
+    } catch (error: any) {
+        console.error(`[FSM Tools] ❌ Contract error:`, error);
+        return {
+            success: false,
+            error: error.message,
+            message: `Erro ao processar contrato: ${error.message}`
         };
     }
 }
