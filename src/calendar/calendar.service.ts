@@ -15,12 +15,18 @@ export class CalendarService {
             where: { id: organizationId },
             select: {
                 googleCalendarId: true,
-                googleAccessToken: true,
-                googleRefreshToken: true,
             },
         });
 
-        if (!organization?.googleAccessToken || !organization?.googleCalendarId) {
+        if (!organization?.googleCalendarId) {
+            return [];
+        }
+
+        // Get a valid (possibly refreshed) access token
+        const validAccessToken = await this.googleCalendarService.getValidAccessToken(organizationId);
+
+        if (!validAccessToken) {
+            console.log('[CalendarService] Could not get valid Google access token');
             return [];
         }
 
@@ -31,7 +37,7 @@ export class CalendarService {
             timeMax.setDate(timeMax.getDate() + 30);
 
             const events = await this.googleCalendarService.listEvents(
-                organization.googleAccessToken,
+                validAccessToken,
                 organization.googleCalendarId,
                 timeMin,
                 timeMax,

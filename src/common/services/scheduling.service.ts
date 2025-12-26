@@ -128,31 +128,38 @@ export class SchedulingService {
                 select: { name: true, phone: true }
             });
 
-            if (organization?.googleAccessToken && organization?.googleCalendarId) {
-                console.log(`[Scheduling] Syncing appointment ${appointment.id} to Google Calendar of organization ${organization.name}`);
+            if (organization?.googleCalendarId) {
+                // Get a valid (possibly refreshed) access token
+                const validAccessToken = await this.googleCalendarService.getValidAccessToken(data.organizationId);
 
-                const startTime = new Date(data.scheduledAt);
-                const endTime = new Date(startTime.getTime() + (appointment.duration * 60000));
+                if (validAccessToken) {
+                    console.log(`[Scheduling] Syncing appointment ${appointment.id} to Google Calendar of organization ${organization.name}`);
 
-                const eventPayload = {
-                    summary: `${appointment.title} - ${lead?.name || 'Cliente'}`,
-                    description: `Agendamento via LEXA.\nLead: ${lead?.name || 'N/A'} (${lead?.phone || 'N/A'})\nNotas: ${data.notes || ''}`,
-                    start: { dateTime: startTime.toISOString() },
-                    end: { dateTime: endTime.toISOString() },
-                };
+                    const startTime = new Date(data.scheduledAt);
+                    const endTime = new Date(startTime.getTime() + (appointment.duration * 60000));
 
-                const googleEvent = await this.googleCalendarService.createEvent(
-                    organization.googleAccessToken,
-                    organization.googleCalendarId,
-                    eventPayload
-                );
+                    const eventPayload = {
+                        summary: `${appointment.title} - ${lead?.name || 'Cliente'}`,
+                        description: `Agendamento via LEXA.\nLead: ${lead?.name || 'N/A'} (${lead?.phone || 'N/A'})\nNotas: ${data.notes || ''}`,
+                        start: { dateTime: startTime.toISOString() },
+                        end: { dateTime: endTime.toISOString() },
+                    };
 
-                if (googleEvent?.id) {
-                    appointment = await this.prisma.appointment.update({
-                        where: { id: appointment.id },
-                        data: { googleEventId: googleEvent.id }
-                    });
-                    console.log(`[Scheduling] ✅ Google Event created: ${googleEvent.id}`);
+                    const googleEvent = await this.googleCalendarService.createEvent(
+                        validAccessToken,
+                        organization.googleCalendarId,
+                        eventPayload
+                    );
+
+                    if (googleEvent?.id) {
+                        appointment = await this.prisma.appointment.update({
+                            where: { id: appointment.id },
+                            data: { googleEventId: googleEvent.id }
+                        });
+                        console.log(`[Scheduling] ✅ Google Event created: ${googleEvent.id}`);
+                    }
+                } else {
+                    console.log(`[Scheduling] ⚠️ Could not get valid Google access token for organization ${data.organizationId}`);
                 }
             } else {
                 console.log(`[Scheduling] ⚠️ Google Calendar not configured for organization ${data.organizationId}`);
@@ -437,17 +444,22 @@ export class SchedulingService {
                 }
             });
 
-            if (organization?.googleAccessToken && organization?.googleCalendarId) {
-                try {
-                    console.log(`[Scheduling] Cancelling Google Event ${appointment.googleEventId}`);
-                    await this.googleCalendarService.deleteEvent(
-                        organization.googleAccessToken,
-                        organization.googleCalendarId,
-                        appointment.googleEventId
-                    );
-                    console.log(`[Scheduling] ✅ Google Event cancelled`);
-                } catch (error) {
-                    console.error('[Scheduling] Google Calendar Cancel Failed:', error);
+            if (organization?.googleCalendarId) {
+                // Get a valid (possibly refreshed) access token
+                const validAccessToken = await this.googleCalendarService.getValidAccessToken(appointment.organizationId);
+
+                if (validAccessToken) {
+                    try {
+                        console.log(`[Scheduling] Cancelling Google Event ${appointment.googleEventId}`);
+                        await this.googleCalendarService.deleteEvent(
+                            validAccessToken,
+                            organization.googleCalendarId,
+                            appointment.googleEventId
+                        );
+                        console.log(`[Scheduling] ✅ Google Event cancelled`);
+                    } catch (error) {
+                        console.error('[Scheduling] Google Calendar Cancel Failed:', error);
+                    }
                 }
             }
         }
@@ -479,24 +491,29 @@ export class SchedulingService {
                 }
             });
 
-            if (organization?.googleAccessToken && organization?.googleCalendarId) {
-                try {
-                    console.log(`[Scheduling] Updating Google Event ${appointment.googleEventId} to ${newDate}`);
-                    const startTime = new Date(newDate);
-                    const endTime = new Date(startTime.getTime() + (appointment.duration * 60000));
+            if (organization?.googleCalendarId) {
+                // Get a valid (possibly refreshed) access token
+                const validAccessToken = await this.googleCalendarService.getValidAccessToken(appointment.organizationId);
 
-                    await this.googleCalendarService.updateEvent(
-                        organization.googleAccessToken,
-                        organization.googleCalendarId,
-                        appointment.googleEventId,
-                        {
-                            start: { dateTime: startTime.toISOString() },
-                            end: { dateTime: endTime.toISOString() },
-                        }
-                    );
-                    console.log(`[Scheduling] ✅ Google Event rescheduled`);
-                } catch (error) {
-                    console.error('[Scheduling] Google Calendar Update Failed:', error);
+                if (validAccessToken) {
+                    try {
+                        console.log(`[Scheduling] Updating Google Event ${appointment.googleEventId} to ${newDate}`);
+                        const startTime = new Date(newDate);
+                        const endTime = new Date(startTime.getTime() + (appointment.duration * 60000));
+
+                        await this.googleCalendarService.updateEvent(
+                            validAccessToken,
+                            organization.googleCalendarId,
+                            appointment.googleEventId,
+                            {
+                                start: { dateTime: startTime.toISOString() },
+                                end: { dateTime: endTime.toISOString() },
+                            }
+                        );
+                        console.log(`[Scheduling] ✅ Google Event rescheduled`);
+                    } catch (error) {
+                        console.error('[Scheduling] Google Calendar Update Failed:', error);
+                    }
                 }
             }
         }

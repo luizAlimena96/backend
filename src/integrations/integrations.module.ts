@@ -6,9 +6,10 @@ import { ZapSignService } from './zapsign/zapsign.service';
 import { EvolutionAPIService } from './evolution/evolution-api.service';
 import { WhatsAppIntegrationService } from './whatsapp/whatsapp-integration.service';
 import { MetaLeadsService } from './meta/meta-leads.service';
+import { PrismaModule } from '../database/prisma.module';
 
 @Module({
-    imports: [HttpModule],
+    imports: [HttpModule, PrismaModule],
     providers: [
         ElevenLabsService,
         GoogleCalendarService,
