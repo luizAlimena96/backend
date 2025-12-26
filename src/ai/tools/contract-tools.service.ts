@@ -204,7 +204,7 @@ export class ContractToolsService {
             const signUrl = signer?.sign_url || doc.signers?.[0]?.sign_url;
 
             if (signUrl) {
-                const leadName = lead.name || extractedData.nome || extractedData.dados_cliente?.nome || 'Cliente';
+                const leadName = lead.name || extractedData.nome || extractedData.nome_cliente || extractedData.dados_cliente?.nome || 'Cliente';
                 const message = `Olá ${leadName}, aqui está o seu contrato para assinatura: ${signUrl}`;
 
                 // Get conversation and send via WhatsApp
@@ -213,7 +213,7 @@ export class ContractToolsService {
                 });
 
                 if (conversation && org.evolutionInstanceName) {
-                    // Save message to DB
+                    // Save message to DB first
                     await this.prisma.message.create({
                         data: {
                             conversationId: conversation.id,
@@ -225,14 +225,32 @@ export class ContractToolsService {
                         }
                     });
 
-                    // Send via WhatsApp
-                    await this.whatsappService.sendMessage(
-                        org.evolutionInstanceName,
-                        lead.phone,
-                        message
-                    );
+                    // Send via WhatsApp with retry logic
+                    const sendWithRetry = async (attempt: number = 1): Promise<boolean> => {
+                        try {
+                            await this.whatsappService.sendMessage(
+                                org.evolutionInstanceName!,
+                                lead.phone,
+                                message
+                            );
+                            console.log('[Contract Tools] Contract link sent via WhatsApp');
+                            return true;
+                        } catch (whatsappError: any) {
+                            console.error(`[Contract Tools] WhatsApp send failed (attempt ${attempt}):`, whatsappError.message);
 
-                    console.log('[Contract Tools] Contract link sent via WhatsApp');
+                            if (attempt < 2) {
+                                console.log('[Contract Tools] Waiting 60 seconds before retry...');
+                                await new Promise(resolve => setTimeout(resolve, 60000)); // 60 seconds
+                                return sendWithRetry(attempt + 1);
+                            }
+
+                            console.log('[Contract Tools] WhatsApp send failed after retries, but document was created');
+                            return false;
+                        }
+                    };
+
+                    // Don't await - let it run in background so we don't block the response
+                    sendWithRetry().catch(e => console.error('[Contract Tools] Background WhatsApp send error:', e));
                 }
 
                 return {
