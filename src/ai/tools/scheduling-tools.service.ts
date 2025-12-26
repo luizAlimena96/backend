@@ -61,6 +61,26 @@ export class SchedulingToolsService {
             }
         }
 
+        // Format 1.5: Day-only before "às" (e.g., "29 às 11:00") - assume current month
+        if (!day) {
+            const dayOnlyMatch = horario.match(/^(\d{1,2})\s*às/i);
+            if (dayOnlyMatch) {
+                day = parseInt(dayOnlyMatch[1]);
+                month = now.getMonth() + 1; // Current month
+                year = now.getFullYear();
+
+                // If day is in the past, use next month
+                if (day < now.getDate()) {
+                    month = month + 1;
+                    if (month > 12) {
+                        month = 1;
+                        year = year + 1;
+                    }
+                }
+                console.log(`[Scheduling Tools] 📅 Day-only format detected, using current month:`, { day, month, year });
+            }
+        }
+
         // Format 2: Day names (segunda, terça, etc.)
         if (!day) {
             const dayMap: Record<string, number> = {
