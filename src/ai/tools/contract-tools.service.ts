@@ -331,12 +331,12 @@ export class ContractToolsService {
 
             // Field mapping: map common ZapSign template fields to extracted data fields
             const fieldMapping: Record<string, string[]> = {
-                'nome': ['nome_cliente', 'nome_completo', 'nome', 'dados_cliente_serializados.nome_completo'],
-                'cpf': ['cpf', 'dados_cliente_serializados.cpf'],
-                'estado_civil': ['estado_civil', 'dados_cliente_serializados.estado_civil'],
-                'profissao': ['profissao', 'dados_cliente_serializados.profissao'],
-                'endereco_completo': ['endereco_completo', 'dados_cliente_serializados.endereco_completo'],
-                'nome_completo': ['nome_cliente', 'nome_completo', 'dados_cliente_serializados.nome_completo'],
+                'nome': ['nome_cliente', 'nome_completo', 'nome', 'dados_cliente.nome', 'dados_cliente_serializados.nome_completo'],
+                'cpf': ['cpf', 'dados_cliente.cpf', 'dados_cliente_serializados.cpf'],
+                'estado_civil': ['estado_civil', 'dados_cliente.estado_civil', 'dados_cliente_serializados.estado_civil'],
+                'profissao': ['profissao', 'dados_cliente.profissao', 'dados_cliente_serializados.profissao'],
+                'endereco_completo': ['endereco_completo', 'endereco', 'dados_cliente.endereco', 'dados_cliente_serializados.endereco_completo'],
+                'nome_completo': ['nome_cliente', 'nome_completo', 'dados_cliente.nome', 'dados_cliente_serializados.nome_completo'],
             };
 
             // Try mapped fields
