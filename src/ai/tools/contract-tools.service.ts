@@ -237,32 +237,16 @@ export class ContractToolsService {
                         }
                     });
 
-                    // Send via WhatsApp with retry logic
-                    const sendWithRetry = async (attempt: number = 1): Promise<boolean> => {
-                        try {
-                            await this.whatsappService.sendMessage(
-                                org.evolutionInstanceName!,
-                                lead.phone,
-                                message
-                            );
-                            console.log('[Contract Tools] Contract link sent via WhatsApp');
-                            return true;
-                        } catch (whatsappError: any) {
-                            console.error(`[Contract Tools] WhatsApp send failed (attempt ${attempt}):`, whatsappError.message);
-
-                            if (attempt < 2) {
-                                console.log('[Contract Tools] Waiting 60 seconds before retry...');
-                                await new Promise(resolve => setTimeout(resolve, 60000)); // 60 seconds
-                                return sendWithRetry(attempt + 1);
-                            }
-
-                            console.log('[Contract Tools] WhatsApp send failed after retries, but document was created');
-                            return false;
-                        }
-                    };
-
-                    // Don't await - let it run in background so we don't block the response
-                    sendWithRetry().catch(e => console.error('[Contract Tools] Background WhatsApp send error:', e));
+                    // Send via WhatsApp (single attempt, don't block response)
+                    this.whatsappService.sendMessage(
+                        org.evolutionInstanceName!,
+                        lead.phone,
+                        message
+                    ).then(() => {
+                        console.log('[Contract Tools] Contract link sent via WhatsApp');
+                    }).catch((whatsappError: any) => {
+                        console.error('[Contract Tools] WhatsApp send failed:', whatsappError.message);
+                    });
                 }
 
                 return {
