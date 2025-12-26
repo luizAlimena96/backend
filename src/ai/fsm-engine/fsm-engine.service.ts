@@ -279,38 +279,26 @@ export class FSMEngineService {
                 }
 
                 // ==================== SMART MERGE FOR horario_escolhido ====================
-                // If the new horario_escolhido contains "amanhã" (AI default) but existing has a specific date (DD/MM),
-                // preserve the existing date and only update the time from the new value
+                // If the existing horario_escolhido has a specific date (DD/MM) but the new one doesn't,
+                // preserve the existing date and only update the time (if different)
                 if (safeNewData.horario_escolhido && input.extractedData?.horario_escolhido) {
                     const newHorario = safeNewData.horario_escolhido.toLowerCase();
                     const existingHorario = input.extractedData.horario_escolhido;
 
-                    // Check if new value has "amanhã" (AI default when user only says time)
-                    const newHasAmanha = newHorario.includes('amanhã') || newHorario.includes('amanha');
                     // Check if existing value has a specific date (DD/MM format)
                     const existingDateMatch = existingHorario.match(/(\d{1,2})\/(\d{1,2})/);
+                    // Check if NEW value has a specific date
+                    const newDateMatch = safeNewData.horario_escolhido.match(/(\d{1,2})\/(\d{1,2})/);
 
-                    if (newHasAmanha && existingDateMatch) {
-                        // Extract time from the new value
-                        let newTimeMatch = safeNewData.horario_escolhido.match(/(\d{1,2}):(\d{2})/);
-                        if (!newTimeMatch) newTimeMatch = safeNewData.horario_escolhido.match(/às\s*(\d{2})(\d{2})/i);
-                        if (!newTimeMatch) newTimeMatch = safeNewData.horario_escolhido.match(/(\d{1,2})h(\d{2})?/);
-
-                        if (newTimeMatch) {
-                            const hours = newTimeMatch[1].padStart(2, '0');
-                            const minutes = (newTimeMatch[2] || '00').padStart(2, '0');
-                            const newTime = `${hours}${minutes}`;
-
-                            // Preserve the existing date, update only the time
-                            const existingDate = `${existingDateMatch[1].padStart(2, '0')}/${existingDateMatch[2].padStart(2, '0')}`;
-                            safeNewData.horario_escolhido = `${existingDate} às ${newTime}`;
-
-                            console.log('[FSM Engine] 🔄 Smart merge: preserved existing date, updated time:', {
-                                original: input.extractedData.horario_escolhido,
-                                aiExtracted: globalExtractionResult.extractedData.horario_escolhido,
-                                merged: safeNewData.horario_escolhido
-                            });
-                        }
+                    // If existing has date but new doesn't → preserve existing (new is probably "segunda às 11:00" or "amanhã às 11:00")
+                    if (existingDateMatch && !newDateMatch) {
+                        console.log('[FSM Engine] 🔄 Smart merge: preserving existing horario_escolhido (new value lacks specific date):', {
+                            existing: input.extractedData.horario_escolhido,
+                            newAttempted: safeNewData.horario_escolhido,
+                            action: 'keeping existing'
+                        });
+                        // Just keep the existing value - don't overwrite with day name
+                        delete safeNewData.horario_escolhido;
                     }
                 }
 

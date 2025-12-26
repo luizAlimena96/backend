@@ -10,7 +10,11 @@ export class SchedulingToolsService {
     ) { }
 
     /**
-     * Parse horario_escolhido in format "(DD/MM) às HHMM" or "(DD/MM/YYYY) às HHMM" or "DD/MM às HHMM"
+     * Parse horario_escolhido in multiple formats:
+     * - "(DD/MM) às HHMM" or "(DD/MM/YYYY) às HHMM"
+     * - "DD/MM às HHMM" or "DD/MM/YYYY às HHMM"
+     * - "DD/MM às HH:MM"
+     * - "segunda às 11:00" (day names converted to dates)
      * Returns { data_especifica: 'YYYY-MM-DD', horario_especifico: 'HH:MM' }
      */
     parseHorarioEscolhido(horario: string): {
@@ -21,41 +25,103 @@ export class SchedulingToolsService {
 
         console.log('[Scheduling Tools] 🔍 parseHorarioEscolhido input:', horario);
 
-        // Try different formats:
-        // Format 1: "(DD/MM/YYYY) às HHMM" or "(DD/MM) às HHMM"
-        let match = horario.match(/\(?(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\)?\s*às\s*(\d{2})(\d{2})/i);
+        const now = new Date();
+        let day: number | null = null;
+        let month: number | null = null;
+        let year: number = now.getFullYear();
+        let hours: string | null = null;
+        let minutes: string = '00';
 
-        // Format 2: "DD/MM às HH:MM" (with colon in time)
-        if (!match) {
-            match = horario.match(/\(?(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\)?\s*às\s*(\d{1,2}):(\d{2})/i);
+        // Try to extract TIME first (required)
+        // Format: "às HHMM" or "às HH:MM" or "às Hh" etc.
+        let timeMatch = horario.match(/às\s*(\d{1,2})[:h]?(\d{2})?/i);
+        if (!timeMatch) timeMatch = horario.match(/(\d{1,2}):(\d{2})/);
+        if (!timeMatch) timeMatch = horario.match(/(\d{1,2})h(\d{2})?/i);
+
+        if (timeMatch) {
+            hours = timeMatch[1].padStart(2, '0');
+            minutes = (timeMatch[2] || '00').padStart(2, '0');
         }
 
-        // Format 3: Just "às HHMM" with no date (use today's date) - skip this, need date
-
-        if (!match) {
-            console.log('[Scheduling Tools] ❌ parseHorarioEscolhido: No match found');
+        if (!hours) {
+            console.log('[Scheduling Tools] ❌ parseHorarioEscolhido: No time found');
             return null;
         }
 
-        const day = parseInt(match[1]);
-        const month = parseInt(match[2]);
-        let year = match[3] ? parseInt(match[3]) : new Date().getFullYear();
-        const hours = match[4].padStart(2, '0');
-        const minutes = match[5].padStart(2, '0');
+        // Try to extract DATE
+        // Format 1: DD/MM/YYYY or DD/MM or (DD/MM) or (DD/MM/YYYY)
+        const dateMatch = horario.match(/\(?(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\)?/);
 
-        // Ensure 4-digit year
-        if (year < 100) {
-            year = 2000 + year;
+        if (dateMatch) {
+            day = parseInt(dateMatch[1]);
+            month = parseInt(dateMatch[2]);
+            if (dateMatch[3]) {
+                year = parseInt(dateMatch[3]);
+                if (year < 100) year = 2000 + year;
+            }
         }
 
-        // Validate the date parts
+        // Format 2: Day names (segunda, terça, etc.)
+        if (!day) {
+            const dayMap: Record<string, number> = {
+                'domingo': 0, 'segunda': 1, 'terça': 2, 'terca': 2,
+                'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6, 'sabado': 6
+            };
+
+            const horarioLower = horario.toLowerCase();
+
+            for (const [dayName, dayIndex] of Object.entries(dayMap)) {
+                if (horarioLower.includes(dayName)) {
+                    const currentDay = now.getDay();
+                    let daysToAdd = dayIndex - currentDay;
+                    if (daysToAdd <= 0) daysToAdd += 7; // If today or past, go to next week
+
+                    const targetDate = new Date(now);
+                    targetDate.setDate(now.getDate() + daysToAdd);
+
+                    day = targetDate.getDate();
+                    month = targetDate.getMonth() + 1;
+                    year = targetDate.getFullYear();
+
+                    console.log(`[Scheduling Tools] 📅 Converted day name "${dayName}" to date:`, { day, month, year });
+                    break;
+                }
+            }
+
+            // Check for relative dates: amanhã, hoje, depois de amanhã
+            if (!day) {
+                if (horarioLower.includes('depois') && (horarioLower.includes('amanhã') || horarioLower.includes('amanha'))) {
+                    const targetDate = new Date(now);
+                    targetDate.setDate(now.getDate() + 2);
+                    day = targetDate.getDate();
+                    month = targetDate.getMonth() + 1;
+                    year = targetDate.getFullYear();
+                } else if (horarioLower.includes('amanhã') || horarioLower.includes('amanha')) {
+                    const targetDate = new Date(now);
+                    targetDate.setDate(now.getDate() + 1);
+                    day = targetDate.getDate();
+                    month = targetDate.getMonth() + 1;
+                    year = targetDate.getFullYear();
+                } else if (horarioLower.includes('hoje')) {
+                    day = now.getDate();
+                    month = now.getMonth() + 1;
+                    year = now.getFullYear();
+                }
+            }
+        }
+
+        if (!day || !month) {
+            console.log('[Scheduling Tools] ❌ parseHorarioEscolhido: No date found');
+            return null;
+        }
+
+        // Validate date parts
         if (day < 1 || day > 31 || month < 1 || month > 12) {
             console.log('[Scheduling Tools] ❌ parseHorarioEscolhido: Invalid date values');
             return null;
         }
 
-        // Check if date is in the past, if so use next year
-        const now = new Date();
+        // Check if date is in the past, if so use next year (only for DD/MM format without year)
         const parsedDate = new Date(year, month - 1, day);
         const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
