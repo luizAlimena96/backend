@@ -160,14 +160,24 @@ export class ContractToolsService {
                 };
             });
 
-            // Construct payload
+            // Construct payload - ZapSign API format for /models/create-doc/
+            const signerName = lead.name || extractedData.nome || extractedData.nome_cliente || extractedData.nome_completo || extractedData.dados_cliente?.nome || 'Cliente';
+
+            // Format phone number (remove country code prefix if present)
+            let signerPhone = lead.phone || '';
+            if (signerPhone.startsWith('+55')) {
+                signerPhone = signerPhone.substring(3);
+            } else if (signerPhone.startsWith('55') && signerPhone.length > 11) {
+                signerPhone = signerPhone.substring(2);
+            }
+
             const payload = {
-                signers: [{
-                    name: lead.name || extractedData.nome || extractedData.dados_cliente?.nome || 'Cliente',
-                    email: lead.email || extractedData.email || extractedData.dados_cliente?.email || '',
-                    send_automatic_email: false,
-                    send_automatic_whatsapp: false
-                }],
+                signer_name: signerName,
+                signer_phone_number: signerPhone,
+                send_automatic_email: false,
+                send_automatic_whatsapp: false,
+                lang: 'pt-br',
+                external_id: lead.id,
                 data: customData.map(d => ({
                     de: d.variable,
                     para: d.value
@@ -292,33 +302,49 @@ export class ContractToolsService {
             if (cleanPath === 'lead.cpf') return lead.cpf || '';
             if (cleanPath === 'lead.rg') return lead.rg || '';
 
+            // Parse dados_cliente_serializados if it's a JSON string
+            let parsedData = { ...extractedData };
+            if (typeof extractedData.dados_cliente_serializados === 'string') {
+                try {
+                    parsedData.dados_cliente_serializados = JSON.parse(extractedData.dados_cliente_serializados);
+                } catch {
+                    // Keep as string if parsing fails
+                }
+            }
+
             // Handle extractedData with full path (supports nested objects)
             if (cleanPath.startsWith('lead.extractedData.')) {
                 const fieldPath = cleanPath.split('lead.extractedData.')[1];
-                const value = this.resolveNestedValue(extractedData, fieldPath);
-                console.log(`[Contract Tools] Resolved extractedData.${fieldPath}: '${value}'`);
-                return value;
+                const value = this.resolveNestedValue(parsedData, fieldPath);
+                if (value) {
+                    console.log(`[Contract Tools] Resolved extractedData.${fieldPath}: '${value}'`);
+                    return value;
+                }
             }
 
             // Try to find the field directly in extractedData (simple field name like "cpf", "nome")
-            if (extractedData[cleanPath]) {
-                const value = extractedData[cleanPath]?.toString() || '';
+            if (parsedData[cleanPath] !== undefined && parsedData[cleanPath] !== null) {
+                const value = parsedData[cleanPath]?.toString() || '';
                 console.log(`[Contract Tools] Resolved direct field '${cleanPath}': '${value}'`);
                 return value;
             }
 
-            // Try common variations: nome_cliente -> nome, cpf -> dados_cliente.cpf
-            const variations = [
-                cleanPath,
-                `${cleanPath}_cliente`,
-                `nome_${cleanPath}`,
-                `dados_cliente.${cleanPath}`,
-            ];
+            // Field mapping: map common ZapSign template fields to extracted data fields
+            const fieldMapping: Record<string, string[]> = {
+                'nome': ['nome_cliente', 'nome_completo', 'nome', 'dados_cliente_serializados.nome_completo'],
+                'cpf': ['cpf', 'dados_cliente_serializados.cpf'],
+                'estado_civil': ['estado_civil', 'dados_cliente_serializados.estado_civil'],
+                'profissao': ['profissao', 'dados_cliente_serializados.profissao'],
+                'endereco_completo': ['endereco_completo', 'dados_cliente_serializados.endereco_completo'],
+                'nome_completo': ['nome_cliente', 'nome_completo', 'dados_cliente_serializados.nome_completo'],
+            };
 
-            for (const variation of variations) {
-                const value = this.resolveNestedValue(extractedData, variation);
+            // Try mapped fields
+            const possibleFields = fieldMapping[cleanPath] || [cleanPath, `${cleanPath}_cliente`];
+            for (const field of possibleFields) {
+                const value = this.resolveNestedValue(parsedData, field);
                 if (value) {
-                    console.log(`[Contract Tools] Resolved via variation '${variation}': '${value}'`);
+                    console.log(`[Contract Tools] Resolved via mapping '${field}': '${value}'`);
                     return value;
                 }
             }
