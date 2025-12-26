@@ -278,23 +278,55 @@ export class ContractToolsService {
     private resolveFieldValue(path: string, lead: any, extractedData: Record<string, any>): string {
         try {
             const cleanPath = path.replace(/{{|}}/g, '').trim();
+            console.log(`[Contract Tools] Resolving field: '${path}' -> cleanPath: '${cleanPath}'`);
 
             // Handle specific lead fields
-            if (cleanPath === 'currentDate') return new Date().toLocaleDateString('pt-BR');
+            if (cleanPath === 'currentDate') {
+                const value = new Date().toLocaleDateString('pt-BR');
+                console.log(`[Contract Tools] Resolved currentDate: ${value}`);
+                return value;
+            }
             if (cleanPath === 'lead.name') return lead.name || '';
             if (cleanPath === 'lead.email') return lead.email || '';
             if (cleanPath === 'lead.phone') return lead.phone || '';
             if (cleanPath === 'lead.cpf') return lead.cpf || '';
             if (cleanPath === 'lead.rg') return lead.rg || '';
 
-            // Handle extractedData (supports nested objects)
+            // Handle extractedData with full path (supports nested objects)
             if (cleanPath.startsWith('lead.extractedData.')) {
                 const fieldPath = cleanPath.split('lead.extractedData.')[1];
-                return this.resolveNestedValue(extractedData, fieldPath);
+                const value = this.resolveNestedValue(extractedData, fieldPath);
+                console.log(`[Contract Tools] Resolved extractedData.${fieldPath}: '${value}'`);
+                return value;
             }
 
+            // Try to find the field directly in extractedData (simple field name like "cpf", "nome")
+            if (extractedData[cleanPath]) {
+                const value = extractedData[cleanPath]?.toString() || '';
+                console.log(`[Contract Tools] Resolved direct field '${cleanPath}': '${value}'`);
+                return value;
+            }
+
+            // Try common variations: nome_cliente -> nome, cpf -> dados_cliente.cpf
+            const variations = [
+                cleanPath,
+                `${cleanPath}_cliente`,
+                `nome_${cleanPath}`,
+                `dados_cliente.${cleanPath}`,
+            ];
+
+            for (const variation of variations) {
+                const value = this.resolveNestedValue(extractedData, variation);
+                if (value) {
+                    console.log(`[Contract Tools] Resolved via variation '${variation}': '${value}'`);
+                    return value;
+                }
+            }
+
+            console.log(`[Contract Tools] Could not resolve field '${path}', extractedData keys:`, Object.keys(extractedData));
             return '';
-        } catch {
+        } catch (error) {
+            console.error(`[Contract Tools] Error resolving field '${path}':`, error);
             return '';
         }
     }

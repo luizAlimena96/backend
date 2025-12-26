@@ -8,9 +8,12 @@ export class ZapSignService {
 
     async createDocument(apiToken: string, templateId: string, data: any): Promise<any> {
         try {
+            console.log(`[ZapSign] Creating document from template: ${templateId}`);
+            console.log(`[ZapSign] Request data:`, JSON.stringify(data, null, 2));
+
             const response = await firstValueFrom(
                 this.httpService.post(
-                    'https://api.zapsign.com.br/api/v1/documents/',
+                    'https://api.zapsign.com.br/api/v1/models/create-doc/',
                     {
                         template_id: templateId,
                         ...data,
@@ -24,10 +27,17 @@ export class ZapSignService {
                 )
             );
 
+            console.log(`[ZapSign] Document created successfully:`, response.data);
             return response.data;
-        } catch (error) {
-            console.error('ZapSign create document error:', error);
-            throw new Error('Failed to create ZapSign document');
+        } catch (error: any) {
+            console.error('[ZapSign] Create document error:', {
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data,
+                url: error.config?.url,
+                templateId: templateId
+            });
+            throw new Error(`Failed to create ZapSign document: ${error.response?.status} - ${JSON.stringify(error.response?.data)}`);
         }
     }
 
