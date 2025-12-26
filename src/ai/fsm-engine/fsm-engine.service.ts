@@ -351,6 +351,31 @@ export class FSMEngineService {
                     extractedFields: extractionResult.metadata.extractedFields,
                 });
 
+                // Save the extracted data to the lead (extractionResult.data contains merged + newly extracted data)
+                if (input.leadId && extractionResult.success && extractionResult.metadata.extractedFields.length > 0) {
+                    try {
+                        updatedExtractedData = {
+                            ...updatedExtractedData,
+                            ...extractionResult.data,
+                        };
+
+                        await this.prisma.lead.update({
+                            where: { id: input.leadId },
+                            data: {
+                                extractedData: updatedExtractedData,
+                            },
+                        });
+                        console.log('[FSM Engine] Saved extractionResult data to lead', {
+                            savedFields: extractionResult.metadata.extractedFields,
+                        });
+
+                        // Update input.extractedData for subsequent operations
+                        input.extractedData = updatedExtractedData;
+                    } catch (saveError: any) {
+                        console.error('[FSM Engine] Failed to save extractionResult to lead:', saveError.message);
+                    }
+                }
+
                 // ==================== IA 2: STATE DECIDER ====================
                 const decisionStart = Date.now();
 
