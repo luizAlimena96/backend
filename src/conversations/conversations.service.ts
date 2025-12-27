@@ -1,6 +1,7 @@
 ﻿import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
 import { CrmAutomationsService } from "../crm-automations/crm-automations.service";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -8,6 +9,7 @@ export class ConversationsService {
   constructor(
     private prisma: PrismaService,
     private crmEngine: CrmAutomationsService,
+    private eventEmitter: EventEmitter2,
   ) { }
 
   async findAll(organizationId: string) {
@@ -130,6 +132,21 @@ export class ConversationsService {
         }
       }
     }
+
+    // Emit new message event
+    this.eventEmitter.emit('conversation.message', {
+      conversationId,
+      message: {
+        id: message.id,
+        content: message.content,
+        time: message.timestamp,
+        sent: message.fromMe,
+        read: true,
+        role: message.fromMe ? 'assistant' : 'user',
+        type: message.type,
+        mediaUrl: message.mediaUrl
+      }
+    });
 
     return message;
   }

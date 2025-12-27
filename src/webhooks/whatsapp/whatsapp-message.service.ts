@@ -11,6 +11,7 @@ import { ElevenLabsService } from '../../integrations/elevenlabs/elevenlabs.serv
 import { MediaProcessorService } from '../../common/services/media-processor.service';
 import { CrmAutomationsService } from '../../crm-automations/crm-automations.service';
 import { SchedulingService } from '../../common/services/scheduling.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { firstValueFrom } from 'rxjs';
 import * as crypto from 'crypto';
 
@@ -29,6 +30,7 @@ export class WhatsAppMessageService {
         private mediaProcessor: MediaProcessorService,
         private crmEngine: CrmAutomationsService,
         private schedulingService: SchedulingService,
+        private eventEmitter: EventEmitter2,
     ) { }
 
     async processIncomingMessage(webhookData: any): Promise<void> {
@@ -327,7 +329,7 @@ export class WhatsAppMessageService {
             }
 
             // 4. Save user message
-            await this.prisma.message.create({
+            const userMessage = await this.prisma.message.create({
                 data: {
                     conversationId: conversation.id,
                     content: messageContent,
@@ -335,6 +337,21 @@ export class WhatsAppMessageService {
                     type: 'TEXT',
                     messageId: data.key.id,
                 },
+            });
+
+            // Emit incoming message event
+            this.eventEmitter.emit('conversation.message', {
+                conversationId: conversation.id,
+                message: {
+                    id: userMessage.id,
+                    content: userMessage.content,
+                    time: userMessage.timestamp,
+                    sent: false,
+                    read: true,
+                    role: 'user',
+                    type: 'TEXT',
+                    messageId: data.key.id
+                }
             });
 
             // Trigger MESSAGE_RECEIVED Automation
@@ -591,7 +608,7 @@ export class WhatsAppMessageService {
                             await this.whatsappService.sendAudio(instanceName, phone, audioBase64);
 
                             // Save audio message to database
-                            await this.prisma.message.create({
+                            const audioMsg = await this.prisma.message.create({
                                 data: {
                                     conversationId: conversation.id,
                                     content: trimmedPart,
@@ -600,6 +617,25 @@ export class WhatsAppMessageService {
                                     messageId: crypto.randomUUID(),
                                     thought: fsmDecision.reasoning.join('\n'),
                                 },
+                            });
+
+                            // Emit AI audio message event
+                            this.eventEmitter.emit('conversation.message', {
+                                conversationId: conversation.id,
+                                message: {
+                                    id: audioMsg.id, // We need to capture the created message
+                                    content: trimmedPart,
+                                    time: audioMsg.timestamp,
+                                    sent: true,
+                                    read: true,
+                                    role: 'assistant',
+                                    type: 'TEXT', // Stored as text even if audio? 
+                                    // Actually DB stores type TEXT for AI? 
+                                    // User code says type: 'TEXT'.
+                                    // But frontend might want to know if it's audio?
+                                    // The code sends audio via WA but saves as TEXT in DB?
+                                    // Yes: type: 'TEXT', messageId: ...
+                                }
                             });
 
                             console.log('[WhatsApp] Sent audio response via ElevenLabs');
@@ -621,7 +657,7 @@ export class WhatsAppMessageService {
                         }
                     } else {
                         // Send ONLY text
-                        await this.prisma.message.create({
+                        const textMsg = await this.prisma.message.create({
                             data: {
                                 conversationId: conversation.id,
                                 content: trimmedPart,
@@ -630,6 +666,20 @@ export class WhatsAppMessageService {
                                 messageId: crypto.randomUUID(),
                                 thought: fsmDecision.reasoning.join('\n'),
                             },
+                        });
+
+                        // Emit AI text message event
+                        this.eventEmitter.emit('conversation.message', {
+                            conversationId: conversation.id,
+                            message: {
+                                id: textMsg.id,
+                                content: trimmedPart,
+                                time: textMsg.timestamp,
+                                sent: true,
+                                read: true,
+                                role: 'assistant',
+                                type: 'TEXT'
+                            }
                         });
 
                         await this.whatsappService.sendMessage(instanceName, phone, trimmedPart);

@@ -17,6 +17,11 @@ export class StatesController {
     return this.statesService.create(data);
   }
 
+  @Post("reorder")
+  async reorder(@Body() data: { agentId: string; items: { id: string; order: number }[] }) {
+    return this.statesService.reorder(data.agentId, data.items);
+  }
+
   @Put(":id")
   async update(@Param("id") id: string, @Body() data: any) {
     return this.statesService.update(id, data);

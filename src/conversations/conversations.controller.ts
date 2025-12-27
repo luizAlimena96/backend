@@ -1,11 +1,17 @@
-﻿import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from "@nestjs/common";
+﻿import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards, Sse, MessageEvent } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
+import { Observable, fromEvent } from "rxjs";
+import { map, filter } from "rxjs/operators";
 import { ConversationsService } from "./conversations.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 
 @Controller("conversations")
 @UseGuards(JwtAuthGuard)
 export class ConversationsController {
-  constructor(private conversationsService: ConversationsService) { }
+  constructor(
+    private conversationsService: ConversationsService,
+    private eventEmitter: EventEmitter2
+  ) { }
 
   @Get()
   async findAll(@Query("organizationId") organizationId: string) {
@@ -30,6 +36,20 @@ export class ConversationsController {
   @Patch(":id/ai-toggle")
   async toggleAI(@Param("id") id: string, @Body("enabled") enabled: boolean) {
     return this.conversationsService.toggleAI(id, enabled);
+  }
+
+  @Sse(':id/stream')
+  sse(@Param('id') id: string): Observable<MessageEvent> {
+    return fromEvent(this.eventEmitter, 'conversation.message').pipe(
+      filter((payload: any) => payload.conversationId === id),
+      map((payload: any) => ({
+        data: {
+          type: 'new-message',
+          message: payload.message,
+          conversationId: id
+        }
+      } as MessageEvent))
+    );
   }
 
   // Messages

@@ -277,6 +277,69 @@ export class OrganizationsController {
     }
 
     // ============================================
+    // CRM SYNC CONFIG (Calendar/Webhooks)
+    // ============================================
+
+    @Get(':id/crm-sync')
+    async getCrmSyncConfig(@Param('id') id: string, @Request() req) {
+        const { role, organizationId } = req.user;
+
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new ForbiddenException('Sem permissão para ver configuração CRM desta organização');
+        }
+
+        return this.organizationsService.getCrmSyncConfig(id);
+    }
+
+    @Post(':id/crm-sync')
+    async saveCrmSyncConfig(
+        @Param('id') id: string,
+        @Body() data: any,
+        @Request() req
+    ) {
+        const { role, organizationId } = req.user;
+
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new ForbiddenException('Sem permissão para configurar CRM desta organização');
+        }
+
+        return this.organizationsService.updateCrmSyncConfig(id, data);
+    }
+
+    @Post(':id/crm-sync/test')
+    async testCrmSyncConfig(
+        @Param('id') id: string,
+        @Body() data: { apiUrl: string; apiKey?: string },
+        @Request() req
+    ) {
+        const { role, organizationId } = req.user;
+
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new ForbiddenException('Sem permissão para testar CRM desta organização');
+        }
+
+        return this.organizationsService.testCrmSyncConnection(data.apiUrl, data.apiKey);
+    }
+
+    @Delete(':id/crm-sync')
+    async deleteCrmSyncConfig(@Param('id') id: string, @Request() req) {
+        const { role, organizationId } = req.user;
+
+        if (!this.organizationsService.canAccessOrganization(role, organizationId, id)) {
+            throw new ForbiddenException('Sem permissão para configurar CRM desta organização');
+        }
+
+        return this.organizationsService.updateCrmSyncConfig(id, {
+            crmCalendarSyncEnabled: false,
+            crmCalendarApiUrl: null,
+            crmCalendarApiKey: null,
+            crmCalendarType: null,
+            appointmentWebhookUrl: null,
+            appointmentWebhookEnabled: false
+        });
+    }
+
+    // ============================================
     // USER MANAGEMENT (Organization Level)
     // ============================================
 

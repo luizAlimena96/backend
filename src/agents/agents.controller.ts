@@ -1,4 +1,4 @@
-﻿import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, Request, Inject } from "@nestjs/common";
+﻿import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, Request, Inject, ConflictException } from "@nestjs/common";
 import { AgentsService } from "./agents.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { PrismaService } from "../database/prisma.service";
@@ -122,16 +122,26 @@ export class AgentsController {
     @Request() req
   ) {
     const agent = await this.agentsService.findOne(id);
-    return this.prisma.cRMStage.create({
-      data: {
-        name: data.name,
-        description: data.description,
-        color: data.color,
-        order: data.order,
-        agentId: id,
-        organizationId: agent.organizationId,
-      },
-    });
+    try {
+      return await this.prisma.cRMStage.create({
+        data: {
+          name: data.name,
+          description: data.description,
+          color: data.color,
+          order: data.order,
+          agentId: id,
+          organizationId: agent.organizationId,
+          states: data.stateIds && data.stateIds.length > 0 ? {
+            connect: data.stateIds.map((id) => ({ id })),
+          } : undefined,
+        },
+      });
+    } catch (error) {
+      if ((error as any).code === 'P2002') {
+        throw new ConflictException('Já existe uma etapa com este nome.');
+      }
+      throw error;
+    }
   }
 
   @Put(":agentId/crm-stages/:stageId")

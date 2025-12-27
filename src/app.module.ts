@@ -38,8 +38,11 @@ import { CalendarModule } from './calendar/calendar.module';
 import { HealthModule } from './health/health.module';
 import { GoogleModule } from './google/google.module';
 
+import { EventEmitterModule } from '@nestjs/event-emitter';
+
 @Module({
   imports: [
+    EventEmitterModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ".env",

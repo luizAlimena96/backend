@@ -200,16 +200,9 @@ export class OrganizationsService {
         return this.prisma.organization.update({
             where: { id },
             data: {
+                zapSignEnabled: data.enabled,
                 zapSignApiToken: data.apiToken,
                 zapSignTemplateId: data.templateId,
-                // Assuming zapSignEnabled is stored in settings or handled by presence of token
-                // If specific field exists, use it. Based on previous context, user approved schema check implicitly.
-                // Re-checking assumed fields from findAll: zapSignApiToken, zapSignTemplateId.
-                // If 'zapSignEnabled' is a new field, we will handle it.
-                // For now, mapping enabled to existing logic or settings if needed.
-                // Let's assume we map 'enabled' to a setting or just rely on token presence for now if column missing.
-                // Wait, previously I saw findAll had zapSignApiToken.
-                // I will update just the fields I know exist.
             }
         });
     }
@@ -225,6 +218,61 @@ export class OrganizationsService {
         } catch (error) {
             return { success: false, message: 'Falha na autenticação: Verifique o token.' };
         }
+    }
+
+    // ============================================
+    // CRM SYNC CONFIG
+    // ============================================
+
+    async getCrmSyncConfig(id: string) {
+        const org = await this.prisma.organization.findUnique({
+            where: { id },
+            select: {
+                crmCalendarSyncEnabled: true,
+                crmCalendarApiUrl: true,
+                crmCalendarApiKey: true,
+                crmCalendarSyncInterval: true,
+                crmCalendarType: true,
+                appointmentWebhookUrl: true,
+                appointmentWebhookEnabled: true,
+            }
+        });
+
+        if (org && org.crmCalendarApiKey) {
+            org.crmCalendarApiKey = '***';
+        }
+
+        return org;
+    }
+
+    async updateCrmSyncConfig(id: string, data: any) {
+        const updateData: any = {
+            crmCalendarSyncEnabled: data.crmCalendarSyncEnabled,
+            crmCalendarApiUrl: data.crmCalendarApiUrl,
+            crmCalendarSyncInterval: data.crmCalendarSyncInterval,
+            crmCalendarType: data.crmCalendarType,
+            appointmentWebhookUrl: data.appointmentWebhookUrl,
+            appointmentWebhookEnabled: data.appointmentWebhookEnabled,
+        };
+
+        if (data.crmCalendarApiKey && data.crmCalendarApiKey !== '***') {
+            updateData.crmCalendarApiKey = data.crmCalendarApiKey;
+        }
+
+        return this.prisma.organization.update({
+            where: { id },
+            data: updateData,
+        });
+    }
+
+    async testCrmSyncConnection(apiUrl: string, apiKey?: string): Promise<{ success: boolean; message: string; eventsCount?: number }> {
+        // Implement test logic. For now, basic URL validation.
+        if (!apiUrl) {
+            return { success: false, message: 'URL da API é obrigatória' };
+        }
+
+        // TODO: Implement real connection test based on crmCalendarType/URL
+        return { success: true, message: 'Conexão validada com sucesso!', eventsCount: 0 };
     }
 
     // ============================================

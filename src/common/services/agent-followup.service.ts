@@ -208,6 +208,7 @@ export class AgentFollowupService {
                 where: { id: conversationId },
                 include: {
                     agent: true,
+                    lead: true,
                 },
             });
 
@@ -223,7 +224,12 @@ export class AgentFollowupService {
             const recipient = conversation.whatsapp;
 
             // Determine message to send
-            const messageToSend = customMessage || followup.message;
+            let messageToSend = customMessage || followup.message;
+
+            // Perform variable substitution
+            if (conversation.lead) {
+                messageToSend = this.performSubstitution(messageToSend, conversation.lead);
+            }
 
             // Send followup message
             if (followup.mediaType === 'text' || !followup.mediaType) {
@@ -380,5 +386,31 @@ Gere uma mensagem curta e direta para retomar a conversa.`;
             lastSentAt: logs[0]?.sentAt || null,
             followupRules,
         };
+    }
+
+    private performSubstitution(text: string, lead: any): string {
+        if (!text) return text;
+        let processed = text;
+
+        // Ensure extractedData is an object
+        const extractedData = typeof lead.extractedData === 'string'
+            ? JSON.parse(lead.extractedData)
+            : (lead.extractedData || {});
+
+        // 1. Replace {{extractedData.KEY}}
+        processed = processed.replace(/{{extractedData\.([a-zA-Z0-9_]+)}}/g, (match, key) => {
+            return extractedData[key] !== undefined ? String(extractedData[key]) : '';
+        });
+
+        // 2. Replace {{lead.KEY}}
+        processed = processed.replace(/{{lead\.([a-zA-Z0-9_]+)}}/g, (match, key) => {
+            return lead[key] !== undefined ? String(lead[key]) : '';
+        });
+
+        // 3. Shortcuts
+        processed = processed.replace(/{{name}}/g, lead.name || '');
+        processed = processed.replace(/{{phone}}/g, lead.phone || '');
+
+        return processed;
     }
 }

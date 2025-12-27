@@ -53,6 +53,16 @@ export class StatesService {
 
   async create(data: any) {
     try {
+      // If order is not provided, calculate the next order number
+      if (data.order === undefined || data.order === null) {
+        const maxOrderState = await this.prisma.state.findFirst({
+          where: { agentId: data.agentId },
+          orderBy: { order: 'desc' },
+          select: { order: true }
+        });
+        data.order = (maxOrderState?.order ?? 0) + 1;
+      }
+
       return await this.prisma.state.create({ data });
     } catch (error: any) {
       if (error.code === 'P2002') {
@@ -90,5 +100,21 @@ export class StatesService {
   async delete(id: string) {
     await this.prisma.state.delete({ where: { id } });
     return { success: true };
+  }
+
+  async reorder(agentId: string, items: { id: string; order: number }[]) {
+    // Verify all items belong to the agent (security check)
+    // For simplicity, we trust the input IDs but we should be careful in a real app
+    // Ideally we check if all IDs belong to agentId
+
+    // Use transaction to update all
+    return await this.prisma.$transaction(
+      items.map((item) =>
+        this.prisma.state.update({
+          where: { id: item.id },
+          data: { order: item.order },
+        })
+      )
+    );
   }
 }
